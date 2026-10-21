@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.MonthlyBudget
 import java.text.NumberFormat
+import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -49,7 +50,7 @@ fun BudgetScreen(
     monthLabel: String,
     budgets: List<MonthlyBudget>,
     spendingByCategory: Map<String, Long>,
-    onSaveBudget: (category: String, limitMinor: Long) -> Unit,
+    onSaveBudget: (category: String, limitMinor: Long, budgetType: String) -> Unit,
     onDeleteBudget: (budgetId: Long) -> Unit,
     onBackToHome: () -> Unit
 ) {
@@ -57,6 +58,8 @@ fun BudgetScreen(
     var amount by remember { mutableStateOf("") }
     var validation by remember { mutableStateOf<String?>(null) }
     var editingBudgetId by remember { mutableStateOf<Long?>(null) }
+    var budgetType by remember { mutableStateOf(MonthlyBudget.ONE_TIME) }
+    val daysInMonth = remember { Calendar.getInstance().getActualMaximum(Calendar.DAY_OF_MONTH) }
     val totalLimit = budgets.sumOf { it.limitMinor }
     val totalSpent = budgets.sumOf { spendingByCategory[it.category] ?: 0L }
     val totalRemaining = totalLimit - totalSpent
@@ -99,7 +102,30 @@ fun BudgetScreen(
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Create a category budget", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(value = category, onValueChange = { category = it; validation = null }, modifier = Modifier.fillMaxWidth(), label = { Text("Category (e.g. Food)") }, singleLine = true, readOnly = editingBudgetId != null)
-                    OutlinedTextField(value = amount, onValueChange = { amount = it; validation = null }, modifier = Modifier.fillMaxWidth(), label = { Text("Monthly limit (KSh)") }, singleLine = true)
+                    Text("Budget style", style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = { budgetType = MonthlyBudget.ONE_TIME; validation = null }
+                        ) { Text(if (budgetType == MonthlyBudget.ONE_TIME) "✓ One-time" else "One-time") }
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = { budgetType = MonthlyBudget.DAILY_ALLOWANCE; validation = null }
+                        ) { Text(if (budgetType == MonthlyBudget.DAILY_ALLOWANCE) "✓ Daily allowance" else "Daily allowance") }
+                    }
+                    OutlinedTextField(value = amount, onValueChange = { amount = it; validation = null }, modifier = Modifier.fillMaxWidth(), label = { Text("Total monthly allocation (KSh)") }, singleLine = true)
+                    if (budgetType == MonthlyBudget.DAILY_ALLOWANCE) {
+                        val parsedAllocation = amount.trim().replace(",", "").toBigDecimalOrNull()
+                        val dailyMinor = try { parsedAllocation?.movePointRight(2)?.divide(java.math.BigDecimal(daysInMonth), 0, java.math.RoundingMode.DOWN)?.longValueExact() } catch (_: Exception) { null }
+                        Text(
+                            if (dailyMinor != null && dailyMinor > 0L) "Daily allowance: ${formatKes(dailyMinor)} per day ($daysInMonth days). Unused allowance does not roll over."
+                            else "Daily allowance is calculated from the total allocation divided by $daysInMonth days.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text("Track spending against the full allocation for the month.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     validation?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     Button(onClick = {
                         val parsed = amount.trim().replace(",", "").toBigDecimalOrNull()
@@ -108,7 +134,7 @@ fun BudgetScreen(
                             category.isBlank() -> validation = "Enter a category."
                             budgets.any { it.id != editingBudgetId && it.category.equals(category.trim(), ignoreCase = true) } -> validation = "A budget for this category already exists this month."
                             minor == null || minor <= 0L -> validation = "Enter a valid amount greater than zero."
-                            else -> { onSaveBudget(category.trim(), minor); category = ""; amount = ""; editingBudgetId = null; validation = null }
+                            else -> { onSaveBudget(category.trim(), minor, budgetType); category = ""; amount = ""; editingBudgetId = null; budgetType = MonthlyBudget.ONE_TIME; validation = null }
                         }
                     }, modifier = Modifier.fillMaxWidth()) { Text(if (editingBudgetId == null) "Save budget" else "Update budget") }
                 }
@@ -136,6 +162,16 @@ fun BudgetScreen(
                             Text("${(spent.toDouble() / budget.limitMinor * 100).roundToInt()}%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                         Text("${formatKes(spent)} spent of ${formatKes(budget.limitMinor)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE) {
+                            val dailyAllowanceMinor = budget.limitMinor / daysInMonth
+                            Text(
+                                "Daily guide: ${formatKes(dailyAllowanceMinor)} · ${daysInMonth} days this month",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text("One-time monthly allocation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = if (spent > budget.limitMinor) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(if (remaining >= 0) "${formatKes(remaining)} remaining" else "${formatKes(-remaining)} over limit", style = MaterialTheme.typography.bodySmall, color = if (remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -144,6 +180,7 @@ fun BudgetScreen(
                                     editingBudgetId = budget.id
                                     category = budget.category
                                     amount = (budget.limitMinor / 100.0).toString()
+                                    budgetType = budget.budgetType
                                     validation = null
                                 }) { Text("Edit limit") }
                                 OutlinedButton(onClick = {
@@ -151,6 +188,7 @@ fun BudgetScreen(
                                         editingBudgetId = null
                                         category = ""
                                         amount = ""
+                                        budgetType = MonthlyBudget.ONE_TIME
                                     }
                                     onDeleteBudget(budget.id)
                                 }) { Text("Delete") }
