@@ -85,7 +85,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun saveBudget(category: String, limitMinor: Long) {
+    fun saveBudget(category: String, limitMinor: Long, budgetType: String) {
         if (category.isBlank() || limitMinor <= 0L) return
         viewModelScope.launch {
             try {
@@ -93,6 +93,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                     MonthlyBudget(
                         monthKey = monthKey,
                         category = category.trim(),
+                        budgetType = budgetType,
                         limitMinor = limitMinor
                     )
                 )
