@@ -64,6 +64,7 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
+import com.inventsolutions.trackit.ui.screens.budgets.BudgetScreen
 import com.inventsolutions.trackit.ui.screens.transactions.TransactionEntryScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
@@ -158,7 +159,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                 modifier = Modifier.clip(RoundedCornerShape(14.dp))
                                     .clickable {
                                         selectedTab = tab
-                                        if (tab != "Home") {
+                                        if (tab == "Activity" || tab == "More") {
                                             noticeMessage = "${tab} screen is coming next."
                                             notice = true
                                         }
@@ -217,6 +218,18 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             }
                         }
                     }
+                )
+            } else if (selectedTab == "Budgets") {
+                BudgetScreen(
+                    monthLabel = monthLabel,
+                    budgets = uiState.budgets,
+                    spendingByCategory = monthTransactions
+                        .filter { it.type == MoneyTransaction.EXPENSE }
+                        .groupBy { it.category.lowercase(Locale.getDefault()) }
+                        .mapValues { (_, items) -> items.sumOf { it.amountMinor } },
+                    onSaveBudget = viewModel::saveBudget,
+                    onDeleteBudget = viewModel::deleteBudget,
+                    onBackToHome = { selectedTab = "Home" }
                 )
             } else {
                 LazyColumn(
