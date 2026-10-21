@@ -5,9 +5,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val LightColorScheme = lightColorScheme(
-    primary = TrackItEmerald,
+    // Use the deeper brand green for readable white-on-green controls.
+    primary = TrackItEmeraldDark,
     onPrimary = TrackItSurfaceLight,
     primaryContainer = TrackItEmeraldTint,
     onPrimaryContainer = TrackItNavy,
@@ -46,7 +48,7 @@ private val DarkColorScheme = darkColorScheme(
     onTertiary = TrackItNavy,
     tertiaryContainer = TrackItNavySurface,
     onTertiaryContainer = TrackItAmberTint,
-    error = ColorExpenseDark,
+    error = Color(0xFFFF8A8A),
     onError = TrackItNavy,
     errorContainer = TrackItExpenseTintDark,
     onErrorContainer = TrackItTextDark,
@@ -59,8 +61,6 @@ private val DarkColorScheme = darkColorScheme(
     outline = TrackItOutlineDark,
     outlineVariant = TrackItNavySurface
 )
-
-private val ColorExpenseDark = androidx.compose.ui.graphics.Color(0xFFFF8A8A)
 
 @Composable
 fun TrackItTheme(
