@@ -56,6 +56,7 @@ fun BudgetScreen(
     var category by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var validation by remember { mutableStateOf<String?>(null) }
+    var editingBudgetId by remember { mutableStateOf<Long?>(null) }
     val totalLimit = budgets.sumOf { it.limitMinor }
     val totalSpent = budgets.sumOf { spendingByCategory[it.category] ?: 0L }
     val totalRemaining = totalLimit - totalSpent
@@ -97,7 +98,7 @@ fun BudgetScreen(
             Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Create a category budget", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(value = category, onValueChange = { category = it; validation = null }, modifier = Modifier.fillMaxWidth(), label = { Text("Category (e.g. Food)") }, singleLine = true)
+                    OutlinedTextField(value = category, onValueChange = { category = it; validation = null }, modifier = Modifier.fillMaxWidth(), label = { Text("Category (e.g. Food)") }, singleLine = true, readOnly = editingBudgetId != null)
                     OutlinedTextField(value = amount, onValueChange = { amount = it; validation = null }, modifier = Modifier.fillMaxWidth(), label = { Text("Monthly limit (KSh)") }, singleLine = true)
                     validation?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     Button(onClick = {
@@ -105,11 +106,11 @@ fun BudgetScreen(
                         val minor = try { parsed?.movePointRight(2)?.setScale(0, java.math.RoundingMode.HALF_UP)?.longValueExact() } catch (_: Exception) { null }
                         when {
                             category.isBlank() -> validation = "Enter a category."
-                            budgets.any { it.category.equals(category.trim(), ignoreCase = true) } -> validation = "A budget for this category already exists this month."
+                            budgets.any { it.id != editingBudgetId && it.category.equals(category.trim(), ignoreCase = true) } -> validation = "A budget for this category already exists this month."
                             minor == null || minor <= 0L -> validation = "Enter a valid amount greater than zero."
-                            else -> { onSaveBudget(category.trim(), minor); category = ""; amount = ""; validation = null }
+                            else -> { onSaveBudget(category.trim(), minor); category = ""; amount = ""; editingBudgetId = null; validation = null }
                         }
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Save budget") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text(if (editingBudgetId == null) "Save budget" else "Update budget") }
                 }
             }
         }
@@ -138,7 +139,22 @@ fun BudgetScreen(
                         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = if (spent > budget.limitMinor) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(if (remaining >= 0) "${formatKes(remaining)} remaining" else "${formatKes(-remaining)} over limit", style = MaterialTheme.typography.bodySmall, color = if (remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                            OutlinedButton(onClick = { onDeleteBudget(budget.id) }) { Text("Delete") }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedButton(onClick = {
+                                    editingBudgetId = budget.id
+                                    category = budget.category
+                                    amount = (budget.limitMinor / 100.0).toString()
+                                    validation = null
+                                }) { Text("Edit limit") }
+                                OutlinedButton(onClick = {
+                                    if (editingBudgetId == budget.id) {
+                                        editingBudgetId = null
+                                        category = ""
+                                        amount = ""
+                                    }
+                                    onDeleteBudget(budget.id)
+                                }) { Text("Delete") }
+                            }
                         }
                     }
                 }
