@@ -1,4 +1,4 @@
-package com.inventsolutions.trackit
+package com.inventsolutions.trackit.ui.screens.transactions
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.BorderStroke
@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.inventsolutions.trackit.data.MoneyTransaction
+import com.inventsolutions.trackit.data.local.MoneyTransaction
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DateFormat

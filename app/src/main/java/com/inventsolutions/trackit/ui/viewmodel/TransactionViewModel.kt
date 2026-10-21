@@ -1,11 +1,11 @@
-package com.inventsolutions.trackit
+package com.inventsolutions.trackit.ui.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.inventsolutions.trackit.data.MoneyTransaction
-import com.inventsolutions.trackit.data.TrackItDatabase
-import com.inventsolutions.trackit.data.TransactionRepository
+import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.TrackItDatabase
+import com.inventsolutions.trackit.data.repository.TransactionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

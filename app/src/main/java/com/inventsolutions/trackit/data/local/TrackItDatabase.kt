@@ -1,4 +1,4 @@
-package com.inventsolutions.trackit.data
+package com.inventsolutions.trackit.data.local
 
 import android.content.Context
 import androidx.room.Database

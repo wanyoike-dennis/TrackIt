@@ -1,5 +1,7 @@
-package com.inventsolutions.trackit.data
+package com.inventsolutions.trackit.data.repository
 
+import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.TransactionDao
 import kotlinx.coroutines.flow.Flow
 
 class TransactionRepository(
