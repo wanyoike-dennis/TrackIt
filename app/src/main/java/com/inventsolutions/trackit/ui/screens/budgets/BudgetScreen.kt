@@ -107,8 +107,8 @@ fun BudgetScreen(
                 if (monthlySpent > budget.limitMinor) {
                     add("${budget.category}: monthly limit exceeded by ${formatKes(monthlySpent - budget.limitMinor)}.")
                 }
-                if (budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE && dailySpent > dailyLimit) {
-                    add("${budget.category}: daily allowance exceeded by ${formatKes(dailySpent - dailyLimit)} today.")
+                if (budget.budgetType == MonthlyBudget.RECURRING && dailySpent > dailyLimit) {
+                    add("${budget.category}: recurring budget exceeded by ${formatKes(dailySpent - dailyLimit)} today.")
                 }
             }
         }
@@ -147,16 +147,16 @@ fun BudgetScreen(
                         ) { Text(if (budgetType == MonthlyBudget.ONE_TIME) "✓ One-time" else "One-time") }
                         OutlinedButton(
                             modifier = Modifier.weight(1f),
-                            onClick = { budgetType = MonthlyBudget.DAILY_ALLOWANCE; validation = null }
-                        ) { Text(if (budgetType == MonthlyBudget.DAILY_ALLOWANCE) "✓ Daily allowance" else "Daily allowance") }
+                            onClick = { budgetType = MonthlyBudget.RECURRING; validation = null }
+                        ) { Text(if (budgetType == MonthlyBudget.RECURRING) "✓ Recurring" else "Recurring") }
                     }
                     OutlinedTextField(value = amount, onValueChange = { amount = it; validation = null }, modifier = Modifier.fillMaxWidth(), label = { Text("Total monthly allocation (KSh)") }, singleLine = true)
-                    if (budgetType == MonthlyBudget.DAILY_ALLOWANCE) {
+                    if (budgetType == MonthlyBudget.RECURRING) {
                         val parsedAllocation = amount.trim().replace(",", "").toBigDecimalOrNull()
                         val dailyMinor = try { parsedAllocation?.movePointRight(2)?.divide(java.math.BigDecimal(daysInMonth), 0, java.math.RoundingMode.DOWN)?.longValueExact() } catch (_: Exception) { null }
                         Text(
-                            if (dailyMinor != null && dailyMinor > 0L) "Daily allowance: ${formatKes(dailyMinor)} per day ($daysInMonth days). Unused allowance does not roll over."
-                            else "Daily allowance is calculated from the total allocation divided by $daysInMonth days.",
+                            if (dailyMinor != null && dailyMinor > 0L) "Recurring budget: ${formatKes(dailyMinor)} per day ($daysInMonth days). Unused allowance does not roll over."
+                            else "Recurring budget is calculated from the total allocation divided by $daysInMonth days.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -200,10 +200,10 @@ fun BudgetScreen(
                         }
                         Text("${formatKes(spent)} spent of ${formatKes(budget.limitMinor)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         val todaySpent = spendingTodayByCategory[budget.category.lowercase(Locale.getDefault())] ?: 0L
-                        val dailyAllowanceMinor = budget.limitMinor / daysInMonth
-                        if (budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE && todaySpent > dailyAllowanceMinor) {
+                        val recurringLimitMinor = budget.limitMinor / daysInMonth
+                        if (budget.budgetType == MonthlyBudget.RECURRING && todaySpent > recurringLimitMinor) {
                             Text(
-                                "Daily allowance exceeded by ${formatKes(todaySpent - dailyAllowanceMinor)} today",
+                                "Recurring budget exceeded by ${formatKes(todaySpent - recurringLimitMinor)} today",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.error
@@ -217,10 +217,10 @@ fun BudgetScreen(
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
-                        if (budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE) {
-                            val dailyAllowanceMinor = budget.limitMinor / daysInMonth
+                        if (budget.budgetType == MonthlyBudget.RECURRING) {
+                            val recurringLimitMinor = budget.limitMinor / daysInMonth
                             Text(
-                                "Daily guide: ${formatKes(dailyAllowanceMinor)} · ${daysInMonth} days this month",
+                                "Recurring guide: ${formatKes(recurringLimitMinor)} · ${daysInMonth} days this month",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
