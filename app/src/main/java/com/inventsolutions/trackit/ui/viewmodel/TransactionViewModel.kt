@@ -8,6 +8,8 @@ import com.inventsolutions.trackit.data.local.MonthlyBudget
 import com.inventsolutions.trackit.data.local.TrackItDatabase
 import com.inventsolutions.trackit.data.repository.MonthlyBudgetRepository
 import com.inventsolutions.trackit.data.repository.TransactionRepository
+import com.inventsolutions.trackit.notifications.BudgetNotifications
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,6 +27,7 @@ data class TransactionUiState(
 )
 
 class TransactionViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application
     private val database = TrackItDatabase.getInstance(application)
     private val transactionRepository = TransactionRepository(database.transactionDao())
     private val budgetRepository = MonthlyBudgetRepository(database.monthlyBudgetDao())
@@ -65,16 +68,19 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
 
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         return try {
-            transactionRepository.add(
-                MoneyTransaction(
-                    type = type,
-                    amountMinor = amountMinor,
-                    category = category.trim(),
-                    description = description.trim(),
-                    paymentMethod = paymentMethod,
-                    dateEpochMillis = dateEpochMillis
-                )
+            val transaction = MoneyTransaction(
+                type = type,
+                amountMinor = amountMinor,
+                category = category.trim(),
+                description = description.trim(),
+                paymentMethod = paymentMethod,
+                dateEpochMillis = dateEpochMillis
             )
+            val stateBeforeSave = _uiState.value
+            transactionRepository.add(transaction)
+            if (type == MoneyTransaction.EXPENSE) {
+                notifyIfBudgetExceeded(transaction, stateBeforeSave.transactions, stateBeforeSave.budgets)
+            }
             _uiState.update { it.copy(isSaving = false, errorMessage = null) }
             true
         } catch (_: Exception) {
@@ -83,6 +89,75 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             }
             false
         }
+    }
+
+    private fun notifyIfBudgetExceeded(
+        added: MoneyTransaction,
+        previousTransactions: List<MoneyTransaction>,
+        budgets: List<MonthlyBudget>
+    ) {
+        val transactionMonth = SimpleDateFormat("yyyy-MM", Locale.US).format(Date(added.dateEpochMillis))
+        val transactionDay = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(added.dateEpochMillis))
+        val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        if (transactionMonth != monthKey) return
+
+        val daysInMonth = java.util.Calendar.getInstance().apply {
+            timeInMillis = added.dateEpochMillis
+        }.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+
+        budgets.forEach { budget ->
+            if (!budget.category.equals(added.category, ignoreCase = true)) return@forEach
+
+            val previousMonthSpend = previousTransactions
+                .filter {
+                    it.type == MoneyTransaction.EXPENSE &&
+                        it.category.equals(budget.category, ignoreCase = true) &&
+                        SimpleDateFormat("yyyy-MM", Locale.US).format(Date(it.dateEpochMillis)) == transactionMonth
+                }
+                .sumOf { it.amountMinor }
+            val currentMonthSpend = previousMonthSpend + added.amountMinor
+
+            if (previousMonthSpend <= budget.limitMinor && currentMonthSpend > budget.limitMinor) {
+                BudgetNotifications.show(
+                    app,
+                    "Monthly budget exceeded",
+                    "${budget.category}: you've gone ${formatKes(currentMonthSpend - budget.limitMinor)} over your monthly limit.",
+                    notificationId(budget.id, "monthly")
+                )
+            }
+
+            if (budget.budgetType == MonthlyBudget.RECURRING && transactionDay == todayKey) {
+                val previousTodaySpend = previousTransactions
+                    .filter {
+                        it.type == MoneyTransaction.EXPENSE &&
+                            it.category.equals(budget.category, ignoreCase = true) &&
+                            SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it.dateEpochMillis)) == todayKey
+                    }
+                    .sumOf { it.amountMinor }
+                val dailyLimit = budget.limitMinor / daysInMonth
+                val currentTodaySpend = previousTodaySpend + added.amountMinor
+
+                if (previousTodaySpend <= dailyLimit && currentTodaySpend > dailyLimit) {
+                    BudgetNotifications.show(
+                        app,
+                        "Recurring budget exceeded",
+                        "${budget.category}: you've gone ${formatKes(currentTodaySpend - dailyLimit)} over today's recurring budget.",
+                        notificationId(budget.id, "recurring")
+                    )
+                }
+            }
+        }
+    }
+
+    private fun notificationId(budgetId: Long, type: String): Int =
+        (budgetId * 31L + type.hashCode()).toInt() and 0x7fffffff
+
+    private fun formatKes(minor: Long): String {
+        val formatter = NumberFormat.getNumberInstance(Locale("en", "KE")).apply {
+            maximumFractionDigits = 2
+            minimumFractionDigits = if (minor % 100L == 0L) 0 else 2
+        }
+        return "KSh " + formatter.format(minor / 100.0)
     }
 
     fun saveBudget(category: String, limitMinor: Long, budgetType: String) {
