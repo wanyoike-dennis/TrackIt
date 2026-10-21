@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [MoneyTransaction::class, MonthlyBudget::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
@@ -34,6 +34,14 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE monthly_budgets ADD COLUMN budgetType TEXT NOT NULL DEFAULT 'ONE_TIME'"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: TrackItDatabase? = null
 
@@ -44,7 +52,7 @@ abstract class TrackItDatabase : RoomDatabase() {
                     TrackItDatabase::class.java,
                     "trackit_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }
