@@ -33,9 +33,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,8 +48,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
+import com.inventsolutions.trackit.data.MoneyTransaction
 import com.inventsolutions.trackit.ui.theme.TrackItAmber
 import com.inventsolutions.trackit.ui.theme.TrackItAmberTint
+import com.inventsolutions.trackit.ui.theme.TrackItBackgroundDark
 import com.inventsolutions.trackit.ui.theme.TrackItEmerald
 import com.inventsolutions.trackit.ui.theme.TrackItEmeraldTint
 import com.inventsolutions.trackit.ui.theme.TrackItExpense
@@ -56,14 +61,24 @@ import com.inventsolutions.trackit.ui.theme.TrackItNavy
 import com.inventsolutions.trackit.ui.theme.TrackItNavyElevated
 import com.inventsolutions.trackit.ui.theme.TrackItNavySurface
 import com.inventsolutions.trackit.ui.theme.TrackItTheme
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 class MainActivity : ComponentActivity() {
+    private lateinit var transactionViewModel: TransactionViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        transactionViewModel = ViewModelProvider(this)[TransactionViewModel::class.java]
         setContent {
             TrackItTheme {
-                DashboardScreen()
+                DashboardScreen(transactionViewModel)
             }
         }
     }
@@ -76,54 +91,115 @@ private data class ActivityItem(
     val income: Boolean
 )
 
-private val previewActivity = listOf(
-    ActivityItem("Design gig", "Side hustle · Today", "+ KSh 2,500", true),
-    ActivityItem("Lunch", "Food · Today", "− KSh 280", false),
-    ActivityItem("Motorbike fare", "Transport · Yesterday", "− KSh 150", false)
-)
+private fun formatKes(amountMinor: Long): String {
+    val absoluteAmount = abs(amountMinor)
+    val wholeAmount = NumberFormat.getIntegerInstance(Locale("en", "KE"))
+        .format(absoluteAmount / 100L)
+    val cents = absoluteAmount % 100L
+    val sign = if (amountMinor < 0) "− " else ""
+    return if (cents == 0L) {
+        "KSh $sign$wholeAmount"
+    } else {
+        "KSh $sign$wholeAmount.${cents.toString().padStart(2, '0')}"
+    }
+}
+
+private fun formatTransactionDate(epochMillis: Long): String =
+    SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(epochMillis))
 
 @Composable
-private fun DashboardScreen() {
+private fun DashboardScreen(viewModel: TransactionViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableStateOf("Home") }
+    var entryType by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf(false) }
+    var noticeMessage by remember { mutableStateOf("") }
+
+    val now = remember { Calendar.getInstance() }
+    val monthStart = remember {
+        (now.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val nextMonthStart = remember {
+        (now.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            add(Calendar.MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val monthTransactions = uiState.transactions.filter {
+        it.dateEpochMillis >= monthStart && it.dateEpochMillis < nextMonthStart
+    }
+    val monthlyIncome = monthTransactions
+        .filter { it.type == MoneyTransaction.INCOME }
+        .sumOf { it.amountMinor }
+    val monthlySpent = monthTransactions
+        .filter { it.type == MoneyTransaction.EXPENSE }
+        .sumOf { it.amountMinor }
+    val monthlyRemaining = monthlyIncome - monthlySpent
+    val monthLabel = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        .format(Date(now.timeInMillis)).uppercase(Locale.getDefault())
+    val recentItems = uiState.transactions.take(3).map { transaction ->
+        val income = transaction.type == MoneyTransaction.INCOME
+        ActivityItem(
+            title = transaction.description.ifBlank { transaction.category },
+            category = "${transaction.category} · ${formatTransactionDate(transaction.dateEpochMillis)}",
+            amount = (if (income) "+ " else "− ") + formatKes(transaction.amountMinor).removePrefix("KSh "),
+            income = income
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 8.dp
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
+            if (entryType == null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 8.dp
                 ) {
-                    listOf("Home", "Activity", "Budgets", "More").forEach { tab ->
-                        Column(
-                            modifier = Modifier.clip(RoundedCornerShape(14.dp))
-                                .clickable {
-                                    selectedTab = tab
-                                    if (tab != "Home") notice = true
-                                }.padding(horizontal = 12.dp, vertical = 5.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                when (tab) {
-                                    "Home" -> "⌂"
-                                    "Activity" -> "↕"
-                                    "Budgets" -> "▤"
-                                    else -> "•••"
-                                },
-                                color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 21.sp
-                            )
-                            Text(
-                                tab,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        listOf("Home", "Activity", "Budgets", "More").forEach { tab ->
+                            Column(
+                                modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                                    .clickable {
+                                        selectedTab = tab
+                                        if (tab != "Home") {
+                                            noticeMessage = "${tab} screen is coming next."
+                                            notice = true
+                                        }
+                                    }.padding(horizontal = 12.dp, vertical = 5.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    when (tab) {
+                                        "Home" -> "⌂"
+                                        "Activity" -> "↕"
+                                        "Budgets" -> "▤"
+                                        else -> "•••"
+                                    },
+                                    color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 21.sp
+                                )
+                                Text(
+                                    tab,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -131,115 +207,158 @@ private fun DashboardScreen() {
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp)
-            ) {
-                item {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("TrackIt", style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                            Spacer(Modifier.height(3.dp))
-                            Text("Your money, made clearer.", style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Box(
-                            Modifier.size(46.dp).clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("T", style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    }
-                }
-                item { OverviewCard() }
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        SectionTitle("Quick actions", "Keep your records up to date")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            QuickAction("＋", "Add income", TrackItEmeraldTint, TrackItEmerald,
-                                Modifier.weight(1f)) { notice = true }
-                            QuickAction("−", "Add expense", TrackItExpenseTintLight, TrackItExpense,
-                                Modifier.weight(1f)) { notice = true }
+            if (entryType != null) {
+                TransactionEntryScreen(
+                    type = entryType!!,
+                    isSaving = uiState.isSaving,
+                    errorMessage = uiState.errorMessage,
+                    onBack = {
+                        entryType = null
+                        viewModel.clearError()
+                    },
+                    onClearError = viewModel::clearError,
+                    onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis ->
+                        scope.launch {
+                            val saved = viewModel.addTransaction(
+                                type = type,
+                                amountMinor = amountMinor,
+                                category = category,
+                                description = description,
+                                paymentMethod = paymentMethod,
+                                dateEpochMillis = dateEpochMillis
+                            )
+                            if (saved) {
+                                entryType = null
+                                noticeMessage = "Transaction saved successfully."
+                                notice = true
+                            }
                         }
                     }
-                }
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        SectionTitle("Budget progress", "October spending plan", "View all")
-                        Card(
-                            shape = RoundedCornerShape(22.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Column(Modifier.fillMaxWidth().padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text("Overall budget", style = MaterialTheme.typography.titleMedium)
-                                        Spacer(Modifier.height(3.dp))
-                                        Text("KSh 13,580 of KSh 25,000 spent",
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(22.dp)
+                ) {
+                    item {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("TrackIt", style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                                Spacer(Modifier.height(3.dp))
+                                Text("Your money, made clearer.", style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Box(
+                                Modifier.size(46.dp).clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("T", style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+                    }
+                    item {
+                        OverviewCard(
+                            monthLabel = monthLabel,
+                            income = monthlyIncome,
+                            spent = monthlySpent,
+                            remaining = monthlyRemaining
+                        )
+                    }
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SectionTitle("Quick actions", "Keep your records up to date")
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                QuickAction("＋", "Add income", TrackItEmeraldTint, TrackItEmerald,
+                                    Modifier.weight(1f)) {
+                                    viewModel.clearError()
+                                    entryType = MoneyTransaction.INCOME
+                                }
+                                QuickAction("−", "Add expense", TrackItExpenseTintLight, TrackItExpense,
+                                    Modifier.weight(1f)) {
+                                    viewModel.clearError()
+                                    entryType = MoneyTransaction.EXPENSE
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SectionTitle("Budget progress", "Sample budget · budgeting comes next")
+                            Card(
+                                shape = RoundedCornerShape(22.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Column(Modifier.fillMaxWidth().padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Overall budget", style = MaterialTheme.typography.titleMedium)
+                                            Spacer(Modifier.height(3.dp))
+                                            Text("KSh 13,580 of KSh 25,000 spent",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Text("54%", style = MaterialTheme.typography.titleLarge)
+                                    }
+                                    LinearProgressIndicator(
+                                        progress = { 0.5432f },
+                                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                                        color = TrackItEmerald,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(Modifier.size(8.dp).clip(CircleShape).background(TrackItAmber))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("KSh 11,420 remaining", Modifier.weight(1f),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Text("54%", style = MaterialTheme.typography.titleLarge)
-                                }
-                                LinearProgressIndicator(
-                                    progress = { 0.5432f },
-                                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-                                    color = TrackItEmerald,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.size(8.dp).clip(CircleShape).background(TrackItAmber))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("KSh 11,420 remaining", Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("11 days left", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            MiniBudget("Food", "KSh 4,200", "of KSh 6,000", 0.70f,
-                                TrackItEmerald, Modifier.weight(1f))
-                            MiniBudget("Transport", "KSh 2,100", "of KSh 3,000", 0.70f,
-                                TrackItAmber, Modifier.weight(1f))
-                        }
-                    }
-                }
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        SectionTitle("Recent activity", "Your latest money movements", "See history")
-                        Card(
-                            shape = RoundedCornerShape(22.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Column {
-                                previewActivity.forEachIndexed { index, item ->
-                                    ActivityRow(item)
-                                    if (index != previewActivity.lastIndex) {
-                                        HorizontalDivider(Modifier.padding(start = 68.dp),
-                                            color = MaterialTheme.colorScheme.outlineVariant)
+                                        Text("Sample", style = MaterialTheme.typography.labelMedium)
                                     }
                                 }
                             }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                MiniBudget("Food", "KSh 4,200", "of KSh 6,000", 0.70f,
+                                    TrackItEmerald, Modifier.weight(1f))
+                                MiniBudget("Transport", "KSh 2,100", "of KSh 3,000", 0.70f,
+                                    TrackItAmber, Modifier.weight(1f))
+                            }
                         }
                     }
-                }
-                item {
-                    Surface(color = TrackItAmberTint.copy(alpha = 0.8f),
-                        shape = RoundedCornerShape(16.dp)) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text("Dashboard preview", color = TrackItNavy,
-                                style = MaterialTheme.typography.titleSmall)
-                            Spacer(Modifier.height(4.dp))
-                            Text("Figures and transactions are sample content. Live totals will come from your saved records once transaction tracking is connected.",
-                                color = TrackItNavy, style = MaterialTheme.typography.bodySmall)
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SectionTitle("Recent activity", "Your latest saved transactions")
+                            Card(
+                                shape = RoundedCornerShape(22.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                if (recentItems.isEmpty()) {
+                                    Column(Modifier.fillMaxWidth().padding(22.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("No transactions yet", style = MaterialTheme.typography.titleMedium)
+                                        Text(
+                                            "Add your first income or expense and it will appear here.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                } else {
+                                    Column {
+                                        recentItems.forEachIndexed { index, item ->
+                                            ActivityRow(item)
+                                            if (index != recentItems.lastIndex) {
+                                                HorizontalDivider(Modifier.padding(start = 68.dp),
+                                                    color = MaterialTheme.colorScheme.outlineVariant)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -254,8 +373,7 @@ private fun DashboardScreen() {
                 ) {
                     Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text("Transaction and budget screens are coming next.",
-                            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Text(noticeMessage, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                         TextButton(onClick = { notice = false }) { Text("OK") }
                     }
                 }
@@ -265,7 +383,12 @@ private fun DashboardScreen() {
 }
 
 @Composable
-private fun OverviewCard() {
+private fun OverviewCard(
+    monthLabel: String,
+    income: Long,
+    spent: Long,
+    remaining: Long
+) {
     val isDark = MaterialTheme.colorScheme.background == TrackItBackgroundDark
     val cardShape = RoundedCornerShape(26.dp)
     val cardBackground = if (isDark) TrackItNavyElevated else TrackItNavy
@@ -288,7 +411,7 @@ private fun OverviewCard() {
             Text("MONTHLY OVERVIEW", Modifier.weight(1f), color = Color(0xFFB8C2D1),
                 style = MaterialTheme.typography.labelMedium, letterSpacing = 1.1.sp)
             Surface(color = monthPillBackground, shape = RoundedCornerShape(50)) {
-                Text("OCTOBER 2026", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                Text(monthLabel, Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     color = Color(0xFFE5EAF1), style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -296,7 +419,7 @@ private fun OverviewCard() {
         Text("Money left this month", color = Color(0xFFD0D7E2),
             style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(4.dp))
-        Text("KSh 18,420", color = Color.White,
+        Text(formatKes(remaining), color = Color.White,
             style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(20.dp))
         HorizontalDivider(color = TrackItNavySurface)
@@ -305,12 +428,12 @@ private fun OverviewCard() {
             Column(Modifier.weight(1f)) {
                 Text("↗  Income", color = Color(0xFF6EE7B7), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(5.dp))
-                Text("KSh 32,000", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                Text(formatKes(income), color = Color.White, style = MaterialTheme.typography.titleMedium)
             }
             Column(Modifier.weight(1f)) {
                 Text("↘  Spent", color = Color(0xFFFFA3A3), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(5.dp))
-                Text("KSh 13,580", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                Text(formatKes(spent), color = Color.White, style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -387,30 +510,38 @@ private fun ActivityRow(item: ActivityItem) {
 }
 
 @Composable
-private fun SectionTitle(title: String, subtitle: String, action: String? = null) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground)
-            Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (action != null) {
-            Text(action, style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary)
-        }
+private fun SectionTitle(title: String, subtitle: String) {
+    Column {
+        Text(title, style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground)
+        Spacer(Modifier.height(2.dp))
+        Text(subtitle, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Preview(name = "TrackIt Dashboard - Light", showBackground = true)
 @Composable
 private fun DashboardLightPreview() {
-    TrackItTheme(darkTheme = false) { DashboardScreen() }
+    TrackItTheme(darkTheme = false) {
+        OverviewCard(
+            monthLabel = "OCTOBER 2026",
+            income = 3_200_000,
+            spent = 1_358_000,
+            remaining = 1_842_000
+        )
+    }
 }
 
 @Preview(name = "TrackIt Dashboard - Dark", showBackground = true)
 @Composable
 private fun DashboardDarkPreview() {
-    TrackItTheme(darkTheme = true) { DashboardScreen() }
+    TrackItTheme(darkTheme = true) {
+        OverviewCard(
+            monthLabel = "OCTOBER 2026",
+            income = 3_200_000,
+            spent = 1_358_000,
+            remaining = 1_842_000
+        )
+    }
 }
