@@ -169,10 +169,10 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             if (monthlyCategorySpend > budget.limitMinor) {
                 add("${budget.category}: monthly limit exceeded by ${formatKes(monthlyCategorySpend - budget.limitMinor)}.")
             }
-            if (budget.budgetType == com.inventsolutions.trackit.data.local.MonthlyBudget.DAILY_ALLOWANCE &&
+            if (budget.budgetType == com.inventsolutions.trackit.data.local.MonthlyBudget.RECURRING &&
                 dailyCategorySpend > dailyLimit
             ) {
-                add("${budget.category}: daily allowance exceeded by ${formatKes(dailyCategorySpend - dailyLimit)} today.")
+                add("${budget.category}: recurring budget exceeded by ${formatKes(dailyCategorySpend - dailyLimit)} today.")
             }
         }
     }
