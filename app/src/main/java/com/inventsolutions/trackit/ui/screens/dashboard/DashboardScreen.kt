@@ -152,6 +152,30 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         .filter { it.type == MoneyTransaction.EXPENSE }
         .sumOf { it.amountMinor }
     val monthlyRemaining = monthlyIncome - monthlySpent
+    val dailyBudgetDays = now.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val todaySpendByCategory = todayTransactions
+        .groupBy { it.category.lowercase(Locale.getDefault()) }
+        .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
+    val monthSpendByCategory = monthTransactions
+        .filter { it.type == MoneyTransaction.EXPENSE }
+        .groupBy { it.category.lowercase(Locale.getDefault()) }
+        .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
+    val budgetAlerts = uiState.budgets.flatMap { budget ->
+        val key = budget.category.lowercase(Locale.getDefault())
+        val monthlyCategorySpend = monthSpendByCategory[key] ?: 0L
+        val dailyCategorySpend = todaySpendByCategory[key] ?: 0L
+        val dailyLimit = budget.limitMinor / dailyBudgetDays
+        buildList {
+            if (monthlyCategorySpend > budget.limitMinor) {
+                add("${budget.category}: monthly limit exceeded by ${formatKes(monthlyCategorySpend - budget.limitMinor)}.")
+            }
+            if (budget.budgetType == com.inventsolutions.trackit.data.local.MonthlyBudget.DAILY_ALLOWANCE &&
+                dailyCategorySpend > dailyLimit
+            ) {
+                add("${budget.category}: daily allowance exceeded by ${formatKes(dailyCategorySpend - dailyLimit)} today.")
+            }
+        }
+    }
     val monthLabel = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
         .format(Date(now.timeInMillis)).uppercase(Locale.getDefault())
     val recentItems = uiState.transactions.take(3).map { transaction ->
@@ -288,6 +312,29 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             spent = monthlySpent,
                             remaining = monthlyRemaining
                         )
+                    }
+                    if (budgetAlerts.isNotEmpty()) {
+                        item {
+                            Card(
+                                shape = RoundedCornerShape(18.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.25f))
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("⚠", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleLarge)
+                                        Text("Budget alert", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                                    }
+                                    budgetAlerts.forEach { alert ->
+                                        Text("• $alert", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                                    }
+                                    TextButton(onClick = { selectedTab = "Budgets" }) { Text("Review budgets") }
+                                }
+                            }
+                        }
                     }
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
