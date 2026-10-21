@@ -9,7 +9,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.inventsolutions.trackit.MainActivity
-import com.inventsolutions.trackit.R
 
 object BudgetNotifications {
     private const val CHANNEL_ID = "budget_alerts"
@@ -52,6 +51,10 @@ object BudgetNotifications {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
-        NotificationManagerCompat.from(context).notify(notificationId, notification)
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (_: SecurityException) {
+            // The user may revoke notification permission while the app is running.
+        }
     }
 }
