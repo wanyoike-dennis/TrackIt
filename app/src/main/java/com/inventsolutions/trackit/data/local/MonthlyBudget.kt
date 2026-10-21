@@ -10,7 +10,7 @@ data class MonthlyBudget(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val monthKey: String,
     val category: String,
-    // ONE_TIME tracks the allocation as a single monthly pool; DAILY_ALLOWANCE also shows a daily guide.
+    // ONE_TIME tracks a monthly pool; RECURRING calculates a daily spending guide.
     @ColumnInfo(defaultValue = "'ONE_TIME'") val budgetType: String = ONE_TIME,
     // KSh 1.00 is stored as 100 minor units.
     val limitMinor: Long,
@@ -18,6 +18,6 @@ data class MonthlyBudget(
 ) {
     companion object {
         const val ONE_TIME = "ONE_TIME"
-        const val DAILY_ALLOWANCE = "DAILY_ALLOWANCE"
+        const val RECURRING = "DAILY_ALLOWANCE"
     }
 }
