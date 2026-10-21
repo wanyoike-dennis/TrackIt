@@ -283,45 +283,65 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     }
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SectionTitle("Budget progress", "Sample budget · budgeting comes next")
+                            SectionTitle("Budget progress", "Your saved monthly category limits")
                             Card(
+                                modifier = Modifier.clickable { selectedTab = "Budgets" },
                                 shape = RoundedCornerShape(22.dp),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             ) {
-                                Column(Modifier.fillMaxWidth().padding(18.dp),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text("Overall budget", style = MaterialTheme.typography.titleMedium)
-                                            Spacer(Modifier.height(3.dp))
-                                            Text("KSh 13,580 of KSh 25,000 spent",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Column(
+                                    Modifier.fillMaxWidth().padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    if (uiState.budgets.isEmpty()) {
+                                        Text("No budgets set yet", style = MaterialTheme.typography.titleMedium)
+                                        Text(
+                                            "Set monthly limits for food, transport, rent and other categories.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text("Create your first budget  →", color = MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.labelLarge)
+                                    } else {
+                                        val budgetLimit = uiState.budgets.sumOf { it.limitMinor }
+                                        val budgetSpent = uiState.budgets.sumOf { budget ->
+                                            monthTransactions.filter {
+                                                it.type == MoneyTransaction.EXPENSE &&
+                                                    it.category.equals(budget.category, ignoreCase = true)
+                                            }.sumOf { it.amountMinor }
                                         }
-                                        Text("54%", style = MaterialTheme.typography.titleLarge)
-                                    }
-                                    LinearProgressIndicator(
-                                        progress = { 0.5432f },
-                                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-                                        color = TrackItEmerald,
-                                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(Modifier.size(8.dp).clip(CircleShape).background(TrackItAmber))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text("KSh 11,420 remaining", Modifier.weight(1f),
+                                        val progress = if (budgetLimit > 0L) {
+                                            (budgetSpent.toDouble() / budgetLimit.toDouble()).coerceIn(0.0, 1.0).toFloat()
+                                        } else 0f
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Column(Modifier.weight(1f)) {
+                                                Text("Spent this month", style = MaterialTheme.typography.titleMedium)
+                                                Text(
+                                                    "${formatKes(budgetSpent)} of ${formatKes(budgetLimit)}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.titleLarge)
+                                        }
+                                        LinearProgressIndicator(
+                                            progress = { progress },
+                                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                                            color = if (budgetSpent > budgetLimit) MaterialTheme.colorScheme.error else TrackItEmerald,
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        Text(
+                                            if (budgetLimit >= budgetSpent) "${formatKes(budgetLimit - budgetSpent)} budget remaining"
+                                            else "${formatKes(budgetSpent - budgetLimit)} over planned budget",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text("Sample", style = MaterialTheme.typography.labelMedium)
+                                            color = if (budgetSpent > budgetLimit) MaterialTheme.colorScheme.error
+                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text("Manage budgets  →", color = MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.labelLarge)
                                     }
                                 }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                MiniBudget("Food", "KSh 4,200", "of KSh 6,000", 0.70f,
-                                    TrackItEmerald, Modifier.weight(1f))
-                                MiniBudget("Transport", "KSh 2,100", "of KSh 3,000", 0.70f,
-                                    TrackItAmber, Modifier.weight(1f))
                             }
                         }
                     }
