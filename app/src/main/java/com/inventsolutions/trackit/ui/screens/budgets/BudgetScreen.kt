@@ -125,7 +125,7 @@ fun BudgetScreen(
         } else {
             item { Text("Category budgets", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) }
             items(budgets, key = { it.id }) { budget ->
-                val spent = spendingByCategory[budget.category] ?: 0L
+                val spent = spendingByCategory[budget.category.lowercase(Locale.getDefault())] ?: 0L
                 val remaining = budget.limitMinor - spent
                 val progress = (spent.toDouble() / budget.limitMinor.toDouble()).coerceIn(0.0, 1.0).toFloat()
                 Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
