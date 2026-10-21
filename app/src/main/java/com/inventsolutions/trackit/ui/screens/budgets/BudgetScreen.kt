@@ -98,17 +98,18 @@ fun BudgetScreen(
                 }
             }
         }
-        val budgetAlerts = budgets.mapNotNull { budget ->
+        val budgetAlerts = budgets.flatMap { budget ->
             val categoryKey = budget.category.lowercase(Locale.getDefault())
             val monthlySpent = spendingByCategory[categoryKey] ?: 0L
             val dailySpent = spendingTodayByCategory[categoryKey] ?: 0L
             val dailyLimit = budget.limitMinor / daysInMonth
-            when {
-                monthlySpent > budget.limitMinor ->
-                    "${budget.category}: monthly limit exceeded by ${formatKes(monthlySpent - budget.limitMinor)}."
-                budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE && dailySpent > dailyLimit ->
-                    "${budget.category}: daily allowance exceeded by ${formatKes(dailySpent - dailyLimit)} today."
-                else -> null
+            buildList {
+                if (monthlySpent > budget.limitMinor) {
+                    add("${budget.category}: monthly limit exceeded by ${formatKes(monthlySpent - budget.limitMinor)}.")
+                }
+                if (budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE && dailySpent > dailyLimit) {
+                    add("${budget.category}: daily allowance exceeded by ${formatKes(dailySpent - dailyLimit)} today.")
+                }
             }
         }
         if (budgetAlerts.isNotEmpty()) {
