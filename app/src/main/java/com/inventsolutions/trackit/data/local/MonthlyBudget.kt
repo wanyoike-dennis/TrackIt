@@ -1,5 +1,6 @@
 package com.inventsolutions.trackit.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -10,7 +11,7 @@ data class MonthlyBudget(
     val monthKey: String,
     val category: String,
     // ONE_TIME tracks the allocation as a single monthly pool; DAILY_ALLOWANCE also shows a daily guide.
-    val budgetType: String = ONE_TIME,
+    @ColumnInfo(defaultValue = "'ONE_TIME'") val budgetType: String = ONE_TIME,
     // KSh 1.00 is stored as 100 minor units.
     val limitMinor: Long,
     val createdAtEpochMillis: Long = System.currentTimeMillis()
