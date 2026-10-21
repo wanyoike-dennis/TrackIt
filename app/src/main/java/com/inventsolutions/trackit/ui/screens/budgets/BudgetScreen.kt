@@ -50,6 +50,7 @@ fun BudgetScreen(
     monthLabel: String,
     budgets: List<MonthlyBudget>,
     spendingByCategory: Map<String, Long>,
+    spendingTodayByCategory: Map<String, Long>,
     onSaveBudget: (category: String, limitMinor: Long, budgetType: String) -> Unit,
     onDeleteBudget: (budgetId: Long) -> Unit,
     onBackToHome: () -> Unit
@@ -61,7 +62,7 @@ fun BudgetScreen(
     var budgetType by remember { mutableStateOf(MonthlyBudget.ONE_TIME) }
     val daysInMonth = remember { Calendar.getInstance().getActualMaximum(Calendar.DAY_OF_MONTH) }
     val totalLimit = budgets.sumOf { it.limitMinor }
-    val totalSpent = budgets.sumOf { spendingByCategory[it.category] ?: 0L }
+    val totalSpent = budgets.sumOf { spendingByCategory[it.category.lowercase(Locale.getDefault())] ?: 0L }
     val totalRemaining = totalLimit - totalSpent
 
     LazyColumn(
@@ -92,6 +93,45 @@ fun BudgetScreen(
                         Column {
                             Text(if (totalRemaining >= 0) "Available" else "Over budget", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             Text(formatKes(abs(totalRemaining)), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                }
+            }
+        }
+        val budgetAlerts = budgets.mapNotNull { budget ->
+            val categoryKey = budget.category.lowercase(Locale.getDefault())
+            val monthlySpent = spendingByCategory[categoryKey] ?: 0L
+            val dailySpent = spendingTodayByCategory[categoryKey] ?: 0L
+            val dailyLimit = budget.limitMinor / daysInMonth
+            when {
+                monthlySpent > budget.limitMinor ->
+                    "${budget.category}: monthly limit exceeded by ${formatKes(monthlySpent - budget.limitMinor)}."
+                budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE && dailySpent > dailyLimit ->
+                    "${budget.category}: daily allowance exceeded by ${formatKes(dailySpent - dailyLimit)} today."
+                else -> null
+            }
+        }
+        if (budgetAlerts.isNotEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.25f))
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            androidx.compose.material3.Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text("Budget alert", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                        budgetAlerts.forEach { alert ->
+                            Text("• $alert", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
                         }
                     }
                 }
@@ -162,6 +202,24 @@ fun BudgetScreen(
                             Text("${(spent.toDouble() / budget.limitMinor * 100).roundToInt()}%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                         Text("${formatKes(spent)} spent of ${formatKes(budget.limitMinor)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val todaySpent = spendingTodayByCategory[budget.category.lowercase(Locale.getDefault())] ?: 0L
+                        val dailyAllowanceMinor = budget.limitMinor / daysInMonth
+                        if (budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE && todaySpent > dailyAllowanceMinor) {
+                            Text(
+                                "Daily allowance exceeded by ${formatKes(todaySpent - dailyAllowanceMinor)} today",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (spent > budget.limitMinor) {
+                            Text(
+                                "Monthly limit exceeded by ${formatKes(spent - budget.limitMinor)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                         if (budget.budgetType == MonthlyBudget.DAILY_ALLOWANCE) {
                             val dailyAllowanceMinor = budget.limitMinor / daysInMonth
                             Text(
