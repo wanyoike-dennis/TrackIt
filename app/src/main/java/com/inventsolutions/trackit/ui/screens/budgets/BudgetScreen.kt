@@ -155,7 +155,7 @@ fun BudgetScreen(
                         val parsedAllocation = amount.trim().replace(",", "").toBigDecimalOrNull()
                         val dailyMinor = try { parsedAllocation?.movePointRight(2)?.divide(java.math.BigDecimal(daysInMonth), 0, java.math.RoundingMode.DOWN)?.longValueExact() } catch (_: Exception) { null }
                         Text(
-                            if (dailyMinor != null && dailyMinor > 0L) "Recurring budget: ${formatKes(dailyMinor)} per day ($daysInMonth days). Unused allowance does not roll over."
+                            if (dailyMinor != null && dailyMinor > 0L) "Recurring budget: ${formatKes(dailyMinor)} per day ($daysInMonth days). Unused daily amount does not roll over."
                             else "Recurring budget is calculated from the total allocation divided by $daysInMonth days.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
