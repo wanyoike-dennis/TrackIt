@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -265,14 +266,28 @@ private fun DashboardScreen() {
 
 @Composable
 private fun OverviewCard() {
+    val isDark = MaterialTheme.colorScheme.background == TrackItBackgroundDark
+    val cardShape = RoundedCornerShape(26.dp)
+    val cardBackground = if (isDark) TrackItNavyElevated else TrackItNavy
+    val monthPillBackground = if (isDark) TrackItNavySurface else TrackItNavyElevated
+
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
-            .background(TrackItNavy).padding(22.dp)
+        Modifier.fillMaxWidth()
+            .clip(cardShape)
+            .background(cardBackground)
+            .then(
+                if (isDark) Modifier.border(
+                    width = 1.dp,
+                    color = TrackItNavySurface,
+                    shape = cardShape
+                ) else Modifier
+            )
+            .padding(22.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("MONTHLY OVERVIEW", Modifier.weight(1f), color = Color(0xFFB8C2D1),
                 style = MaterialTheme.typography.labelMedium, letterSpacing = 1.1.sp)
-            Surface(color = TrackItNavyElevated, shape = RoundedCornerShape(50)) {
+            Surface(color = monthPillBackground, shape = RoundedCornerShape(50)) {
                 Text("OCTOBER 2026", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     color = Color(0xFFE5EAF1), style = MaterialTheme.typography.labelSmall)
             }
