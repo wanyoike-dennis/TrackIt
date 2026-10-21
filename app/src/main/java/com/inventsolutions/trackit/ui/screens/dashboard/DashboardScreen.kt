@@ -123,6 +123,28 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val monthTransactions = uiState.transactions.filter {
         it.dateEpochMillis >= monthStart && it.dateEpochMillis < nextMonthStart
     }
+    val todayStart = remember {
+        (now.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val tomorrowStart = remember {
+        (now.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            add(Calendar.DAY_OF_MONTH, 1)
+        }.timeInMillis
+    }
+    val todayTransactions = uiState.transactions.filter {
+        it.type == MoneyTransaction.EXPENSE &&
+            it.dateEpochMillis >= todayStart && it.dateEpochMillis < tomorrowStart
+    }
+
     val monthlyIncome = monthTransactions
         .filter { it.type == MoneyTransaction.INCOME }
         .sumOf { it.amountMinor }
@@ -225,6 +247,9 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     budgets = uiState.budgets,
                     spendingByCategory = monthTransactions
                         .filter { it.type == MoneyTransaction.EXPENSE }
+                        .groupBy { it.category.lowercase(Locale.getDefault()) }
+                        .mapValues { (_, items) -> items.sumOf { it.amountMinor } },
+                    spendingTodayByCategory = todayTransactions
                         .groupBy { it.category.lowercase(Locale.getDefault()) }
                         .mapValues { (_, items) -> items.sumOf { it.amountMinor } },
                     onSaveBudget = viewModel::saveBudget,
