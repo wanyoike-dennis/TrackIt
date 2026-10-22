@@ -42,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -319,7 +321,18 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(
+            Modifier.fillMaxSize().padding(padding).pointerInput(notice) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (notice && event.changes.any { it.pressed }) {
+                            notice = false
+                        }
+                    }
+                }
+            }
+        ) {
             if (entryType != null) {
                 TransactionEntryScreen(
                     type = entryType!!,
