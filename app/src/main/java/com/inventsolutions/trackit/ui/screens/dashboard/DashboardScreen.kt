@@ -127,6 +127,28 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val monthTransactions = uiState.transactions.filter {
         it.dateEpochMillis >= monthStart && it.dateEpochMillis < nextMonthStart
     }
+    val monthFinancialEntries = uiState.financialEntries.filter {
+        it.createdAtEpochMillis >= monthStart && it.createdAtEpochMillis < nextMonthStart
+    }
+    val allIncome = uiState.transactions
+        .filter { it.type == MoneyTransaction.INCOME }
+        .sumOf { it.amountMinor }
+    val allRecordedExpenses = uiState.transactions
+        .filter { it.type == MoneyTransaction.EXPENSE }
+        .sumOf { it.amountMinor } +
+        uiState.financialEntries
+            .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.SPENDING }
+            .sumOf { it.amountMinor }
+    val savingsContributions = uiState.financialEntries
+        .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.CONTRIBUTION }
+        .sumOf { it.amountMinor }
+    val debtRepayments = uiState.financialEntries
+        .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.REPAYMENT }
+        .sumOf { it.amountMinor }
+    val debtCollections = uiState.financialEntries
+        .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.COLLECTION }
+        .sumOf { it.amountMinor }
+    val availableBalance = allIncome - allRecordedExpenses - savingsContributions - debtRepayments + debtCollections
     val todayStart = remember {
         (now.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -154,7 +176,10 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         .sumOf { it.amountMinor }
     val monthlySpent = monthTransactions
         .filter { it.type == MoneyTransaction.EXPENSE }
-        .sumOf { it.amountMinor }
+        .sumOf { it.amountMinor } +
+        monthFinancialEntries
+            .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.SPENDING }
+            .sumOf { it.amountMinor }
     val monthlyRemaining = monthlyIncome - monthlySpent
     val dailyBudgetDays = now.getActualMaximum(Calendar.DAY_OF_MONTH)
     val todaySpendByCategory = todayTransactions
@@ -295,6 +320,8 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             } else if (selectedTab == "Reports") {
                 ReportScreen(
                     transactions = uiState.transactions,
+                    financialRecords = uiState.financialRecords,
+                    financialEntries = uiState.financialEntries,
                     onBackToHome = { selectedTab = "Home" }
                 )
             } else if (selectedTab == "Money") {
@@ -345,7 +372,8 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             monthLabel = monthLabel,
                             income = monthlyIncome,
                             spent = monthlySpent,
-                            remaining = monthlyRemaining
+                            available = availableBalance,
+                            monthlyNet = monthlyRemaining
                         )
                     }
                     if (budgetAlerts.isNotEmpty()) {
@@ -510,7 +538,8 @@ private fun OverviewCard(
     monthLabel: String,
     income: Long,
     spent: Long,
-    remaining: Long
+    available: Long,
+    monthlyNet: Long
 ) {
     val isDark = MaterialTheme.colorScheme.background == TrackItBackgroundDark
     val cardShape = RoundedCornerShape(26.dp)
@@ -539,10 +568,10 @@ private fun OverviewCard(
             }
         }
         Spacer(Modifier.height(18.dp))
-        Text("Money left this month", color = Color(0xFFD0D7E2),
+        Text("Money available from recorded activity", color = Color(0xFFD0D7E2),
             style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(4.dp))
-        Text(formatKes(remaining), color = Color.White,
+        Text(formatKes(available), color = Color.White,
             style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(20.dp))
         HorizontalDivider(color = TrackItNavySurface)
@@ -559,6 +588,12 @@ private fun OverviewCard(
                 Text(formatKes(spent), color = Color.White, style = MaterialTheme.typography.titleMedium)
             }
         }
+        Spacer(Modifier.height(14.dp))
+        Text(
+            "Net this month: ${formatKes(monthlyNet)}",
+            color = Color(0xFFD0D7E2),
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 
