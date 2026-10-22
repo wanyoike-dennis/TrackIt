@@ -98,6 +98,14 @@ private fun formatKes(amountMinor: Long): String {
 private fun formatTransactionDate(epochMillis: Long): String =
     SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(epochMillis))
 
+private fun todayStartForReminder(source: Calendar): Long =
+    (source.clone() as Calendar).apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
 @Composable
 fun DashboardScreen(viewModel: TransactionViewModel) {
     val uiState by viewModel.uiState.collectAsState()
@@ -157,6 +165,13 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val debtCollections = uiState.financialRecords
         .filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
         .sumOf { it.currentMinor }
+    val reminderWindowEnd = todayStartForReminder(now) + 7L * 24L * 60L * 60L * 1000L
+    val upcomingCommitments = uiState.financialRecords
+        .filter { record ->
+            val dueDate = record.dueDateEpochMillis
+            dueDate != null && dueDate >= todayStartForReminder(now) && dueDate < reminderWindowEnd
+        }
+        .sortedBy { it.dueDateEpochMillis }
     val availableBalance = allIncome - allRecordedExpenses - savingsContributions - debtRepayments + debtCollections
     val todayStart = remember {
         (now.clone() as Calendar).apply {
@@ -613,6 +628,69 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     }
                                 }
                                 Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    if (upcomingCommitments.isNotEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().clickable { selectedTab = "Money" },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f))
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Upcoming commitments", modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                        Text("${upcomingCommitments.size}", style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                    }
+                                    upcomingCommitments.take(3).forEach { record ->
+                                        val dueDate = record.dueDateEpochMillis ?: 0L
+                                        val daysUntilDue = ((dueDate - todayStartForReminder(now)) /
+                                            (24L * 60L * 60L * 1000L)).toInt().coerceAtLeast(0)
+                                        Row(
+                                            Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(Modifier.weight(1f)) {
+                                                Text(record.title, style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(
+                                                    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(dueDate)),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.75f)
+                                                )
+                                            }
+                                            Text(
+                                                if (daysUntilDue == 0) "Due today" else "In $daysUntilDue day${if (daysUntilDue == 1) "" else "s"}",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                            )
+                                        }
+                                    }
+                                    if (upcomingCommitments.size > 3) {
+                                        Text(
+                                            "+ ${upcomingCommitments.size - 3} more · View financial plans",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    } else {
+                                        Text("View financial plans  →",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                    }
+                                }
                             }
                         }
                     }
