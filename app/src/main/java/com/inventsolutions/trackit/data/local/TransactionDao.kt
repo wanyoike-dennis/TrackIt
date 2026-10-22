@@ -3,6 +3,7 @@ package com.inventsolutions.trackit.data.local
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -12,6 +13,9 @@ interface TransactionDao {
 
     @Insert
     suspend fun insert(transaction: MoneyTransaction): Long
+
+    @Update
+    suspend fun update(transaction: MoneyTransaction)
 
     @Query("DELETE FROM transactions WHERE id = :transactionId")
     suspend fun deleteById(transactionId: Long)
