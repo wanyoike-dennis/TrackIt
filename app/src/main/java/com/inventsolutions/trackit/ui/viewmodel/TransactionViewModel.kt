@@ -39,6 +39,65 @@ data class TransactionUiState(
 
 class TransactionViewModel(application: Application) : AndroidViewModel(application) {
 
+    private fun notifyUpcomingFinancialReminders() {
+        val now = System.currentTimeMillis()
+        val dayMillis = 24L * 60L * 60L * 1000L
+        val preferences = app.getSharedPreferences("trackit_financial_reminders", Application.MODE_PRIVATE)
+        val state = _uiState.value
+
+        state.financialRecords.forEach { record ->
+            val dueDate = record.dueDateEpochMillis
+            if (dueDate != null && dueDate <= now + dayMillis && dueDate >= now - 7L * dayMillis) {
+                val reminderKey = "due_${record.id}_$dueDate"
+                if (!preferences.getBoolean(reminderKey, false)) {
+                    BudgetNotifications.show(
+                        app,
+                        if (dueDate < now) "Financial item overdue" else "Financial item due soon",
+                        "${record.title}: ${formatKes((record.targetMinor - record.currentMinor).coerceAtLeast(0L))} remaining.",
+                        notificationId(record.id, "due-date")
+                    )
+                    preferences.edit().putBoolean(reminderKey, true).apply()
+                }
+            }
+
+            if (record.type != FinancialRecord.SAVINGS_GOAL ||
+                record.contributionMethod !in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY
+                ) || record.plannedContributionMinor <= 0L
+            ) return@forEach
+
+            val lastContribution = state.financialEntries
+                .filter {
+                    it.financialRecordId == record.id &&
+                        it.entryType == FinancialRecordEntry.CONTRIBUTION
+                }
+                .maxOfOrNull { it.createdAtEpochMillis } ?: record.createdAtEpochMillis
+            val nextDue = java.util.Calendar.getInstance().apply {
+                timeInMillis = lastContribution
+                add(
+                    java.util.Calendar.DAY_OF_MONTH,
+                    if (record.contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY) 7 else 0
+                )
+                if (record.contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) {
+                    add(java.util.Calendar.MONTH, 1)
+                }
+            }.timeInMillis
+            if (nextDue <= now + dayMillis && nextDue >= now - 7L * dayMillis) {
+                val reminderKey = "contribution_${record.id}_$nextDue"
+                if (!preferences.getBoolean(reminderKey, false)) {
+                    BudgetNotifications.show(
+                        app,
+                        "Savings contribution due",
+                        "${record.title}: planned contribution ${formatKes(record.plannedContributionMinor)} is due.",
+                        notificationId(record.id, "contribution")
+                    )
+                    preferences.edit().putBoolean(reminderKey, true).apply()
+                }
+            }
+        }
+    }
+
     suspend fun exportBackupJson(): String = withContext(Dispatchers.IO) {
         TrackItBackupManager.export(database)
     }
@@ -77,11 +136,13 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             financialRecordDao.observeAll().collect { records ->
                 _uiState.update { it.copy(financialRecords = records) }
+                notifyUpcomingFinancialReminders()
             }
         }
         viewModelScope.launch {
             financialRecordDao.observeAllEntries().collect { entries ->
                 _uiState.update { it.copy(financialEntries = entries) }
+                notifyUpcomingFinancialReminders()
             }
         }
     }
