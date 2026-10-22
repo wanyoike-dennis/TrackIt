@@ -238,7 +238,7 @@ fun FinancialPlansScreen(
                         when (section) {
                             FinanceSection.DEBTS -> "Know what is coming in and what must go out."
                             FinanceSection.SAVINGS -> "Make every contribution move you closer."
-                            FinanceSection.ALLOWANCE -> "A spending limit, not extra money. Your balance changes only when you record spending."
+                            FinanceSection.ALLOWANCE -> "A limit, not extra money. Record each purchase here or as an expense—never both."
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
