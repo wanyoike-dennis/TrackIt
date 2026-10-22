@@ -1031,7 +1031,6 @@ private fun TrackItNavigationIcon(
         val h = size.height
         val x = w / 2f
         val y = h / 2f
-        val start = androidx.compose.ui.geometry.Offset
         val cap = androidx.compose.ui.graphics.StrokeCap.Round
         val join = androidx.compose.ui.graphics.StrokeJoin.Round
         when (destination) {
@@ -1042,31 +1041,31 @@ private fun TrackItNavigationIcon(
                     lineTo(w * 0.85f, h * 0.47f)
                 }
                 drawPath(roof, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = cap, join = join))
-                drawRoundRect(color, start(w * 0.25f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.5f, h * 0.43f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawLine(color, start(x, h * 0.64f), start(x, h * 0.86f), strokeWidth = stroke, cap = cap)
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.25f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.5f, h * 0.43f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawLine(color, androidx.compose.ui.geometry.Offset(x, h * 0.64f), androidx.compose.ui.geometry.Offset(x, h * 0.86f), strokeWidth = stroke, cap = cap)
             }
             "Activity" -> {
-                drawLine(color, start(w * 0.18f, h * 0.5f), start(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
-                drawLine(color, start(w * 0.58f, h * 0.25f), start(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
-                drawLine(color, start(w * 0.58f, h * 0.75f), start(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
-                drawLine(color, start(w * 0.18f, h * 0.27f), start(w * 0.18f, h * 0.73f), strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.5f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.58f, h * 0.25f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.58f, h * 0.75f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.27f), androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.73f), strokeWidth = stroke, cap = cap)
             }
             "Budgets" -> {
-                drawRoundRect(color, start(w * 0.18f, h * 0.14f), androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.72f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.14f), androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.72f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
                 listOf(0.37f, 0.52f, 0.67f).forEach { lineY ->
-                    drawLine(color, start(w * 0.32f, h * lineY), start(w * 0.68f, h * lineY), strokeWidth = stroke, cap = cap)
+                    drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.32f, h * lineY), androidx.compose.ui.geometry.Offset(w * 0.68f, h * lineY), strokeWidth = stroke, cap = cap)
                 }
             }
             "Reports" -> {
-                drawLine(color, start(w * 0.17f, h * 0.84f), start(w * 0.85f, h * 0.84f), strokeWidth = stroke, cap = cap)
-                drawRoundRect(color, start(w * 0.22f, h * 0.53f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.31f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
-                drawRoundRect(color, start(w * 0.44f, h * 0.34f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.5f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
-                drawRoundRect(color, start(w * 0.66f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.67f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
+                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.17f, h * 0.84f), androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.84f), strokeWidth = stroke, cap = cap)
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.22f, h * 0.53f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.31f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.44f, h * 0.34f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.5f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.66f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.67f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
             }
             "Money" -> {
-                drawRoundRect(color, start(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawRoundRect(color, start(w * 0.55f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.33f, h * 0.23f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawCircle(color, radius = stroke * 0.9f, center = start(w * 0.67f, h * 0.545f))
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.55f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.33f, h * 0.23f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawCircle(color, radius = stroke * 0.9f, center = androidx.compose.ui.geometry.Offset(w * 0.67f, h * 0.545f))
             }
         }
     }
