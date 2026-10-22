@@ -99,7 +99,7 @@ object TrackItBackupManager {
                         }
                     }
                     require(values.size() > 0) { "Backup contains an empty row." }
-                    require(sqlDb.insertOrThrow(table, null, values) != -1L) { "Could not restore $table." }
+                    require(sqlDb.insert(table, null, values) != -1L) { "Could not restore $table." }
                     restoredRows++
                 }
             }
