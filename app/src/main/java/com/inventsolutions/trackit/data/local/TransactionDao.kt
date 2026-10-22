@@ -19,4 +19,7 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE id = :transactionId")
     suspend fun deleteById(transactionId: Long)
+
+    @Query("UPDATE transactions SET allowanceRecordId = NULL WHERE allowanceRecordId = :recordId")
+    suspend fun clearAllowanceLink(recordId: Long)
 }
