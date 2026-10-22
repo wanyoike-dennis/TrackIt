@@ -142,9 +142,19 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         (uiState.financialRecords
             .filter { it.type == FinancialRecord.ALLOWANCE }
             .sumOf { it.currentMinor } - linkedAllowanceSpending).coerceAtLeast(0L)
-    val savingsContributions = uiState.financialRecords
+    val savingsGoals = uiState.financialRecords
         .filter { it.type == FinancialRecord.SAVINGS_GOAL }
-        .sumOf { it.currentMinor }
+        .sortedByDescending { it.currentMinor }
+    val savingsTargetTotal = savingsGoals.sumOf { it.targetMinor }
+    val savingsContributions = savingsGoals.sumOf { it.currentMinor }
+    val savingsGoalCount = savingsGoals.size
+    val todaySpent = todayTransactions.sumOf { it.amountMinor }
+    val todayIncome = uiState.transactions
+        .filter {
+            it.type == MoneyTransaction.INCOME &&
+                it.dateEpochMillis >= todayStart && it.dateEpochMillis < tomorrowStart
+        }
+        .sumOf { it.amountMinor }
     val debtRepayments = uiState.financialRecords
         .filter { it.type == FinancialRecord.DEBT_I_OWE }
         .sumOf { it.currentMinor }
@@ -373,10 +383,19 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     item {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("TrackIt", style = MaterialTheme.typography.headlineMedium,
+                                val greeting = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+                                    in 5..11 -> "Good morning"
+                                    in 12..16 -> "Good afternoon"
+                                    else -> "Good evening"
+                                }
+                                Text(greeting, style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.height(2.dp))
+                                Text("Your money at a glance", style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                                 Spacer(Modifier.height(3.dp))
-                                Text("Your money, made clearer.", style = MaterialTheme.typography.bodyMedium,
+                                Text(SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()),
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Box(
@@ -397,6 +416,76 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             available = availableBalance,
                             monthlyNet = monthlyRemaining
                         )
+                    }
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            DashboardMetricCard(
+                                title = "Spent today",
+                                value = formatKes(todaySpent),
+                                detail = if (todayTransactions.isEmpty()) "No spending yet" else "${todayTransactions.size} transaction${if (todayTransactions.size == 1) "" else "s"}",
+                                symbol = "↘",
+                                accent = TrackItExpense,
+                                modifier = Modifier.weight(1f)
+                            )
+                            DashboardMetricCard(
+                                title = "Income today",
+                                value = formatKes(todayIncome),
+                                detail = if (todayIncome == 0L) "Nothing recorded yet" else "Money received",
+                                symbol = "↗",
+                                accent = TrackItEmerald,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { selectedTab = "Money" },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Box(
+                                    Modifier.size(48.dp).clip(RoundedCornerShape(15.dp))
+                                        .background(TrackItEmeraldTint),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↗", color = TrackItEmerald, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("Savings progress", style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold)
+                                    if (savingsGoals.isEmpty()) {
+                                        Text("Set a savings goal and track your progress here.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    } else {
+                                        Text("${formatKes(savingsContributions)} saved of ${formatKes(savingsTargetTotal)}",
+                                            style = MaterialTheme.typography.bodyMedium)
+                                        val savingsProgress = if (savingsTargetTotal > 0L)
+                                            (savingsContributions.toDouble() / savingsTargetTotal).coerceIn(0.0, 1.0).toFloat()
+                                        else 0f
+                                        LinearProgressIndicator(
+                                            progress = { savingsProgress },
+                                            modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
+                                            color = TrackItEmerald,
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        Text("$savingsGoalCount goal${if (savingsGoalCount == 1) "" else "s"} · ${(savingsProgress * 100).toInt()}% saved",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                     if (budgetAlerts.isNotEmpty()) {
                         item {
@@ -423,7 +512,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     }
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SectionTitle("Quick actions", "Keep your records up to date")
+                            SectionTitle("Quick actions", "What would you like to do?")
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 QuickAction("＋", "Add income", TrackItEmeraldTint, TrackItEmerald,
                                     Modifier.weight(1f)) {
@@ -434,6 +523,16 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     Modifier.weight(1f)) {
                                     viewModel.clearError()
                                     entryType = MoneyTransaction.EXPENSE
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                QuickAction("▤", "Budgets", MaterialTheme.colorScheme.secondaryContainer,
+                                    MaterialTheme.colorScheme.onSecondaryContainer, Modifier.weight(1f)) {
+                                    selectedTab = "Budgets"
+                                }
+                                QuickAction("$", "Savings & debts", TrackItAmberTint, TrackItAmber,
+                                    Modifier.weight(1f)) {
+                                    selectedTab = "Money"
                                 }
                             }
                         }
@@ -616,6 +715,51 @@ private fun OverviewCard(
             color = Color(0xFFD0D7E2),
             style = MaterialTheme.typography.bodySmall
         )
+    }
+}
+
+@Composable
+private fun DashboardMetricCard(
+    title: String,
+    value: String,
+    detail: String,
+    symbol: String,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Box(
+                    Modifier.size(30.dp).clip(RoundedCornerShape(10.dp))
+                        .background(accent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(symbol, color = accent, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+                Text(title, style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(detail, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
