@@ -304,10 +304,11 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         .maxByOrNull { it.value }
     val dailyBudgetDays = now.getActualMaximum(Calendar.DAY_OF_MONTH)
     val todaySpendByCategory = todayTransactions
+        .filter { it.allowanceRecordId == null }
         .groupBy { it.category.lowercase(Locale.getDefault()) }
         .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
     val monthSpendByCategory = monthTransactions
-        .filter { it.type == MoneyTransaction.EXPENSE }
+        .filter { it.type == MoneyTransaction.EXPENSE && it.allowanceRecordId == null }
         .groupBy { it.category.lowercase(Locale.getDefault()) }
         .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
     val budgetAlerts = uiState.budgets.flatMap { budget ->
@@ -441,10 +442,11 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     monthLabel = monthLabel,
                     budgets = uiState.budgets,
                     spendingByCategory = monthTransactions
-                        .filter { it.type == MoneyTransaction.EXPENSE }
+                        .filter { it.type == MoneyTransaction.EXPENSE && it.allowanceRecordId == null }
                         .groupBy { it.category.lowercase(Locale.getDefault()) }
                         .mapValues { (_, items) -> items.sumOf { it.amountMinor } },
                     spendingTodayByCategory = todayTransactions
+                        .filter { it.allowanceRecordId == null }
                         .groupBy { it.category.lowercase(Locale.getDefault()) }
                         .mapValues { (_, items) -> items.sumOf { it.amountMinor } },
                     onSaveBudget = viewModel::saveBudget,
