@@ -1,5 +1,6 @@
 package com.inventsolutions.trackit.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -17,8 +18,11 @@ data class FinancialRecord(
     val dueDateEpochMillis: Long? = null,
     val notes: String = "",
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "'General savings'")
     val savingsCategory: String = "General savings",
+    @ColumnInfo(defaultValue = "'FLEXIBLE'")
     val contributionMethod: String = "FLEXIBLE",
+    @ColumnInfo(defaultValue = "0")
     val plannedContributionMinor: Long = 0L
 ) {
     companion object {
