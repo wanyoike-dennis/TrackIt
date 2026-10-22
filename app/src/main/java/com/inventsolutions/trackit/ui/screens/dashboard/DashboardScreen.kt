@@ -188,7 +188,10 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             }
             .sumOf { it.amountMinor } +
         monthFinancialEntries
-            .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.COLLECTION }
+            .filter {
+                it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.COLLECTION ||
+                    it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.WITHDRAWAL
+            }
             .sumOf { it.amountMinor }
     val dailyBudgetDays = now.getActualMaximum(Calendar.DAY_OF_MONTH)
     val todaySpendByCategory = todayTransactions
