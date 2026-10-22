@@ -1,5 +1,6 @@
 package com.inventsolutions.trackit.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -18,7 +19,9 @@ data class MoneyTransaction(
     val description: String,
     val paymentMethod: String,
     val dateEpochMillis: Long,
-    val createdAtEpochMillis: Long = System.currentTimeMillis()
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "NULL")
+    val allowanceRecordId: Long? = null
 ) {
     companion object {
         const val INCOME = "INCOME"
