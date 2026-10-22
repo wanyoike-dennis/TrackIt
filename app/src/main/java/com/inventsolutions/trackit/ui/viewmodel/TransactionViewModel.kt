@@ -292,14 +292,33 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         contributionMethod: String = FinancialRecord.CONTRIBUTION_FLEXIBLE,
         plannedContributionMinor: Long = 0L
     ) {
+        val invalidSavingsPlan = type == FinancialRecord.SAVINGS_GOAL && (
+            savingsCategory.isBlank() ||
+                contributionMethod !in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY,
+                    FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                    FinancialRecord.CONTRIBUTION_ONE_TIME
+                ) ||
+                (contributionMethod in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY
+                ) && plannedContributionMinor <= 0L)
+            )
         if (type !in setOf(
                 FinancialRecord.DEBT_OWED_TO_ME,
                 FinancialRecord.DEBT_I_OWE,
                 FinancialRecord.SAVINGS_GOAL,
                 FinancialRecord.ALLOWANCE
-            ) || title.isBlank() || targetMinor <= 0L
+            ) || title.isBlank() || targetMinor <= 0L || invalidSavingsPlan
         ) {
-            _uiState.update { it.copy(errorMessage = "Enter a title and an amount greater than zero.") }
+            _uiState.update {
+                it.copy(errorMessage = if (invalidSavingsPlan) {
+                    "Enter a savings category and a valid contribution plan."
+                } else {
+                    "Enter a title and an amount greater than zero."
+                })
+            }
             return
         }
         viewModelScope.launch {
@@ -324,7 +343,20 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun updateFinancialRecord(record: FinancialRecord) {
-        if (record.title.isBlank() || record.targetMinor <= 0L || record.currentMinor < 0L) {
+        val invalidSavingsPlan = record.type == FinancialRecord.SAVINGS_GOAL && (
+            record.savingsCategory.isBlank() ||
+                record.contributionMethod !in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY,
+                    FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                    FinancialRecord.CONTRIBUTION_ONE_TIME
+                ) ||
+                (record.contributionMethod in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY
+                ) && record.plannedContributionMinor <= 0L)
+            )
+        if (record.title.isBlank() || record.targetMinor <= 0L || record.currentMinor < 0L || invalidSavingsPlan) {
             _uiState.update { it.copy(errorMessage = "Enter a title and a valid amount greater than zero.") }
             return
         }
