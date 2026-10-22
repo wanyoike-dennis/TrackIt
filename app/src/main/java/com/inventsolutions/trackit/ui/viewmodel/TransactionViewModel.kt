@@ -3,6 +3,7 @@ package com.inventsolutions.trackit.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import com.inventsolutions.trackit.data.local.ExpenseCategory
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
@@ -79,7 +80,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         category: String,
         description: String,
         paymentMethod: String,
-        dateEpochMillis: Long
+        dateEpochMillis: Long,
+        allowanceRecordId: Long? = null
     ): Boolean {
         if (amountMinor <= 0L) {
             _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
@@ -88,6 +90,14 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         if (category.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Choose or enter a category.") }
             return false
+        }
+
+        if (allowanceRecordId != null) {
+            val allowance = _uiState.value.financialRecords.firstOrNull { it.id == allowanceRecordId }
+            if (type != MoneyTransaction.EXPENSE || allowance?.type != FinancialRecord.ALLOWANCE) {
+                _uiState.update { it.copy(errorMessage = "Choose a valid allowance for this expense.") }
+                return false
+            }
         }
 
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
@@ -102,10 +112,16 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 category = normalizedCategory,
                 description = description.trim(),
                 paymentMethod = paymentMethod,
-                dateEpochMillis = dateEpochMillis
+                dateEpochMillis = dateEpochMillis,
+                allowanceRecordId = if (type == MoneyTransaction.EXPENSE) allowanceRecordId else null
             )
             val stateBeforeSave = _uiState.value
-            transactionRepository.add(transaction)
+            database.withTransaction {
+                transactionRepository.add(transaction)
+                if (transaction.allowanceRecordId != null) {
+                    adjustAllowanceBalance(transaction.allowanceRecordId, transaction.amountMinor)
+                }
+            }
             if (type == MoneyTransaction.EXPENSE) {
                 notifyIfBudgetExceeded(transaction, stateBeforeSave.transactions, stateBeforeSave.budgets)
             }
@@ -233,7 +249,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 if (normalized.type == MoneyTransaction.EXPENSE) {
                     categoryRepository.ensureCategory(normalized.category)
                 }
-                transactionRepository.update(normalized)
+                val original = _uiState.value.transactions.firstOrNull { it.id == normalized.id }
+                database.withTransaction {
+                    applyAllowanceChange(original, normalized)
+                    transactionRepository.update(normalized)
+                }
                 _uiState.update { it.copy(errorMessage = null) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(errorMessage = "Couldn't update this transaction. Please try again.") }
@@ -244,11 +264,47 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     fun deleteTransaction(transactionId: Long) {
         viewModelScope.launch {
             try {
-                transactionRepository.delete(transactionId)
+                val original = _uiState.value.transactions.firstOrNull { it.id == transactionId }
+                database.withTransaction {
+                    if (original?.allowanceRecordId != null) {
+                        adjustAllowanceBalance(original.allowanceRecordId, -original.amountMinor)
+                    }
+                    transactionRepository.delete(transactionId)
+                }
                 _uiState.update { it.copy(errorMessage = null) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(errorMessage = "Couldn't delete this transaction. Please try again.") }
             }
+        }
+    }
+
+    private suspend fun adjustAllowanceBalance(recordId: Long, deltaMinor: Long) {
+        if (deltaMinor == 0L) return
+        val allowance = financialRecordDao.getById(recordId) ?: return
+        if (allowance.type != FinancialRecord.ALLOWANCE) return
+        financialRecordDao.update(
+            allowance.copy(currentMinor = (allowance.currentMinor + deltaMinor).coerceAtLeast(0L))
+        )
+    }
+
+    private suspend fun applyAllowanceChange(
+        oldTransaction: MoneyTransaction?,
+        newTransaction: MoneyTransaction
+    ) {
+        val oldId = oldTransaction?.allowanceRecordId
+        val newId = newTransaction.allowanceRecordId
+        if (oldId == newId) {
+            if (oldId != null) {
+                adjustAllowanceBalance(
+                    oldId,
+                    newTransaction.amountMinor - (oldTransaction?.amountMinor ?: 0L)
+                )
+            }
+        } else {
+            if (oldId != null && oldTransaction != null) {
+                adjustAllowanceBalance(oldId, -oldTransaction.amountMinor)
+            }
+            if (newId != null) adjustAllowanceBalance(newId, newTransaction.amountMinor)
         }
     }
 
