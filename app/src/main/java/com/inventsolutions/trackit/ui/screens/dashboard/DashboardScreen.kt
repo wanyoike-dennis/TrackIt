@@ -79,6 +79,8 @@ import com.inventsolutions.trackit.ui.screens.transactions.TransactionEntryScree
 import com.inventsolutions.trackit.ui.screens.transactions.TransactionHistoryScreen
 import com.inventsolutions.trackit.ui.screens.reports.ReportScreen
 import com.inventsolutions.trackit.ui.screens.finances.FinancialPlansScreen
+import com.inventsolutions.trackit.ui.screens.profile.ProfileScreen
+import com.inventsolutions.trackit.ui.screens.profile.BackupRestoreScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
 private data class ActivityItem(
@@ -343,7 +345,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (entryType == null) {
+            if (entryType == null && selectedTab != "Profile" && selectedTab != "Backup") {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -464,15 +466,25 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     onAddRecurringTransaction = viewModel::addRecurringTransaction,
                     onSetRecurringTransactionActive = viewModel::setRecurringTransactionActive,
                     onDeleteRecurringTransaction = viewModel::deleteRecurringTransaction,
+
+                )
+            } else if (selectedTab == "Profile") {
+                ProfileScreen(
+                    onOpenBackupRestore = { selectedTab = "Backup" },
+                    onBack = { selectedTab = "Home" }
+                )
+            } else if (selectedTab == "Backup") {
+                BackupRestoreScreen(
+                    onBack = { selectedTab = "Profile" },
                     onExportBackup = {
                         scope.launch {
                             runCatching { withContext(Dispatchers.IO) { viewModel.exportBackupJson() } }
                                 .onSuccess { json ->
                                     pendingBackupJson = json
-                                    createBackupLauncher.launch("TrackIt-backup-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.json")
+                                    createBackupLauncher.launch("TrackIt-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".json")
                                 }
                                 .onFailure {
-                                    noticeMessage = "Couldn't prepare a backup. Please try again."
+                                    noticeMessage = "Could not prepare a backup. Please try again."
                                     notice = true
                                 }
                         }
@@ -528,7 +540,8 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             }
                             Box(
                                 Modifier.size(46.dp).clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .clickable { selectedTab = "Profile" },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text("T", style = MaterialTheme.typography.titleLarge,
