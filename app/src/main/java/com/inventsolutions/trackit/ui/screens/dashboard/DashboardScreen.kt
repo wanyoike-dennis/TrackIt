@@ -242,11 +242,15 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     type = entryType!!,
                     isSaving = uiState.isSaving,
                     errorMessage = uiState.errorMessage,
+                    budgets = uiState.budgets,
+                    transactions = uiState.transactions,
+                    expenseCategories = uiState.expenseCategories,
                     onBack = {
                         entryType = null
                         viewModel.clearError()
                     },
                     onClearError = viewModel::clearError,
+                    onCreateCategory = viewModel::createExpenseCategory,
                     onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis ->
                         scope.launch {
                             val saved = viewModel.addTransaction(
