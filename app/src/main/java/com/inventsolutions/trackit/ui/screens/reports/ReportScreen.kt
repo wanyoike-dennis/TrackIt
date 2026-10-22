@@ -211,81 +211,6 @@ fun ReportScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("Recurring transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("Automatically record regular income or expenses when the app is opened.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        OutlinedButton(onClick = { recurringError = null; showRecurringDialog = true }) { Text("Add") }
-                    }
-                    if (recurringTransactions.isEmpty()) {
-                        Text("No recurring transactions set up yet.", style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        recurringTransactions.forEach { item ->
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                    Text(
-                                        "${item.frequency.lowercase().replaceFirstChar { it.uppercase() }} · ${item.category} · ${reportKes(item.amountMinor)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        if (item.active) "Next: " + SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(item.nextRunEpochMillis)) else "Paused",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (item.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Column(horizontalAlignment = Alignment.End) {
-                                    TextButton(onClick = { onSetRecurringTransactionActive(item, !item.active) }) {
-                                        Text(if (item.active) "Pause" else "Resume")
-                                    }
-                                    TextButton(onClick = { onDeleteRecurringTransaction(item.id) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                                }
-                            }
-                        }
-                    }
-                    Text("A missed schedule creates one catch-up entry, then advances to the next future date. Check the transaction history after opening the app.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Column(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Backup & restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "Save all local transactions, budgets, categories, savings, debts and financial-plan history to a JSON file. Keep the file somewhere safe.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = onExportBackup, modifier = Modifier.weight(1f)) {
-                            Text("Export backup")
-                        }
-                        OutlinedButton(onClick = { showRestoreConfirmation = true }, modifier = Modifier.weight(1f)) {
-                            Text("Restore backup")
-                        }
-                    }
-                }
-            }
-        }
-        item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Financial reports", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -435,6 +360,81 @@ fun ReportScreen(
         item {
             Text("Reports use transactions stored locally on this device. No internet connection is required.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("Recurring transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Automatically record regular income or expenses when the app is opened.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        OutlinedButton(onClick = { recurringError = null; showRecurringDialog = true }) { Text("Add") }
+                    }
+                    if (recurringTransactions.isEmpty()) {
+                        Text("No recurring transactions set up yet.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        recurringTransactions.forEach { item ->
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        "${item.frequency.lowercase().replaceFirstChar { it.uppercase() }} · ${item.category} · ${reportKes(item.amountMinor)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        if (item.active) "Next: " + SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(item.nextRunEpochMillis)) else "Paused",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (item.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    TextButton(onClick = { onSetRecurringTransactionActive(item, !item.active) }) {
+                                        Text(if (item.active) "Pause" else "Resume")
+                                    }
+                                    TextButton(onClick = { onDeleteRecurringTransaction(item.id) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                                }
+                            }
+                        }
+                    }
+                    Text("A missed schedule creates one catch-up entry, then advances to the next future date. Check the transaction history after opening the app.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Backup & restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Save all local transactions, budgets, categories, savings, debts and financial-plan history to a JSON file. Keep the file somewhere safe.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onExportBackup, modifier = Modifier.weight(1f)) {
+                            Text("Export backup")
+                        }
+                        OutlinedButton(onClick = { showRestoreConfirmation = true }, modifier = Modifier.weight(1f)) {
+                            Text("Restore backup")
+                        }
+                    }
+                }
+            }
         }
     }
 
