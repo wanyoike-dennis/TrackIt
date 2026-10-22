@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventsolutions.trackit.data.local.ExpenseCategory
+import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.MonthlyBudget
 import com.inventsolutions.trackit.data.local.TrackItDatabase
@@ -25,6 +26,7 @@ data class TransactionUiState(
     val transactions: List<MoneyTransaction> = emptyList(),
     val budgets: List<MonthlyBudget> = emptyList(),
     val expenseCategories: List<ExpenseCategory> = emptyList(),
+    val financialRecords: List<FinancialRecord> = emptyList(),
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
@@ -35,6 +37,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val transactionRepository = TransactionRepository(database.transactionDao())
     private val budgetRepository = MonthlyBudgetRepository(database.monthlyBudgetDao())
     private val categoryRepository = ExpenseCategoryRepository(database.expenseCategoryDao())
+    private val financialRecordDao = database.financialRecordDao()
     private val monthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
     private val _uiState = MutableStateFlow(TransactionUiState())
@@ -54,6 +57,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             categoryRepository.observeCategories().collect { categories ->
                 _uiState.update { it.copy(expenseCategories = categories) }
+            }
+        }
+        viewModelScope.launch {
+            financialRecordDao.observeAll().collect { records ->
+                _uiState.update { it.copy(financialRecords = records) }
             }
         }
     }
@@ -263,6 +271,67 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 budgetRepository.delete(budgetId)
             } catch (_: Exception) {
                 _uiState.update { it.copy(errorMessage = "Couldn't delete this budget. Please try again.") }
+            }
+        }
+    }
+
+    fun addFinancialRecord(
+        type: String,
+        title: String,
+        targetMinor: Long,
+        dueDateEpochMillis: Long? = null,
+        notes: String = ""
+    ) {
+        if (type !in setOf(
+                FinancialRecord.DEBT_OWED_TO_ME,
+                FinancialRecord.DEBT_I_OWE,
+                FinancialRecord.SAVINGS_GOAL,
+                FinancialRecord.ALLOWANCE
+            ) || title.isBlank() || targetMinor <= 0L
+        ) {
+            _uiState.update { it.copy(errorMessage = "Enter a title and an amount greater than zero.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                financialRecordDao.insert(
+                    FinancialRecord(
+                        type = type,
+                        title = title.trim(),
+                        targetMinor = targetMinor,
+                        dueDateEpochMillis = dueDateEpochMillis,
+                        notes = notes.trim()
+                    )
+                )
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't save this record. Please try again.") }
+            }
+        }
+    }
+
+    fun addFinancialProgress(record: FinancialRecord, amountMinor: Long) {
+        if (amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                financialRecordDao.update(record.copy(currentMinor = record.currentMinor + amountMinor))
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't update this record. Please try again.") }
+            }
+        }
+    }
+
+    fun deleteFinancialRecord(recordId: Long) {
+        viewModelScope.launch {
+            try {
+                financialRecordDao.deleteById(recordId)
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't delete this record. Please try again.") }
             }
         }
     }
