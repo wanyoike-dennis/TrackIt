@@ -3,9 +3,11 @@ package com.inventsolutions.trackit.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.inventsolutions.trackit.data.local.ExpenseCategory
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.MonthlyBudget
 import com.inventsolutions.trackit.data.local.TrackItDatabase
+import com.inventsolutions.trackit.data.repository.ExpenseCategoryRepository
 import com.inventsolutions.trackit.data.repository.MonthlyBudgetRepository
 import com.inventsolutions.trackit.data.repository.TransactionRepository
 import com.inventsolutions.trackit.notifications.BudgetNotifications
@@ -22,6 +24,7 @@ import kotlinx.coroutines.launch
 data class TransactionUiState(
     val transactions: List<MoneyTransaction> = emptyList(),
     val budgets: List<MonthlyBudget> = emptyList(),
+    val expenseCategories: List<ExpenseCategory> = emptyList(),
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
@@ -31,6 +34,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val database = TrackItDatabase.getInstance(application)
     private val transactionRepository = TransactionRepository(database.transactionDao())
     private val budgetRepository = MonthlyBudgetRepository(database.monthlyBudgetDao())
+    private val categoryRepository = ExpenseCategoryRepository(database.expenseCategoryDao())
     private val monthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
     private val _uiState = MutableStateFlow(TransactionUiState())
@@ -45,6 +49,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             budgetRepository.observeForMonth(monthKey).collect { budgets ->
                 _uiState.update { it.copy(budgets = budgets) }
+            }
+        }
+        viewModelScope.launch {
+            categoryRepository.observeCategories().collect { categories ->
+                _uiState.update { it.copy(expenseCategories = categories) }
             }
         }
     }
@@ -68,10 +77,14 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
 
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         return try {
+            val normalizedCategory = category.trim()
+            if (type == MoneyTransaction.EXPENSE) {
+                categoryRepository.ensureCategory(normalizedCategory)
+            }
             val transaction = MoneyTransaction(
                 type = type,
                 amountMinor = amountMinor,
-                category = category.trim(),
+                category = normalizedCategory,
                 description = description.trim(),
                 paymentMethod = paymentMethod,
                 dateEpochMillis = dateEpochMillis
@@ -88,6 +101,36 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 it.copy(isSaving = false, errorMessage = "Couldn't save this transaction. Please try again.")
             }
             false
+        }
+    }
+
+    fun createExpenseCategory(name: String, budgetLimitMinor: Long?, budgetType: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Enter a category name.") }
+            return
+        }
+        if (budgetLimitMinor != null && budgetLimitMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter a valid budget amount greater than zero.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                categoryRepository.ensureCategory(trimmed)
+                if (budgetLimitMinor != null) {
+                    budgetRepository.save(
+                        MonthlyBudget(
+                            monthKey = monthKey,
+                            category = trimmed,
+                            budgetType = budgetType,
+                            limitMinor = budgetLimitMinor
+                        )
+                    )
+                }
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't create this category. Please try again.") }
+            }
         }
     }
 
@@ -164,6 +207,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         if (category.isBlank() || limitMinor <= 0L) return
         viewModelScope.launch {
             try {
+                categoryRepository.ensureCategory(category)
                 budgetRepository.save(
                     MonthlyBudget(
                         monthKey = monthKey,
