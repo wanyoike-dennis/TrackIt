@@ -395,6 +395,7 @@ fun FinancialPlansScreen(
                             value = savingsCategory,
                             onValueChange = { savingsCategory = it },
                             label = { Text("Savings category") },
+                            supportingText = { Text("Examples: Emergency, goal-based, bills, long-term, business, lifestyle or general.") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -424,6 +425,11 @@ fun FinancialPlansScreen(
                                 label = { Text("${if (contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) "Monthly" else "Weekly"} contribution (KSh)") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                "Planning only—TrackIt will not move money automatically. Record each contribution when it happens.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
