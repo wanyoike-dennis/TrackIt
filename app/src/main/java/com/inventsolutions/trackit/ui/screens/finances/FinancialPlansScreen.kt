@@ -1,17 +1,23 @@
 package com.inventsolutions.trackit.ui.screens.finances
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -30,8 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import java.text.NumberFormat
 import java.util.Locale
@@ -56,88 +64,193 @@ fun FinancialPlansScreen(
     onDelete: (Long) -> Unit,
     onClearError: () -> Unit
 ) {
-    var section by remember { mutableStateOf(FinanceSection.DEBTS) }
+    var section by remember { mutableStateOf(FinanceSection.SAVINGS) }
     var showCreate by remember { mutableStateOf(false) }
     var progressRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var deleteRecord by remember { mutableStateOf<FinancialRecord?>(null) }
 
-    val visibleRecords = records.filter {
-        when (section) {
-            FinanceSection.DEBTS -> it.type == FinancialRecord.DEBT_OWED_TO_ME || it.type == FinancialRecord.DEBT_I_OWE
-            FinanceSection.SAVINGS -> it.type == FinancialRecord.SAVINGS_GOAL
-            FinanceSection.ALLOWANCE -> it.type == FinancialRecord.ALLOWANCE
-        }
+    val debtsOwedToMe = records.filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
+    val debtsIOwe = records.filter { it.type == FinancialRecord.DEBT_I_OWE }
+    val savings = records.filter { it.type == FinancialRecord.SAVINGS_GOAL }
+    val allowances = records.filter { it.type == FinancialRecord.ALLOWANCE }
+    val visibleRecords = when (section) {
+        FinanceSection.DEBTS -> (debtsOwedToMe + debtsIOwe).sortedByDescending { it.createdAtEpochMillis }
+        FinanceSection.SAVINGS -> savings
+        FinanceSection.ALLOWANCE -> allowances
     }
-    val sectionTotal = when (section) {
-        FinanceSection.DEBTS -> visibleRecords.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
-        FinanceSection.SAVINGS -> visibleRecords.sumOf { it.currentMinor }
-        FinanceSection.ALLOWANCE -> visibleRecords.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
-    }
+    val savedTotal = savings.sumOf { it.currentMinor }
+    val savingsTarget = savings.sumOf { it.targetMinor }
+    val savingsProgress = if (savingsTarget > 0L) (savedTotal.toFloat() / savingsTarget).coerceIn(0f, 1f) else 0f
+    val owedToMe = debtsOwedToMe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
+    val iOwe = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
+    val allowanceLeft = allowances.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Money plans", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text("Keep debts, savings and allowances organised.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("MONEY PLANS", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Text("Give your money a purpose.", style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold)
+                    Text("Small steps. Clear progress. Less money stress.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedButton(onClick = onBackToHome) { Text("Home") }
+                OutlinedButton(onClick = onBackToHome, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)) {
+                    Text("Home")
+                }
             }
         }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(selected = section == FinanceSection.DEBTS, onClick = { section = FinanceSection.DEBTS }, label = { Text("Debts") })
-                FilterChip(selected = section == FinanceSection.SAVINGS, onClick = { section = FinanceSection.SAVINGS }, label = { Text("Savings") })
-                FilterChip(selected = section == FinanceSection.ALLOWANCE, onClick = { section = FinanceSection.ALLOWANCE }, label = { Text("Allowance") })
-            }
-        }
+
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                when (section) {
+                                    FinanceSection.DEBTS -> "YOUR DEBT POSITION"
+                                    FinanceSection.SAVINGS -> "YOUR SAVINGS JOURNEY"
+                                    FinanceSection.ALLOWANCE -> "YOUR SPENDING PLAN"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp
+                            )
+                            Text(
+                                when (section) {
+                                    FinanceSection.DEBTS -> financeKes(iOwe)
+                                    FinanceSection.SAVINGS -> financeKes(savedTotal)
+                                    FinanceSection.ALLOWANCE -> financeKes(allowances.sumOf { it.currentMinor })
+                                },
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                when (section) {
+                                    FinanceSection.DEBTS -> "Still to repay · excludes money owed to you"
+                                    FinanceSection.SAVINGS -> "Saved across ${savings.size} ${if (savings.size == 1) "goal" else "goals"}"
+                                    FinanceSection.ALLOWANCE -> "Spent across ${allowances.size} ${if (allowances.size == 1) "allowance" else "allowances"}"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                        Box(
+                            Modifier.size(58.dp).clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.09f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                when (section) {
+                                    FinanceSection.DEBTS -> "↔"
+                                    FinanceSection.SAVINGS -> "✦"
+                                    FinanceSection.ALLOWANCE -> "◷"
+                                },
+                                fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    if (section == FinanceSection.SAVINGS) {
+                        LinearProgressIndicator(
+                            progress = { savingsProgress },
+                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.14f)
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${(savingsProgress * 100).toInt()}% of target",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("${financeKes((savingsTarget - savedTotal).coerceAtLeast(0L))} to go",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                    if (section == FinanceSection.DEBTS) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            HeroMetric(
+                                modifier = Modifier.weight(1f),
+                                label = "Owed to you",
+                                value = financeKes(owedToMe),
+                                hint = "To collect",
+                                symbol = "↙"
+                            )
+                            HeroMetric(
+                                modifier = Modifier.weight(1f),
+                                label = "You owe",
+                                value = financeKes(iOwe),
+                                hint = "To repay",
+                                symbol = "↗"
+                            )
+                        }
+                    }
+                    if (section == FinanceSection.ALLOWANCE) {
+                        Text(
+                            if (allowanceLeft > 0L) "${financeKes(allowanceLeft)} left in your allowance plans"
+                            else "Your allowance plans are used up.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FinanceTab("Debts", "↔", section == FinanceSection.DEBTS, Modifier.weight(1f)) { section = FinanceSection.DEBTS }
+                FinanceTab("Savings", "✦", section == FinanceSection.SAVINGS, Modifier.weight(1f)) { section = FinanceSection.SAVINGS }
+                FinanceTab("Allowance", "◷", section == FinanceSection.ALLOWANCE, Modifier.weight(1f)) { section = FinanceSection.ALLOWANCE }
+            }
+        }
+
+        item {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
                         when (section) {
-                            FinanceSection.DEBTS -> "OUTSTANDING DEBT"
-                            FinanceSection.SAVINGS -> "TOTAL SAVED"
-                            FinanceSection.ALLOWANCE -> "ALLOWANCE REMAINING"
+                            FinanceSection.DEBTS -> "Debt tracker"
+                            FinanceSection.SAVINGS -> "Your goals"
+                            FinanceSection.ALLOWANCE -> "Spending limits"
                         },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold
                     )
-                    Text(financeKes(sectionTotal), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(
                         when (section) {
-                            FinanceSection.DEBTS -> "Remaining amount across debts you owe and are owed."
-                            FinanceSection.SAVINGS -> "Money contributed toward your savings goals."
-                            FinanceSection.ALLOWANCE -> "Combined remaining allowance across your plans."
+                            FinanceSection.DEBTS -> "Know what is coming in and what must go out."
+                            FinanceSection.SAVINGS -> "Make every contribution move you closer."
+                            FinanceSection.ALLOWANCE -> "Give day-to-day spending a clear boundary."
                         },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Button(onClick = { showCreate = true }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
+                    Text(
+                        when (section) {
+                            FinanceSection.DEBTS -> "+ Debt"
+                            FinanceSection.SAVINGS -> "+ Goal"
+                            FinanceSection.ALLOWANCE -> "+ Allowance"
+                        }
                     )
                 }
             }
         }
-        item {
-            Button(onClick = { showCreate = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(when (section) {
-                    FinanceSection.DEBTS -> "Add debt"
-                    FinanceSection.SAVINGS -> "Create savings goal"
-                    FinanceSection.ALLOWANCE -> "Set allowance"
-                })
-            }
-        }
+
         if (errorMessage != null) {
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    shape = RoundedCornerShape(16.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(errorMessage, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer)
                         TextButton(onClick = onClearError) { Text("Dismiss") }
@@ -145,108 +258,79 @@ fun FinancialPlansScreen(
                 }
             }
         }
+
         if (visibleRecords.isEmpty()) {
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Nothing here yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            Modifier.size(62.dp).clip(RoundedCornerShape(20.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                when (section) {
+                                    FinanceSection.DEBTS -> "↔"
+                                    FinanceSection.SAVINGS -> "✦"
+                                    FinanceSection.ALLOWANCE -> "◷"
+                                },
+                                fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                         Text(
                             when (section) {
-                                FinanceSection.DEBTS -> "Add money someone owes you or a debt you need to repay."
-                                FinanceSection.SAVINGS -> "Create a target and record each contribution as you save."
-                                FinanceSection.ALLOWANCE -> "Set an allowance and record spending against it."
+                                FinanceSection.DEBTS -> "Start with a clear picture"
+                                FinanceSection.SAVINGS -> "Your next goal starts here"
+                                FinanceSection.ALLOWANCE -> "Plan before you spend"
                             },
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            when (section) {
+                                FinanceSection.DEBTS -> "Add money you owe or money someone needs to pay you. Track each repayment or collection."
+                                FinanceSection.SAVINGS -> "Set a target for an emergency fund, a new phone, rent, or anything you are working towards."
+                                FinanceSection.ALLOWANCE -> "Set a spending limit for a week, month, or personal category and record what you use."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Button(onClick = { showCreate = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                when (section) {
+                                    FinanceSection.DEBTS -> "Add your first debt"
+                                    FinanceSection.SAVINGS -> "Create your first goal"
+                                    FinanceSection.ALLOWANCE -> "Set your first allowance"
+                                }
+                            )
+                        }
                     }
                 }
             }
         } else {
             items(visibleRecords, key = { it.id }) { record ->
-                val progress = if (record.targetMinor > 0L) (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
-                val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
-                val isAllowance = record.type == FinancialRecord.ALLOWANCE
-                val isDebt = record.type == FinancialRecord.DEBT_OWED_TO_ME || record.type == FinancialRecord.DEBT_I_OWE
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    when (record.type) {
-                                        FinancialRecord.DEBT_OWED_TO_ME -> "Owed to me"
-                                        FinancialRecord.DEBT_I_OWE -> "I owe"
-                                        FinancialRecord.SAVINGS_GOAL -> "Savings goal"
-                                        else -> "Allowance"
-                                    },
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            TextButton(onClick = { deleteRecord = record }) { Text("Delete") }
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text(if (isAllowance) "Allowance" else if (isDebt) "Total" else "Target",
-                                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(financeKes(record.targetMinor), fontWeight = FontWeight.SemiBold)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    when (record.type) {
-                                        FinancialRecord.DEBT_OWED_TO_ME -> "Collected"
-                                        FinancialRecord.DEBT_I_OWE -> "Repaid"
-                                        FinancialRecord.SAVINGS_GOAL -> "Saved"
-                                        else -> "Spent"
-                                    },
-                                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(financeKes(record.currentMinor), fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.fillMaxWidth().height(6.dp),
-                            color = if (isAllowance && record.currentMinor > record.targetMinor) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                        Text(
-                            when {
-                                isAllowance && remaining == 0L -> "Allowance used up or exceeded"
-                                isAllowance -> "${financeKes(remaining)} remaining"
-                                isDebt && remaining == 0L -> "Settled"
-                                isDebt -> "${financeKes(remaining)} outstanding"
-                                remaining == 0L -> "Goal reached"
-                                else -> "${financeKes(remaining)} to go"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isAllowance && record.currentMinor > record.targetMinor) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (record.notes.isNotBlank()) {
-                            Text(record.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        OutlinedButton(onClick = { progressRecord = record }, modifier = Modifier.fillMaxWidth()) {
-                            Text(when (record.type) {
-                                FinancialRecord.DEBT_OWED_TO_ME -> "Record collection"
-                                FinancialRecord.DEBT_I_OWE -> "Record repayment"
-                                FinancialRecord.SAVINGS_GOAL -> "Add savings"
-                                else -> "Record spending"
-                            })
-                        }
-                    }
-                }
+                FinancialRecordCard(
+                    record = record,
+                    onProgress = { progressRecord = record },
+                    onDelete = { deleteRecord = record }
+                )
             }
         }
+
         item {
-            Spacer(Modifier.height(4.dp))
-            Text("Saved on this device and available offline.", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("●", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                Text("Your plans are saved on this device and work offline.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 
@@ -255,42 +339,68 @@ fun FinancialPlansScreen(
         var amount by remember(section) { mutableStateOf("") }
         var notes by remember(section) { mutableStateOf("") }
         var debtType by remember { mutableStateOf(FinancialRecord.DEBT_I_OWE) }
+        var validationError by remember(section) { mutableStateOf<String?>(null) }
         AlertDialog(
             onDismissRequest = { showCreate = false },
             title = { Text(when (section) {
-                FinanceSection.DEBTS -> "Add a debt"
-                FinanceSection.SAVINGS -> "Create savings goal"
-                FinanceSection.ALLOWANCE -> "Set allowance"
-            }) },
+                FinanceSection.DEBTS -> "Add debt details"
+                FinanceSection.SAVINGS -> "Set your savings goal"
+                FinanceSection.ALLOWANCE -> "Set a spending limit"
+            }, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (section == FinanceSection.DEBTS) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Choose the direction first", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(selected = debtType == FinancialRecord.DEBT_I_OWE,
-                                onClick = { debtType = FinancialRecord.DEBT_I_OWE }, label = { Text("I owe") })
+                                onClick = { debtType = FinancialRecord.DEBT_I_OWE },
+                                label = { Text("I owe") })
                             FilterChip(selected = debtType == FinancialRecord.DEBT_OWED_TO_ME,
-                                onClick = { debtType = FinancialRecord.DEBT_OWED_TO_ME }, label = { Text("Owed to me") })
+                                onClick = { debtType = FinancialRecord.DEBT_OWED_TO_ME },
+                                label = { Text("Owed to me") })
                         }
                     }
-                    OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Name / description") }, singleLine = true)
-                    OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (KSh)") }, singleLine = true)
-                    OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes (optional)") }, minLines = 2)
+                    OutlinedTextField(value = title, onValueChange = { title = it; validationError = null },
+                        label = { Text(when (section) {
+                            FinanceSection.DEBTS -> "Person / debt description"
+                            FinanceSection.SAVINGS -> "What are you saving for?"
+                            FinanceSection.ALLOWANCE -> "What is this allowance for?"
+                        }) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
+                        label = { Text(when (section) {
+                            FinanceSection.DEBTS -> "Original debt (KSh)"
+                            FinanceSection.SAVINGS -> "Savings target (KSh)"
+                            FinanceSection.ALLOWANCE -> "Spending limit (KSh)"
+                        }) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = notes, onValueChange = { notes = it },
+                        label = { Text("Notes (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                    if (validationError != null) {
+                        Text(validationError!!, color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                Button(onClick = {
                     val parsed = amount.trim().replace(",", "").toBigDecimalOrNull()
-                    val minor = parsed?.let { runCatching { it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull() }
-                    if (title.isNotBlank() && minor != null && minor > 0L) {
-                        val type = when (section) {
-                            FinanceSection.DEBTS -> debtType
-                            FinanceSection.SAVINGS -> FinancialRecord.SAVINGS_GOAL
-                            FinanceSection.ALLOWANCE -> FinancialRecord.ALLOWANCE
+                    val minor = parsed?.let { runCatching {
+                        it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
+                    }.getOrNull() }
+                    when {
+                        title.isBlank() -> validationError = "Add a name or description first."
+                        minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
+                        else -> {
+                            val type = when (section) {
+                                FinanceSection.DEBTS -> debtType
+                                FinanceSection.SAVINGS -> FinancialRecord.SAVINGS_GOAL
+                                FinanceSection.ALLOWANCE -> FinancialRecord.ALLOWANCE
+                            }
+                            onAdd(type, title, minor, notes)
+                            showCreate = false
                         }
-                        onAdd(type, title, minor, notes)
-                        showCreate = false
                     }
-                }) { Text("Save") }
+                }) { Text("Create plan") }
             },
             dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } }
         )
@@ -298,29 +408,52 @@ fun FinancialPlansScreen(
 
     progressRecord?.let { record ->
         var amount by remember(record.id) { mutableStateOf("") }
+        var validationError by remember(record.id) { mutableStateOf<String?>(null) }
+        val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
+        val isDebt = record.type == FinancialRecord.DEBT_I_OWE || record.type == FinancialRecord.DEBT_OWED_TO_ME
         AlertDialog(
             onDismissRequest = { progressRecord = null },
             title = { Text(when (record.type) {
-                FinancialRecord.DEBT_OWED_TO_ME -> "Record collection"
-                FinancialRecord.DEBT_I_OWE -> "Record repayment"
-                FinancialRecord.SAVINGS_GOAL -> "Add savings"
+                FinancialRecord.DEBT_OWED_TO_ME -> "Record a collection"
+                FinancialRecord.DEBT_I_OWE -> "Record a repayment"
+                FinancialRecord.SAVINGS_GOAL -> "Add to your savings"
                 else -> "Record allowance spending"
-            }) },
+            }, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(record.title)
-                    OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (KSh)") }, singleLine = true)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(record.title, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        when (record.type) {
+                            FinancialRecord.DEBT_OWED_TO_ME -> "${financeKes(remaining)} still to collect"
+                            FinancialRecord.DEBT_I_OWE -> "${financeKes(remaining)} still to repay"
+                            FinancialRecord.SAVINGS_GOAL -> "${financeKes(record.currentMinor)} saved of ${financeKes(record.targetMinor)}"
+                            else -> "${financeKes(remaining)} remaining in this allowance"
+                        },
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
+                        label = { Text("Amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (validationError != null) {
+                        Text(validationError!!, color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                Button(onClick = {
                     val parsed = amount.trim().replace(",", "").toBigDecimalOrNull()
-                    val minor = parsed?.let { runCatching { it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull() }
-                    if (minor != null && minor > 0L) {
-                        onAddProgress(record, minor)
-                        progressRecord = null
+                    val minor = parsed?.let { runCatching {
+                        it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
+                    }.getOrNull() }
+                    when {
+                        minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
+                        isDebt && minor > remaining -> validationError = "This is more than the outstanding debt."
+                        else -> {
+                            onAddProgress(record, minor)
+                            progressRecord = null
+                        }
                     }
-                }) { Text("Save") }
+                }) { Text("Save update") }
             },
             dismissButton = { TextButton(onClick = { progressRecord = null }) { Text("Cancel") } }
         )
@@ -329,12 +462,189 @@ fun FinancialPlansScreen(
     deleteRecord?.let { record ->
         AlertDialog(
             onDismissRequest = { deleteRecord = null },
-            title = { Text("Delete record?") },
-            text = { Text("Delete ${record.title}? This cannot be undone.") },
+            title = { Text("Delete this plan?") },
+            text = { Text("“${record.title}” and its saved progress will be removed from this device.") },
             confirmButton = {
-                TextButton(onClick = { onDelete(record.id); deleteRecord = null }) { Text("Delete") }
+                Button(onClick = { onDelete(record.id); deleteRecord = null }) { Text("Delete plan") }
             },
-            dismissButton = { TextButton(onClick = { deleteRecord = null }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { deleteRecord = null }) { Text("Keep it") } }
         )
+    }
+}
+
+@Composable
+private fun FinanceTab(label: String, symbol: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(
+        modifier = modifier,
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+        ),
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(symbol, fontSize = 21.sp,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+@Composable
+private fun HeroMetric(modifier: Modifier = Modifier, label: String, value: String, hint: String, symbol: String) {
+    Column(
+        modifier.background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(symbol, fontSize = 15.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(label, style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+        }
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Text(hint, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f))
+    }
+}
+
+@Composable
+private fun FinancialRecordCard(
+    record: FinancialRecord,
+    onProgress: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val progress = if (record.targetMinor > 0L) (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
+    val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
+    val isAllowance = record.type == FinancialRecord.ALLOWANCE
+    val isDebt = record.type == FinancialRecord.DEBT_OWED_TO_ME || record.type == FinancialRecord.DEBT_I_OWE
+    val overAllowance = isAllowance && record.currentMinor > record.targetMinor
+    val isComplete = remaining == 0L && !overAllowance
+    val accent = when {
+        overAllowance -> MaterialTheme.colorScheme.error
+        isComplete -> MaterialTheme.colorScheme.primary
+        record.type == FinancialRecord.SAVINGS_GOAL -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.tertiary
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(accent.copy(alpha = 0.13f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        when (record.type) {
+                            FinancialRecord.DEBT_OWED_TO_ME -> "↙"
+                            FinancialRecord.DEBT_I_OWE -> "↗"
+                            FinancialRecord.SAVINGS_GOAL -> "✦"
+                            else -> "◷"
+                        },
+                        color = accent, fontSize = 25.sp
+                    )
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        when (record.type) {
+                            FinancialRecord.DEBT_OWED_TO_ME -> "MONEY OWED TO YOU"
+                            FinancialRecord.DEBT_I_OWE -> "YOUR DEBT TO REPAY"
+                            FinancialRecord.SAVINGS_GOAL -> "SAVINGS TARGET"
+                            else -> "ALLOWANCE"
+                        },
+                        style = MaterialTheme.typography.labelSmall, letterSpacing = 0.8.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold
+                    )
+                }
+                TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
+                    Text("More", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        when (record.type) {
+                            FinancialRecord.SAVINGS_GOAL -> "SAVED SO FAR"
+                            FinancialRecord.DEBT_OWED_TO_ME -> "COLLECTED"
+                            FinancialRecord.DEBT_I_OWE -> "REPAID"
+                            else -> "SPENT"
+                        },
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(financeKes(record.currentMinor), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        when (record.type) {
+                            FinancialRecord.SAVINGS_GOAL -> "GOAL"
+                            isDebt -> "ORIGINAL"
+                            else -> "LIMIT"
+                        },
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(financeKes(record.targetMinor), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                color = accent,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when {
+                        overAllowance -> "${financeKes(record.currentMinor - record.targetMinor)} over limit"
+                        isAllowance && remaining == 0L -> "Limit reached"
+                        isDebt && remaining == 0L -> "Fully settled"
+                        isDebt && record.type == FinancialRecord.DEBT_OWED_TO_ME -> "${financeKes(remaining)} left to collect"
+                        isDebt -> "${financeKes(remaining)} left to repay"
+                        record.type == FinancialRecord.SAVINGS_GOAL && remaining == 0L -> "Goal reached — well done!"
+                        record.type == FinancialRecord.SAVINGS_GOAL -> "${financeKes(remaining)} left to reach goal"
+                        else -> "${financeKes(remaining)} available"
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (overAllowance) MaterialTheme.colorScheme.error else if (isComplete) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isComplete || overAllowance) FontWeight.SemiBold else FontWeight.Normal
+                )
+                Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold, color = accent)
+            }
+
+            if (record.notes.isNotBlank()) {
+                Text(record.notes, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(
+                onClick = onProgress,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isDebt || remaining > 0L,
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(vertical = 12.dp)
+            ) {
+                Text(when (record.type) {
+                    FinancialRecord.DEBT_OWED_TO_ME -> if (remaining == 0L) "Debt collected" else "Record collection"
+                    FinancialRecord.DEBT_I_OWE -> if (remaining == 0L) "Debt settled" else "Record repayment"
+                    FinancialRecord.SAVINGS_GOAL -> if (remaining == 0L) "Add more savings" else "Add contribution"
+                    else -> "Record spending"
+                })
+            }
+        }
     }
 }
