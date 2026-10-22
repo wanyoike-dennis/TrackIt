@@ -18,6 +18,7 @@ object TrackItBackupManager {
         "monthly_budgets",
         "financial_records",
         "transactions",
+        "recurring_transactions",
         "financial_record_entries"
     )
     private val tables = restoreOrder.toSet()
@@ -69,7 +70,7 @@ object TrackItBackupManager {
         sqlDb.beginTransaction()
         try {
             // Delete children before parents to respect foreign-key constraints.
-            listOf("financial_record_entries", "transactions", "financial_records", "monthly_budgets", "expense_categories")
+            listOf("financial_record_entries", "recurring_transactions", "transactions", "financial_records", "monthly_budgets", "expense_categories")
                 .forEach { sqlDb.delete(it, null, null) }
 
             restoreOrder.forEach { table ->
