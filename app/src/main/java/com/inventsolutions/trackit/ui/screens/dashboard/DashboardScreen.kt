@@ -565,72 +565,6 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             )
                         }
                     }
-                    if (monthlySpent > 0L) {
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            ) {
-                                Column(
-                                    Modifier.fillMaxWidth().padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
-                                                .background(MaterialTheme.colorScheme.secondaryContainer),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text("↗", color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                        Spacer(Modifier.width(10.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text("Spending insight", style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.SemiBold)
-                                            Text("Based on ${daysElapsed} of ${daysInMonth} days",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                    Row(
-                                        Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text("Daily average", style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            Text(formatKes(monthlySpent / daysElapsed),
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold)
-                                        }
-                                        Column(Modifier.weight(1f)) {
-                                            Text("Month-end estimate", style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            Text(formatKes(projectedMonthlySpend),
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                    if (topExpenseCategory != null) {
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                        Text(
-                                            "Highest recorded expense category: ${topExpenseCategory.key} (${formatKes(topExpenseCategory.value)}).",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Text(
-                                        "Estimate assumes spending continues at the current daily average.",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(
@@ -695,69 +629,6 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     }
                                 }
                                 Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    if (upcomingCommitments.isNotEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth().clickable { selectedTab = "Money" },
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f))
-                            ) {
-                                Column(
-                                    Modifier.fillMaxWidth().padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Upcoming commitments", modifier = Modifier.weight(1f),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
-                                        Text("${upcomingCommitments.size}", style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
-                                    }
-                                    upcomingCommitments.take(3).forEach { record ->
-                                        val dueDate = record.dueDateEpochMillis ?: 0L
-                                        val daysUntilDue = ((dueDate - todayStartForReminder(now)) /
-                                            (24L * 60L * 60L * 1000L)).toInt().coerceAtLeast(0)
-                                        Row(
-                                            Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(Modifier.weight(1f)) {
-                                                Text(record.title, style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                Text(
-                                                    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(dueDate)),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.75f)
-                                                )
-                                            }
-                                            Text(
-                                                if (daysUntilDue == 0) "Due today" else "In $daysUntilDue day${if (daysUntilDue == 1) "" else "s"}",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                                            )
-                                        }
-                                    }
-                                    if (upcomingCommitments.size > 3) {
-                                        Text(
-                                            "+ ${upcomingCommitments.size - 3} more · View financial plans",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                                        )
-                                    } else {
-                                        Text("View financial plans  →",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
-                                    }
-                                }
                             }
                         }
                     }
@@ -952,6 +823,135 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                                     color = MaterialTheme.colorScheme.outlineVariant)
                                             }
                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (monthlySpent > 0L) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
+                                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("↗", color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        Spacer(Modifier.width(10.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Spending insight", style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold)
+                                            Text("Based on ${daysElapsed} of ${daysInMonth} days",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Daily average", style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(formatKes(monthlySpent / daysElapsed),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold)
+                                        }
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Month-end estimate", style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(formatKes(projectedMonthlySpend),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    if (topExpenseCategory != null) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        Text(
+                                            "Highest recorded expense category: ${topExpenseCategory.key} (${formatKes(topExpenseCategory.value)}).",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        "Estimate assumes spending continues at the current daily average.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (upcomingCommitments.isNotEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().clickable { selectedTab = "Money" },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f))
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Upcoming commitments", modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                        Text("${upcomingCommitments.size}", style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                    }
+                                    upcomingCommitments.take(3).forEach { record ->
+                                        val dueDate = record.dueDateEpochMillis ?: 0L
+                                        val daysUntilDue = ((dueDate - todayStartForReminder(now)) /
+                                            (24L * 60L * 60L * 1000L)).toInt().coerceAtLeast(0)
+                                        Row(
+                                            Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(Modifier.weight(1f)) {
+                                                Text(record.title, style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(
+                                                    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(dueDate)),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.75f)
+                                                )
+                                            }
+                                            Text(
+                                                if (daysUntilDue == 0) "Due today" else "In $daysUntilDue day${if (daysUntilDue == 1) "" else "s"}",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                            )
+                                        }
+                                    }
+                                    if (upcomingCommitments.size > 3) {
+                                        Text(
+                                            "+ ${upcomingCommitments.size - 3} more · View financial plans",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    } else {
+                                        Text("View financial plans  →",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer)
                                     }
                                 }
                             }
