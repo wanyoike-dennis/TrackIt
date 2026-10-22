@@ -268,36 +268,49 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             if (entryType == null) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 8.dp
+                    shadowElevation = 10.dp
                 ) {
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceAround
+                        Modifier.fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 8.dp, vertical = 7.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         listOf("Home", "Activity", "Budgets", "Reports", "Money").forEach { tab ->
+                            val selected = selectedTab == tab
+                            val activeColor = MaterialTheme.colorScheme.primary
+                            val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
                             Column(
-                                modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                                modifier = Modifier.weight(1f)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .clickable { selectedTab = tab }
-                                    .padding(horizontal = 6.dp, vertical = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                    .padding(horizontal = 2.dp, vertical = 3.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (selected) MaterialTheme.colorScheme.primaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .padding(horizontal = 17.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    TrackItNavigationIcon(
+                                        destination = tab,
+                                        color = if (selected) activeColor else inactiveColor,
+                                        modifier = Modifier.size(23.dp)
+                                    )
+                                }
                                 Text(
-                                    when (tab) {
-                                        "Home" -> "⌂"
-                                        "Activity" -> "↕"
-                                        "Budgets" -> "▤"
-                                        "Reports" -> "▥"
-                                        else -> "$"
-                                    },
-                                    color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 21.sp
-                                )
-                                Text(
-                                    tab,
+                                    text = tab,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (selected) activeColor else inactiveColor,
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -1000,6 +1013,59 @@ private fun QuickAction(
                     overflow = TextOverflow.Ellipsis)
                 Text("↗", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackItNavigationIcon(
+    destination: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val stroke = size.minDimension * 0.085f
+        val w = size.width
+        val h = size.height
+        val x = w / 2f
+        val y = h / 2f
+        val start = androidx.compose.ui.geometry.Offset
+        val cap = androidx.compose.ui.graphics.StrokeCap.Round
+        val join = androidx.compose.ui.graphics.StrokeJoin.Round
+        when (destination) {
+            "Home" -> {
+                val roof = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(w * 0.15f, h * 0.47f)
+                    lineTo(x, h * 0.15f)
+                    lineTo(w * 0.85f, h * 0.47f)
+                }
+                drawPath(roof, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = cap, join = join))
+                drawRoundRect(color, start(w * 0.25f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.5f, h * 0.43f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawLine(color, start(x, h * 0.64f), start(x, h * 0.86f), strokeWidth = stroke, cap = cap)
+            }
+            "Activity" -> {
+                drawLine(color, start(w * 0.18f, h * 0.5f), start(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
+                drawLine(color, start(w * 0.58f, h * 0.25f), start(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
+                drawLine(color, start(w * 0.58f, h * 0.75f), start(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
+                drawLine(color, start(w * 0.18f, h * 0.27f), start(w * 0.18f, h * 0.73f), strokeWidth = stroke, cap = cap)
+            }
+            "Budgets" -> {
+                drawRoundRect(color, start(w * 0.18f, h * 0.14f), androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.72f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                listOf(0.37f, 0.52f, 0.67f).forEach { lineY ->
+                    drawLine(color, start(w * 0.32f, h * lineY), start(w * 0.68f, h * lineY), strokeWidth = stroke, cap = cap)
+                }
+            }
+            "Reports" -> {
+                drawLine(color, start(w * 0.17f, h * 0.84f), start(w * 0.85f, h * 0.84f), strokeWidth = stroke, cap = cap)
+                drawRoundRect(color, start(w * 0.22f, h * 0.53f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.31f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
+                drawRoundRect(color, start(w * 0.44f, h * 0.34f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.5f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
+                drawRoundRect(color, start(w * 0.66f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.67f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
+            }
+            "Money" -> {
+                drawRoundRect(color, start(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawRoundRect(color, start(w * 0.55f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.33f, h * 0.23f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawCircle(color, radius = stroke * 0.9f, center = start(w * 0.67f, h * 0.545f))
             }
         }
     }
