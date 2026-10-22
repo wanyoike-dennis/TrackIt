@@ -136,18 +136,18 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val allRecordedExpenses = uiState.transactions
         .filter { it.type == MoneyTransaction.EXPENSE }
         .sumOf { it.amountMinor } +
-        uiState.financialEntries
-            .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.SPENDING }
-            .sumOf { it.amountMinor }
-    val savingsContributions = uiState.financialEntries
-        .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.CONTRIBUTION }
-        .sumOf { it.amountMinor }
-    val debtRepayments = uiState.financialEntries
-        .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.REPAYMENT }
-        .sumOf { it.amountMinor }
-    val debtCollections = uiState.financialEntries
-        .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.COLLECTION }
-        .sumOf { it.amountMinor }
+        uiState.financialRecords
+            .filter { it.type == FinancialRecord.ALLOWANCE }
+            .sumOf { it.currentMinor }
+    val savingsContributions = uiState.financialRecords
+        .filter { it.type == FinancialRecord.SAVINGS_GOAL }
+        .sumOf { it.currentMinor }
+    val debtRepayments = uiState.financialRecords
+        .filter { it.type == FinancialRecord.DEBT_I_OWE }
+        .sumOf { it.currentMinor }
+    val debtCollections = uiState.financialRecords
+        .filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
+        .sumOf { it.currentMinor }
     val availableBalance = allIncome - allRecordedExpenses - savingsContributions - debtRepayments + debtCollections
     val todayStart = remember {
         (now.clone() as Calendar).apply {
@@ -569,7 +569,7 @@ private fun OverviewCard(
             .padding(22.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("MONTHLY OVERVIEW", Modifier.weight(1f), color = Color(0xFFB8C2D1),
+            Text("MONEY POSITION", Modifier.weight(1f), color = Color(0xFFB8C2D1),
                 style = MaterialTheme.typography.labelMedium, letterSpacing = 1.1.sp)
             Surface(color = monthPillBackground, shape = RoundedCornerShape(50)) {
                 Text(monthLabel, Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
