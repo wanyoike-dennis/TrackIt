@@ -66,6 +66,7 @@ import kotlin.math.abs
 
 import com.inventsolutions.trackit.ui.screens.budgets.BudgetScreen
 import com.inventsolutions.trackit.ui.screens.transactions.TransactionEntryScreen
+import com.inventsolutions.trackit.ui.screens.transactions.TransactionHistoryScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
 private data class ActivityItem(
@@ -205,8 +206,8 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                 modifier = Modifier.clip(RoundedCornerShape(14.dp))
                                     .clickable {
                                         selectedTab = tab
-                                        if (tab == "Activity" || tab == "More") {
-                                            noticeMessage = "${tab} screen is coming next."
+                                        if (tab == "More") {
+                                            noticeMessage = "More options are coming next."
                                             notice = true
                                         }
                                     }.padding(horizontal = 12.dp, vertical = 5.dp),
@@ -268,6 +269,14 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             }
                         }
                     }
+                )
+            } else if (selectedTab == "Activity") {
+                TransactionHistoryScreen(
+                    transactions = uiState.transactions,
+                    errorMessage = uiState.errorMessage,
+                    onBack = { selectedTab = "Home"; viewModel.clearError() },
+                    onUpdate = viewModel::updateTransaction,
+                    onDelete = viewModel::deleteTransaction
                 )
             } else if (selectedTab == "Budgets") {
                 BudgetScreen(
