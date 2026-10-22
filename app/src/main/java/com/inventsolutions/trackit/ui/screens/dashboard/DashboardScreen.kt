@@ -180,7 +180,16 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         monthFinancialEntries
             .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.SPENDING }
             .sumOf { it.amountMinor }
-    val monthlyRemaining = monthlyIncome - monthlySpent
+    val monthlyRemaining = monthlyIncome - monthlySpent -
+        monthFinancialEntries
+            .filter {
+                it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.CONTRIBUTION ||
+                    it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.REPAYMENT
+            }
+            .sumOf { it.amountMinor } +
+        monthFinancialEntries
+            .filter { it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.COLLECTION }
+            .sumOf { it.amountMinor }
     val dailyBudgetDays = now.getActualMaximum(Calendar.DAY_OF_MONTH)
     val todaySpendByCategory = todayTransactions
         .groupBy { it.category.lowercase(Locale.getDefault()) }
