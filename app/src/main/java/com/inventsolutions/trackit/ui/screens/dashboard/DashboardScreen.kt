@@ -1045,10 +1045,27 @@ private fun TrackItNavigationIcon(
                 drawLine(color, androidx.compose.ui.geometry.Offset(x, h * 0.64f), androidx.compose.ui.geometry.Offset(x, h * 0.86f), strokeWidth = stroke, cap = cap)
             }
             "Activity" -> {
-                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.5f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.58f, h * 0.25f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.58f, h * 0.75f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.5f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.27f), androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.73f), strokeWidth = stroke, cap = cap)
+                // Transaction history: a simple clock with clear hands.
+                drawCircle(
+                    color = color,
+                    radius = size.minDimension * 0.34f,
+                    center = androidx.compose.ui.geometry.Offset(x, y),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
+                )
+                drawLine(
+                    color,
+                    androidx.compose.ui.geometry.Offset(x, h * 0.29f),
+                    androidx.compose.ui.geometry.Offset(x, y),
+                    strokeWidth = stroke,
+                    cap = cap
+                )
+                drawLine(
+                    color,
+                    androidx.compose.ui.geometry.Offset(x, y),
+                    androidx.compose.ui.geometry.Offset(w * 0.68f, h * 0.61f),
+                    strokeWidth = stroke,
+                    cap = cap
+                )
             }
             "Budgets" -> {
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.14f), androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.72f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
