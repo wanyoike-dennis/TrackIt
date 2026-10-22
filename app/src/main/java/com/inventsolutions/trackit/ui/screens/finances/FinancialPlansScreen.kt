@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
+import com.inventsolutions.trackit.data.local.MoneyTransaction
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Calendar
@@ -62,6 +63,7 @@ private fun financeKes(minor: Long): String {
 fun FinancialPlansScreen(
     records: List<FinancialRecord>,
     entries: List<FinancialRecordEntry>,
+    transactions: List<MoneyTransaction>,
     errorMessage: String?,
     onBackToHome: () -> Unit,
     onAdd: (type: String, title: String, targetMinor: Long, dueDateEpochMillis: Long?, notes: String, savingsCategory: String, contributionMethod: String, plannedContributionMinor: Long) -> Unit,
@@ -700,18 +702,21 @@ fun FinancialPlansScreen(
 
     historyRecord?.let { record ->
         val recordEntries = entries.filter { it.financialRecordId == record.id }
+        val linkedExpenses = if (record.type == FinancialRecord.ALLOWANCE) transactions
+            .filter { it.type == MoneyTransaction.EXPENSE && it.allowanceRecordId == record.id }
+            .sortedByDescending { it.dateEpochMillis } else emptyList()
         AlertDialog(
             onDismissRequest = { historyRecord = null },
             title = { Text("Activity · ${record.title}", fontWeight = FontWeight.Bold) },
             text = {
-                if (recordEntries.isEmpty()) {
+                if (recordEntries.isEmpty() && linkedExpenses.isEmpty()) {
                     Text("No activity recorded yet. Updates you make from now on will appear here.")
                 } else {
                     LazyColumn(
                         modifier = Modifier.height(320.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(recordEntries, key = { it.id }) { entry ->
+                        items(recordEntries, key = { "entry-${it.id}" }) { entry ->
                             Column(
                                 Modifier.fillMaxWidth().background(
                                     MaterialTheme.colorScheme.surfaceVariant,
@@ -740,6 +745,31 @@ fun FinancialPlansScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (entry.note.isNotBlank()) Text(entry.note, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        items(linkedExpenses, key = { "transaction-${it.id}" }) { transaction ->
+                            Column(
+                                Modifier.fillMaxWidth().background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(14.dp)
+                                ).padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Linked expense · ${transaction.category}", style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold)
+                                    Text(financeKes(transaction.amountMinor), style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold)
+                                }
+                                Text(
+                                    SimpleDateFormat("d MMM yyyy · h:mm a", Locale.getDefault())
+                                        .format(Date(transaction.dateEpochMillis)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (transaction.description.isNotBlank()) {
+                                    Text(transaction.description, style = MaterialTheme.typography.bodyMedium)
+                                }
                             }
                         }
                     }
