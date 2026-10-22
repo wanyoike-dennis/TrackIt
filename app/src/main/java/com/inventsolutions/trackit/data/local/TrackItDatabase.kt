@@ -8,14 +8,15 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class],
-    version = 4,
+    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class],
+    version = 5,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun monthlyBudgetDao(): MonthlyBudgetDao
     abstract fun expenseCategoryDao(): ExpenseCategoryDao
+    abstract fun financialRecordDao(): FinancialRecordDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -69,6 +70,24 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS financial_records (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "type TEXT NOT NULL, " +
+                        "title TEXT NOT NULL, " +
+                        "targetMinor INTEGER NOT NULL, " +
+                        "currentMinor INTEGER NOT NULL, " +
+                        "dueDateEpochMillis INTEGER, " +
+                        "notes TEXT NOT NULL, " +
+                        "createdAtEpochMillis INTEGER NOT NULL)"
+                )
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_financial_records_type ON financial_records(type)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_financial_records_createdAtEpochMillis ON financial_records(createdAtEpochMillis)")
+            }
+        }
+
         @Volatile
         private var INSTANCE: TrackItDatabase? = null
 
@@ -79,7 +98,7 @@ abstract class TrackItDatabase : RoomDatabase() {
                     TrackItDatabase::class.java,
                     "trackit_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }
