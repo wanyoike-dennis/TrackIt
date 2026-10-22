@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class TransactionUiState(
     val transactions: List<MoneyTransaction> = emptyList(),
@@ -115,6 +117,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val categoryRepository = ExpenseCategoryRepository(database.expenseCategoryDao())
     private val financialRecordDao = database.financialRecordDao()
     private val recurringTransactionDao = database.recurringTransactionDao()
+    private val recurringProcessingMutex = Mutex()
     private val monthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
     private val _uiState = MutableStateFlow(TransactionUiState())
@@ -215,7 +218,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private suspend fun processDueRecurringTransactions() {
+    private suspend fun processDueRecurringTransactions() = recurringProcessingMutex.withLock {
         val now = System.currentTimeMillis()
         recurringTransactionDao.due(now).forEach { item ->
             runCatching {
