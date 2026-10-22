@@ -437,43 +437,7 @@ fun ReportScreen(
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-}
 
-@Composable
-private fun AllowanceSummaryRow(label: String, value: Long) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Text(reportKes(value), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun ReportComparisonRow(label: String, current: Long, previous: Long) {
-    val difference = current - previous
-    val direction = when {
-        difference > 0L -> "↑ " + reportKes(difference)
-        difference < 0L -> "↓ " + reportKes(-difference)
-        else -> "No change"
-    }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text("Previous: " + reportKes(previous), style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text(direction, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
-            color = when {
-                difference == 0L -> MaterialTheme.colorScheme.onSurfaceVariant
-                label == "Expenses" && difference < 0L -> MaterialTheme.colorScheme.primary
-                label == "Expenses" && difference > 0L -> MaterialTheme.colorScheme.error
-                difference > 0L -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.error
-            })
-    }
     if (showRecurringDialog) {
         AlertDialog(
             onDismissRequest = { showRecurringDialog = false },
@@ -539,4 +503,42 @@ private fun ReportComparisonRow(label: String, current: Long, previous: Long) {
             }
         )
     }
+}
+
+@Composable
+private fun AllowanceSummaryRow(label: String, value: Long) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(reportKes(value), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun ReportComparisonRow(label: String, current: Long, previous: Long) {
+    val difference = current - previous
+    val direction = when {
+        difference > 0L -> "↑ " + reportKes(difference)
+        difference < 0L -> "↓ " + reportKes(-difference)
+        else -> "No change"
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text("Previous: " + reportKes(previous), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(direction, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+            color = when {
+                difference == 0L -> MaterialTheme.colorScheme.onSurfaceVariant
+                label == "Expenses" && difference < 0L -> MaterialTheme.colorScheme.primary
+                label == "Expenses" && difference > 0L -> MaterialTheme.colorScheme.error
+                difference > 0L -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.error
+            })
+    }
+
 }
