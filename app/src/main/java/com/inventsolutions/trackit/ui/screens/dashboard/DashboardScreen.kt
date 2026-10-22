@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -103,6 +104,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableStateOf("Home") }
     var entryType by remember { mutableStateOf<String?>(null) }
+    var showAddOptions by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf(false) }
     var noticeMessage by remember { mutableStateOf("") }
 
@@ -270,20 +272,20 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
                         .navigationBarsPadding(),
-                    shape = RoundedCornerShape(26.dp),
+                    shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 8.dp,
+                    shadowElevation = 9.dp,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Row(
                         Modifier.fillMaxWidth()
-                            .padding(horizontal = 6.dp, vertical = 7.dp),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            .padding(horizontal = 5.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("Home", "Activity", "Budgets", "Reports", "Money").forEach { tab ->
+                        listOf("Home", "Activity", "Budgets").forEach { tab ->
                             val selected = selectedTab == tab
                             val activeColor = MaterialTheme.colorScheme.primary
                             val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -297,12 +299,76 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     .clickable { selectedTab = tab }
                                     .padding(horizontal = 1.dp, vertical = 7.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 TrackItNavigationIcon(
                                     destination = tab,
                                     color = if (selected) activeColor else inactiveColor,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(21.dp)
+                                )
+                                Text(
+                                    text = tab,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (selected) activeColor else inactiveColor,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                                .clip(RoundedCornerShape(18.dp))
+                                .clickable { showAddOptions = true }
+                                .padding(horizontal = 1.dp, vertical = 1.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(40.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary,
+                                shadowElevation = 4.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "+",
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        fontSize = 29.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        lineHeight = 30.sp
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Add",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1
+                            )
+                        }
+
+                        listOf("Reports", "Money").forEach { tab ->
+                            val selected = selectedTab == tab
+                            val activeColor = MaterialTheme.colorScheme.primary
+                            val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            Column(
+                                modifier = Modifier.weight(1f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primaryContainer
+                                        else Color.Transparent
+                                    )
+                                    .clickable { selectedTab = tab }
+                                    .padding(horizontal = 1.dp, vertical = 7.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                TrackItNavigationIcon(
+                                    destination = tab,
+                                    color = if (selected) activeColor else inactiveColor,
+                                    modifier = Modifier.size(21.dp)
                                 )
                                 Text(
                                     text = tab,
@@ -753,6 +819,35 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                 }
             }
         }
+    }
+
+    if (showAddOptions && entryType == null) {
+        AlertDialog(
+            onDismissRequest = { showAddOptions = false },
+            title = { Text("Add transaction") },
+            text = { Text("What would you like to record?") },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        showAddOptions = false
+                        entryType = MoneyTransaction.INCOME
+                    }) {
+                        Text("Income")
+                    }
+                    TextButton(onClick = {
+                        showAddOptions = false
+                        entryType = MoneyTransaction.EXPENSE
+                    }) {
+                        Text("Expense")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddOptions = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
