@@ -12,4 +12,12 @@ class TransactionRepository(
     suspend fun add(transaction: MoneyTransaction) {
         dao.insert(transaction)
     }
+
+    suspend fun update(transaction: MoneyTransaction) {
+        dao.update(transaction)
+    }
+
+    suspend fun delete(transactionId: Long) {
+        dao.deleteById(transactionId)
+    }
 }
