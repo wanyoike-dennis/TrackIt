@@ -59,7 +59,7 @@ abstract class TrackItDatabase : RoomDatabase() {
                 database.execSQL(
                     "INSERT OR IGNORE INTO expense_categories (name, normalizedName, createdAtEpochMillis) " +
                         "SELECT category, lower(trim(category)), CAST(strftime('%s','now') AS INTEGER) * 1000 " +
-                        "FROM transactions WHERE trim(category) != '' GROUP BY lower(trim(category))"
+                        "FROM transactions WHERE type = 'EXPENSE' AND trim(category) != '' GROUP BY lower(trim(category))"
                 )
                 database.execSQL(
                     "INSERT OR IGNORE INTO expense_categories (name, normalizedName, createdAtEpochMillis) " +
