@@ -1,5 +1,6 @@
 package com.inventsolutions.trackit.ui.screens.dashboard
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -515,7 +516,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                         ) {
                             Column(
                                 Modifier.fillMaxWidth().padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
@@ -529,11 +530,11 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                         Modifier.weight(1f).padding(start = 12.dp),
                                         verticalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
-                                        Text("Savings progress", style = MaterialTheme.typography.titleMedium,
+                                        Text("Savings overview", style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold)
                                         Text(
                                             if (savingsGoals.isEmpty()) "Your goals, one step at a time"
-                                            else "$savingsGoalCount active goal${if (savingsGoalCount == 1) "" else "s"}",
+                                            else "${savingsGoalCount} savings goal${if (savingsGoalCount == 1) "" else "s"}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -543,7 +544,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
 
                                 if (savingsGoals.isEmpty()) {
                                     Text(
-                                        "Create a savings goal to see your target, progress and what's left to save.",
+                                        "Create a savings goal to see its progress here.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -559,73 +560,93 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     else 0f
                                     Row(
                                         Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.Bottom,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(18.dp)
                                     ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        CircularSavingsProgress(
+                                            progress = savingsProgress,
+                                            size = 112.dp,
+                                            label = "${(savingsProgress * 100).toInt()}%",
+                                            color = TrackItEmerald
+                                        )
+                                        Column(
+                                            Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                                        ) {
                                             Text("TOTAL SAVED", style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.8.sp)
-                                            Text(formatKes(savingsContributions), style = MaterialTheme.typography.headlineSmall,
+                                            Text(formatKes(savingsContributions),
+                                                style = MaterialTheme.typography.headlineSmall,
                                                 fontWeight = FontWeight.ExtraBold, color = TrackItEmerald)
+                                            Text("of ${formatKes(savingsTargetTotal)} target",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(
+                                                "${formatKes((savingsTargetTotal - savingsContributions).coerceAtLeast(0L))} to go",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
-                                        Text("${(savingsProgress * 100).toInt()}%",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold)
-                                    }
-                                    LinearProgressIndicator(
-                                        progress = { savingsProgress },
-                                        modifier = Modifier.fillMaxWidth().height(9.dp).clip(CircleShape),
-                                        color = TrackItEmerald,
-                                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Target: ${formatKes(savingsTargetTotal)}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text("${formatKes((savingsTargetTotal - savingsContributions).coerceAtLeast(0L))} to go",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
 
-                                    val featuredGoal = savingsGoals.first()
-                                    val remainingForGoal = (featuredGoal.targetMinor - featuredGoal.currentMinor).coerceAtLeast(0L)
-                                    val contributionFrequency = when (featuredGoal.contributionMethod) {
-                                        FinancialRecord.CONTRIBUTION_WEEKLY -> "week"
-                                        FinancialRecord.CONTRIBUTION_MONTHLY -> "month"
-                                        FinancialRecord.CONTRIBUTION_ONE_TIME -> "one-time"
-                                        else -> ""
-                                    }
-                                    if (savingsGoals.size == 1 || featuredGoal.plannedContributionMinor > 0L) {
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                                    Text("YOUR GOALS", style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.8.sp)
+
+                                    savingsGoals.take(3).forEachIndexed { index, goal ->
+                                        val goalProgress = if (goal.targetMinor > 0L)
+                                            (goal.currentMinor.toDouble() / goal.targetMinor).coerceIn(0.0, 1.0).toFloat()
+                                        else 0f
+                                        val goalRemaining = (goal.targetMinor - goal.currentMinor).coerceAtLeast(0L)
+                                        val goalColor = when (index % 4) {
+                                            0 -> TrackItEmerald
+                                            1 -> MaterialTheme.colorScheme.primary
+                                            2 -> TrackItAmber
+                                            else -> MaterialTheme.colorScheme.tertiary
+                                        }
                                         Row(
                                             Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                            CircularSavingsProgress(
+                                                progress = goalProgress,
+                                                size = 58.dp,
+                                                label = "${(goalProgress * 100).toInt()}%",
+                                                color = goalColor,
+                                                strokeWidth = 5.dp
+                                            )
+                                            Column(
+                                                Modifier.weight(1f),
+                                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                                            ) {
+                                                Text(goal.title, style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.SemiBold, maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis)
                                                 Text(
-                                                    if (savingsGoals.size == 1) featuredGoal.title else "Next focus · ${featuredGoal.title}",
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                                Text(
-                                                    if (remainingForGoal == 0L) "Goal reached — well done!"
-                                                    else "${formatKes(remainingForGoal)} left to reach this goal",
+                                                    "${formatKes(goal.currentMinor)} of ${formatKes(goal.targetMinor)}",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
-                                            }
-                                            if (featuredGoal.plannedContributionMinor > 0L) {
-                                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                                    Text("PLAN", style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                    Text(
-                                                        "${formatKes(featuredGoal.plannedContributionMinor)}${if (contributionFrequency.isNotBlank() && contributionFrequency != "one-time") "/$contributionFrequency" else ""}",
-                                                        style = MaterialTheme.typography.labelLarge,
-                                                        fontWeight = FontWeight.SemiBold
-                                                    )
-                                                }
+                                                Text(
+                                                    if (goalRemaining == 0L) "Target reached"
+                                                    else "${formatKes(goalRemaining)} remaining",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (goalRemaining == 0L) TrackItEmerald
+                                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
                                             }
                                         }
+                                    }
+
+                                    if (savingsGoals.size > 3) {
+                                        Text(
+                                            "View all ${savingsGoalCount} goals  →",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
                             }
@@ -1035,6 +1056,50 @@ private fun WeeklyCashFlowCard(days: List<WeeklyCashFlow>) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CircularSavingsProgress(
+    progress: Float,
+    size: androidx.compose.ui.unit.Dp,
+    label: String,
+    color: Color,
+    strokeWidth: androidx.compose.ui.unit.Dp = 9.dp
+) {
+    Box(
+        modifier = Modifier.size(size),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize().padding(strokeWidth / 2)) {
+            val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = strokeWidth.toPx(),
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+            drawArc(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = stroke
+            )
+            if (progress > 0f) {
+                drawArc(
+                    color = color,
+                    startAngle = -90f,
+                    sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                    useCenter = false,
+                    style = stroke
+                )
+            }
+        }
+        Text(
+            text = label,
+            style = if (size >= 90.dp) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
     }
 }
 
