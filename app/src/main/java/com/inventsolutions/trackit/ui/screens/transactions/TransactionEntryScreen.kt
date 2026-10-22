@@ -120,6 +120,7 @@ fun TransactionEntryScreen(
     val monthSpend = if (selectedBudget != null && selectedMonthKey == currentMonthKey) {
         transactions.filter {
             it.type == MoneyTransaction.EXPENSE &&
+                it.allowanceRecordId == null &&
                 it.category.equals(category, ignoreCase = true) &&
                 SimpleDateFormat("yyyy-MM", Locale.US).format(Date(it.dateEpochMillis)) == selectedMonthKey
         }.sumOf { it.amountMinor }
@@ -131,14 +132,16 @@ fun TransactionEntryScreen(
     ) {
         transactions.filter {
             it.type == MoneyTransaction.EXPENSE &&
+                it.allowanceRecordId == null &&
                 it.category.equals(category, ignoreCase = true) &&
                 SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it.dateEpochMillis)) == todayKey
         }.sumOf { it.amountMinor }
     } else 0L
     val daysInSelectedMonth = selectedDate.getActualMaximum(Calendar.DAY_OF_MONTH)
     val dailyLimit = selectedBudget?.limitMinor?.div(daysInSelectedMonth.toLong()) ?: 0L
-    val monthAfterExpense = monthSpend + enteredMinor
-    val dailyAfterExpense = dailySpend + enteredMinor
+    val amountAgainstCategoryBudget = if (selectedAllowanceId == null) enteredMinor else 0L
+    val monthAfterExpense = monthSpend + amountAgainstCategoryBudget
+    val dailyAfterExpense = dailySpend + amountAgainstCategoryBudget
 
     if (createCategoryDialog && !isIncome) {
         AlertDialog(
@@ -364,6 +367,13 @@ fun TransactionEntryScreen(
                                         fontWeight = FontWeight.SemiBold)
                                     Text("Monthly allocation: ${formatKes(selectedBudget.limitMinor)}")
                                     Text("Spent this month: ${formatKes(monthSpend)}")
+                                    if (selectedAllowanceId != null) {
+                                        Text(
+                                            "This expense is assigned to an allowance, so it won't reduce this category budget.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                     Text(
                                         if (selectedBudget.limitMinor - monthSpend >= 0L)
                                             "Remaining before expense: ${formatKes(selectedBudget.limitMinor - monthSpend)}"
