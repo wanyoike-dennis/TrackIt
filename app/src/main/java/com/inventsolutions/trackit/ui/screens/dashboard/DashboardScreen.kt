@@ -530,7 +530,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     MaterialTheme.colorScheme.onSecondaryContainer, Modifier.weight(1f)) {
                                     selectedTab = "Budgets"
                                 }
-                                QuickAction("$", "Savings & debts", TrackItAmberTint, TrackItAmber,
+                                QuickAction("\$", "Savings & debts", TrackItAmberTint, TrackItAmber,
                                     Modifier.weight(1f)) {
                                     selectedTab = "Money"
                                 }
@@ -603,7 +603,18 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     }
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SectionTitle("Recent activity", "Your latest saved transactions")
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    SectionTitle("Recent activity", "Your latest saved transactions")
+                                }
+                                TextButton(onClick = { selectedTab = "Activity" }) {
+                                    Text("View all  →")
+                                }
+                            }
                             Card(
                                 shape = RoundedCornerShape(22.dp),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
