@@ -67,6 +67,7 @@ import kotlin.math.abs
 import com.inventsolutions.trackit.ui.screens.budgets.BudgetScreen
 import com.inventsolutions.trackit.ui.screens.transactions.TransactionEntryScreen
 import com.inventsolutions.trackit.ui.screens.transactions.TransactionHistoryScreen
+import com.inventsolutions.trackit.ui.screens.reports.ReportScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
 private data class ActivityItem(
@@ -201,16 +202,11 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                         Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        listOf("Home", "Activity", "Budgets", "More").forEach { tab ->
+                        listOf("Home", "Activity", "Budgets", "Reports").forEach { tab ->
                             Column(
                                 modifier = Modifier.clip(RoundedCornerShape(14.dp))
-                                    .clickable {
-                                        selectedTab = tab
-                                        if (tab == "More") {
-                                            noticeMessage = "More options are coming next."
-                                            notice = true
-                                        }
-                                    }.padding(horizontal = 12.dp, vertical = 5.dp),
+                                    .clickable { selectedTab = tab }
+                                    .padding(horizontal = 12.dp, vertical = 5.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
@@ -218,7 +214,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                         "Home" -> "⌂"
                                         "Activity" -> "↕"
                                         "Budgets" -> "▤"
-                                        else -> "•••"
+                                        else -> "▥"
                                     },
                                     color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -291,6 +287,11 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                         .mapValues { (_, items) -> items.sumOf { it.amountMinor } },
                     onSaveBudget = viewModel::saveBudget,
                     onDeleteBudget = viewModel::deleteBudget,
+                    onBackToHome = { selectedTab = "Home" }
+                )
+            } else if (selectedTab == "Reports") {
+                ReportScreen(
+                    transactions = uiState.transactions,
                     onBackToHome = { selectedTab = "Home" }
                 )
             } else {
