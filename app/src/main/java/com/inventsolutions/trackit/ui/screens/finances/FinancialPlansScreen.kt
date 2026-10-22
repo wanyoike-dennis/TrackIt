@@ -587,6 +587,9 @@ fun FinancialPlansScreen(
     editRecord?.let { record ->
         var title by remember(record.id) { mutableStateOf(record.title) }
         var target by remember(record.id) { mutableStateOf((record.targetMinor / 100.0).toString().removeSuffix(".0")) }
+        var savingsCategory by remember(record.id) { mutableStateOf(record.savingsCategory) }
+        var contributionMethod by remember(record.id) { mutableStateOf(record.contributionMethod) }
+        var plannedContribution by remember(record.id) { mutableStateOf((record.plannedContributionMinor / 100.0).toString().removeSuffix(".0")) }
         var notes by remember(record.id) { mutableStateOf(record.notes) }
         var dueDate by remember(record.id) {
             mutableStateOf(record.dueDateEpochMillis?.let {
@@ -603,6 +606,34 @@ fun FinancialPlansScreen(
                         label = { Text("Name / description") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = target, onValueChange = { target = it; validationError = null },
                         label = { Text("Target / original amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (record.type == FinancialRecord.SAVINGS_GOAL) {
+                        OutlinedTextField(value = savingsCategory, onValueChange = { savingsCategory = it },
+                            label = { Text("Savings category") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        Text("Contribution plan", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_WEEKLY },
+                                label = { Text("Weekly") })
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_MONTHLY },
+                                label = { Text("Monthly") })
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_FLEXIBLE },
+                                label = { Text("Flexible") })
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_ONE_TIME,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_ONE_TIME },
+                                label = { Text("One-time") })
+                        }
+                        if (contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY ||
+                            contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) {
+                            OutlinedTextField(value = plannedContribution,
+                                onValueChange = { plannedContribution = it; validationError = null },
+                                label = { Text("${if (contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) "Monthly" else "Weekly"} contribution (KSh)") },
+                                singleLine = true, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
                     if (record.type != FinancialRecord.ALLOWANCE) {
                         OutlinedTextField(value = dueDate, onValueChange = { dueDate = it; validationError = null },
                             label = { Text("Due date (YYYY-MM-DD, optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -622,6 +653,12 @@ fun FinancialPlansScreen(
                         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
                             .parse(dueDate.trim())?.time
                     }.getOrNull()
+                    val parsedContribution = if (contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY ||
+                        contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) {
+                        plannedContribution.trim().replace(",", "").toBigDecimalOrNull()?.let { value ->
+                            runCatching { value.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull()
+                        }
+                    } else 0L
                     when {
                         title.isBlank() -> validationError = "Enter a name or description."
                         targetMinor == null || targetMinor <= 0L -> validationError = "Enter an amount greater than zero."
@@ -629,12 +666,22 @@ fun FinancialPlansScreen(
                             validationError = "Use a valid date in YYYY-MM-DD format."
                         record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME) &&
                             targetMinor < record.currentMinor -> validationError = "The original amount cannot be less than what has already been recorded."
+                        record.type == FinancialRecord.SAVINGS_GOAL && savingsCategory.isBlank() ->
+                            validationError = "Enter a savings category."
+                        record.type == FinancialRecord.SAVINGS_GOAL &&
+                            (contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY ||
+                                contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) &&
+                            (parsedContribution == null || parsedContribution <= 0L) ->
+                            validationError = "Enter a valid contribution amount."
                         else -> {
                             onEdit(record.copy(
                                 title = title.trim(),
                                 targetMinor = targetMinor,
                                 dueDateEpochMillis = if (record.type == FinancialRecord.ALLOWANCE) null else parsedDate,
-                                notes = notes.trim()
+                                notes = notes.trim(),
+                                savingsCategory = if (record.type == FinancialRecord.SAVINGS_GOAL) savingsCategory.trim() else record.savingsCategory,
+                                contributionMethod = if (record.type == FinancialRecord.SAVINGS_GOAL) contributionMethod else record.contributionMethod,
+                                plannedContributionMinor = if (record.type == FinancialRecord.SAVINGS_GOAL) parsedContribution ?: 0L else record.plannedContributionMinor
                             ))
                             editRecord = null
                         }
