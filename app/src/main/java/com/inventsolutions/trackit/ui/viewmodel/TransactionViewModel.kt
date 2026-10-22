@@ -352,7 +352,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         val transactionMonth = SimpleDateFormat("yyyy-MM", Locale.US).format(Date(added.dateEpochMillis))
         val transactionDay = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(added.dateEpochMillis))
         val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        if (transactionMonth != monthKey) return
+        if (transactionMonth != monthKey || added.allowanceRecordId != null) return
 
         val daysInMonth = java.util.Calendar.getInstance().apply {
             timeInMillis = added.dateEpochMillis
@@ -364,6 +364,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             val previousMonthSpend = previousTransactions
                 .filter {
                     it.type == MoneyTransaction.EXPENSE &&
+                        it.allowanceRecordId == null &&
                         it.category.equals(budget.category, ignoreCase = true) &&
                         SimpleDateFormat("yyyy-MM", Locale.US).format(Date(it.dateEpochMillis)) == transactionMonth
                 }
@@ -383,6 +384,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 val previousTodaySpend = previousTransactions
                     .filter {
                         it.type == MoneyTransaction.EXPENSE &&
+                            it.allowanceRecordId == null &&
                             it.category.equals(budget.category, ignoreCase = true) &&
                             SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it.dateEpochMillis)) == todayKey
                     }
