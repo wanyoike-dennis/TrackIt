@@ -492,7 +492,12 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     fun deleteFinancialRecord(recordId: Long) {
         viewModelScope.launch {
             try {
-                financialRecordDao.deleteById(recordId)
+                database.withTransaction {
+                    if (_uiState.value.financialRecords.any { it.id == recordId && it.type == FinancialRecord.ALLOWANCE }) {
+                        database.transactionDao().clearAllowanceLink(recordId)
+                    }
+                    financialRecordDao.deleteById(recordId)
+                }
                 _uiState.update { it.copy(errorMessage = null) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(errorMessage = "Couldn't delete this record. Please try again.") }
