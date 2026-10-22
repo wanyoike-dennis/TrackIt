@@ -795,7 +795,7 @@ private fun OverviewCard(
                 Box(Modifier.size(7.dp).clip(CircleShape)
                     .background(if (monthlyNet >= 0L) Color(0xFF6EE7B7) else Color(0xFFFFA3A3)))
                 Text(
-                    "This month  \${if (monthlyNet < 0L) "− " else "+ "}\${formatKes(kotlin.math.abs(monthlyNet)).removePrefix("KSh ")} net",
+                    "This month  ${if (monthlyNet < 0L) "− " else "+ "}${formatKes(kotlin.math.abs(monthlyNet)).removePrefix("KSh ")} net",
                     color = mutedText, style = MaterialTheme.typography.labelMedium
                 )
             }
