@@ -8,6 +8,7 @@ import com.inventsolutions.trackit.data.local.ExpenseCategory
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.RecurringTransaction
 import com.inventsolutions.trackit.data.local.MonthlyBudget
 import com.inventsolutions.trackit.data.local.TrackItDatabase
 import com.inventsolutions.trackit.data.local.TrackItBackupManager
@@ -33,6 +34,7 @@ data class TransactionUiState(
     val expenseCategories: List<ExpenseCategory> = emptyList(),
     val financialRecords: List<FinancialRecord> = emptyList(),
     val financialEntries: List<FinancialRecordEntry> = emptyList(),
+    val recurringTransactions: List<RecurringTransaction> = emptyList(),
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
@@ -112,6 +114,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val budgetRepository = MonthlyBudgetRepository(database.monthlyBudgetDao())
     private val categoryRepository = ExpenseCategoryRepository(database.expenseCategoryDao())
     private val financialRecordDao = database.financialRecordDao()
+    private val recurringTransactionDao = database.recurringTransactionDao()
     private val monthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
     private val _uiState = MutableStateFlow(TransactionUiState())
@@ -143,6 +146,103 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             financialRecordDao.observeAllEntries().collect { entries ->
                 _uiState.update { it.copy(financialEntries = entries) }
                 notifyUpcomingFinancialReminders()
+            }
+        }
+        viewModelScope.launch {
+            recurringTransactionDao.observeAll().collect { items ->
+                _uiState.update { it.copy(recurringTransactions = items) }
+            }
+        }
+        viewModelScope.launch {
+            processDueRecurringTransactions()
+        }
+    }
+
+    fun addRecurringTransaction(
+        title: String,
+        type: String,
+        amountMinor: Long,
+        category: String,
+        description: String,
+        paymentMethod: String,
+        frequency: String,
+        firstRunEpochMillis: Long
+    ) {
+        if (title.isBlank() || category.isBlank() || amountMinor <= 0L ||
+            type !in setOf(MoneyTransaction.INCOME, MoneyTransaction.EXPENSE) ||
+            paymentMethod.isBlank() ||
+            frequency !in setOf(RecurringTransaction.WEEKLY, RecurringTransaction.MONTHLY)
+        ) {
+            _uiState.update { it.copy(errorMessage = "Enter a title, valid amount, category, payment method and repeat frequency.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                if (type == MoneyTransaction.EXPENSE) categoryRepository.ensureCategory(category.trim())
+                recurringTransactionDao.insert(
+                    RecurringTransaction(
+                        title = title.trim(),
+                        type = type,
+                        amountMinor = amountMinor,
+                        category = category.trim(),
+                        description = description.trim(),
+                        paymentMethod = paymentMethod.trim(),
+                        frequency = frequency,
+                        nextRunEpochMillis = firstRunEpochMillis
+                    )
+                )
+                processDueRecurringTransactions()
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't save the recurring transaction. Please try again.") }
+            }
+        }
+    }
+
+    fun setRecurringTransactionActive(item: RecurringTransaction, active: Boolean) {
+        viewModelScope.launch {
+            runCatching { recurringTransactionDao.update(item.copy(active = active)) }
+                .onSuccess { _uiState.update { state -> state.copy(errorMessage = null) } }
+                .onFailure { _uiState.update { state -> state.copy(errorMessage = "Couldn't update this recurring transaction.") } }
+        }
+    }
+
+    fun deleteRecurringTransaction(id: Long) {
+        viewModelScope.launch {
+            runCatching { recurringTransactionDao.deleteById(id) }
+                .onSuccess { _uiState.update { state -> state.copy(errorMessage = null) } }
+                .onFailure { _uiState.update { state -> state.copy(errorMessage = "Couldn't delete this recurring transaction.") } }
+        }
+    }
+
+    private suspend fun processDueRecurringTransactions() {
+        val now = System.currentTimeMillis()
+        recurringTransactionDao.due(now).forEach { item ->
+            runCatching {
+                database.withTransaction {
+                    val occurrenceDate = item.nextRunEpochMillis
+                    val nextRun = java.util.Calendar.getInstance().apply {
+                        timeInMillis = occurrenceDate
+                        do {
+                            add(
+                                java.util.Calendar.DAY_OF_MONTH,
+                                if (item.frequency == RecurringTransaction.WEEKLY) 7 else 0
+                            )
+                            if (item.frequency == RecurringTransaction.MONTHLY) add(java.util.Calendar.MONTH, 1)
+                        } while (timeInMillis <= now)
+                    }.timeInMillis
+                    database.transactionDao().insert(
+                        MoneyTransaction(
+                            type = item.type,
+                            amountMinor = item.amountMinor,
+                            category = item.category,
+                            description = listOf(item.title, item.description).filter { it.isNotBlank() }.joinToString(" — "),
+                            paymentMethod = item.paymentMethod,
+                            dateEpochMillis = occurrenceDate
+                        )
+                    )
+                    recurringTransactionDao.update(item.copy(nextRunEpochMillis = nextRun))
+                }
             }
         }
     }
