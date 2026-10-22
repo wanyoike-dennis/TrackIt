@@ -62,7 +62,7 @@ object TrackItBackupManager {
         require(root.optString("app") == "TrackIt") { "This file is not a TrackIt backup." }
         require(root.optInt("formatVersion", -1) == FORMAT_VERSION) { "This TrackIt backup version is not supported." }
         val data = root.optJSONObject("tables") ?: error("The backup is missing its data tables.")
-        require(restoreOrder.all { data.optJSONArray(it) != null }) { "The backup is incomplete." }
+        require(restoreOrder.filterNot { it == "recurring_transactions" }.all { data.optJSONArray(it) != null }) { "The backup is incomplete." }
         require(data.keys().asSequence().all { it in tables }) { "The backup contains an unknown table." }
 
         val sqlDb = database.openHelper.writableDatabase
@@ -74,7 +74,7 @@ object TrackItBackupManager {
                 .forEach { sqlDb.delete(it, null, null) }
 
             restoreOrder.forEach { table ->
-                val rows = data.getJSONArray(table)
+                val rows = data.optJSONArray(table) ?: JSONArray()
                 for (rowIndex in 0 until rows.length()) {
                     val row = rows.getJSONObject(rowIndex)
                     val values = ContentValues()
