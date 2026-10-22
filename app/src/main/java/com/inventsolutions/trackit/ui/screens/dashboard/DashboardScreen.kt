@@ -509,47 +509,125 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable { selectedTab = "Money" },
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(22.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            Column(
+                                Modifier.fillMaxWidth().padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                Box(
-                                    Modifier.size(48.dp).clip(RoundedCornerShape(15.dp))
-                                        .background(TrackItEmeraldTint),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↗", color = TrackItEmerald, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
+                                            .background(TrackItEmeraldTint),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("↗", color = TrackItEmerald, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Column(
+                                        Modifier.weight(1f).padding(start = 12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Text("Savings progress", style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold)
+                                        Text(
+                                            if (savingsGoals.isEmpty()) "Your goals, one step at a time"
+                                            else "$savingsGoalCount active goal${if (savingsGoalCount == 1) "" else "s"}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("Savings progress", style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold)
-                                    if (savingsGoals.isEmpty()) {
-                                        Text("Set a savings goal and track your progress here.",
+
+                                if (savingsGoals.isEmpty()) {
+                                    Text(
+                                        "Create a savings goal to see your target, progress and what's left to save.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "Create a goal  →",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                } else {
+                                    val savingsProgress = if (savingsTargetTotal > 0L)
+                                        (savingsContributions.toDouble() / savingsTargetTotal).coerceIn(0.0, 1.0).toFloat()
+                                    else 0f
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.Bottom,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                            Text("TOTAL SAVED", style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.8.sp)
+                                            Text(formatKes(savingsContributions), style = MaterialTheme.typography.headlineSmall,
+                                                fontWeight = FontWeight.ExtraBold, color = TrackItEmerald)
+                                        }
+                                        Text("${(savingsProgress * 100).toInt()}%",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold)
+                                    }
+                                    LinearProgressIndicator(
+                                        progress = { savingsProgress },
+                                        modifier = Modifier.fillMaxWidth().height(9.dp).clip(CircleShape),
+                                        color = TrackItEmerald,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Target: ${formatKes(savingsTargetTotal)}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    } else {
-                                        Text("${formatKes(savingsContributions)} saved of ${formatKes(savingsTargetTotal)}",
-                                            style = MaterialTheme.typography.bodyMedium)
-                                        val savingsProgress = if (savingsTargetTotal > 0L)
-                                            (savingsContributions.toDouble() / savingsTargetTotal).coerceIn(0.0, 1.0).toFloat()
-                                        else 0f
-                                        LinearProgressIndicator(
-                                            progress = { savingsProgress },
-                                            modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
-                                            color = TrackItEmerald,
-                                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                                        )
-                                        Text("$savingsGoalCount goal${if (savingsGoalCount == 1) "" else "s"} · ${(savingsProgress * 100).toInt()}% saved",
-                                            style = MaterialTheme.typography.labelSmall,
+                                        Text("${formatKes((savingsTargetTotal - savingsContributions).coerceAtLeast(0L))} to go",
+                                            style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
+
+                                    val featuredGoal = savingsGoals.first()
+                                    val remainingForGoal = (featuredGoal.targetMinor - featuredGoal.currentMinor).coerceAtLeast(0L)
+                                    val contributionFrequency = when (featuredGoal.contributionMethod) {
+                                        FinancialRecord.CONTRIBUTION_WEEKLY -> "week"
+                                        FinancialRecord.CONTRIBUTION_MONTHLY -> "month"
+                                        FinancialRecord.CONTRIBUTION_ONE_TIME -> "one-time"
+                                        else -> ""
+                                    }
+                                    if (savingsGoals.size == 1 || featuredGoal.plannedContributionMinor > 0L) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        Row(
+                                            Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                Text(
+                                                    if (savingsGoals.size == 1) featuredGoal.title else "Next focus · ${featuredGoal.title}",
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Text(
+                                                    if (remainingForGoal == 0L) "Goal reached — well done!"
+                                                    else "${formatKes(remainingForGoal)} left to reach this goal",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            if (featuredGoal.plannedContributionMinor > 0L) {
+                                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Text("PLAN", style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    Text(
+                                                        "${formatKes(featuredGoal.plannedContributionMinor)}${if (contributionFrequency.isNotBlank() && contributionFrequency != "one-time") "/$contributionFrequency" else ""}",
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
