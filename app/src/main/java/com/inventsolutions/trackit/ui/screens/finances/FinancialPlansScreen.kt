@@ -41,6 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialRecordEntry
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -57,10 +60,12 @@ private fun financeKes(minor: Long): String {
 @Composable
 fun FinancialPlansScreen(
     records: List<FinancialRecord>,
+    entries: List<FinancialRecordEntry>,
     errorMessage: String?,
     onBackToHome: () -> Unit,
     onAdd: (type: String, title: String, targetMinor: Long, notes: String) -> Unit,
-    onAddProgress: (FinancialRecord, Long) -> Unit,
+    onAddProgress: (FinancialRecord, Long, String) -> Unit,
+    onEdit: (FinancialRecord) -> Unit,
     onDelete: (Long) -> Unit,
     onClearError: () -> Unit
 ) {
@@ -68,6 +73,8 @@ fun FinancialPlansScreen(
     var showCreate by remember { mutableStateOf(false) }
     var progressRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var deleteRecord by remember { mutableStateOf<FinancialRecord?>(null) }
+    var editRecord by remember { mutableStateOf<FinancialRecord?>(null) }
+    var historyRecord by remember { mutableStateOf<FinancialRecord?>(null) }
 
     val debtsOwedToMe = records.filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
     val debtsIOwe = records.filter { it.type == FinancialRecord.DEBT_I_OWE }
@@ -320,6 +327,8 @@ fun FinancialPlansScreen(
                 FinancialRecordCard(
                     record = record,
                     onProgress = { progressRecord = record },
+                    onEdit = { editRecord = record },
+                    onHistory = { historyRecord = record },
                     onDelete = { deleteRecord = record }
                 )
             }
@@ -408,6 +417,7 @@ fun FinancialPlansScreen(
 
     progressRecord?.let { record ->
         var amount by remember(record.id) { mutableStateOf("") }
+        var note by remember(record.id) { mutableStateOf("") }
         var validationError by remember(record.id) { mutableStateOf<String?>(null) }
         val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
         val isDebt = record.type == FinancialRecord.DEBT_I_OWE || record.type == FinancialRecord.DEBT_OWED_TO_ME
@@ -433,6 +443,8 @@ fun FinancialPlansScreen(
                     )
                     OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
                         label = { Text("Amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = note, onValueChange = { note = it },
+                        label = { Text("Note (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
                     if (validationError != null) {
                         Text(validationError!!, color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall)
@@ -449,13 +461,124 @@ fun FinancialPlansScreen(
                         minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
                         isDebt && minor > remaining -> validationError = "This is more than the outstanding debt."
                         else -> {
-                            onAddProgress(record, minor)
+                            onAddProgress(record, minor, note)
                             progressRecord = null
                         }
                     }
                 }) { Text("Save update") }
             },
             dismissButton = { TextButton(onClick = { progressRecord = null }) { Text("Cancel") } }
+        )
+    }
+
+    editRecord?.let { record ->
+        var title by remember(record.id) { mutableStateOf(record.title) }
+        var target by remember(record.id) { mutableStateOf((record.targetMinor / 100.0).toString().removeSuffix(".0")) }
+        var notes by remember(record.id) { mutableStateOf(record.notes) }
+        var dueDate by remember(record.id) {
+            mutableStateOf(record.dueDateEpochMillis?.let {
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it))
+            } ?: "")
+        }
+        var validationError by remember(record.id) { mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { editRecord = null },
+            title = { Text("Edit plan", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(value = title, onValueChange = { title = it; validationError = null },
+                        label = { Text("Name / description") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = target, onValueChange = { target = it; validationError = null },
+                        label = { Text("Target / original amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (record.type != FinancialRecord.ALLOWANCE) {
+                        OutlinedTextField(value = dueDate, onValueChange = { dueDate = it; validationError = null },
+                            label = { Text("Due date (YYYY-MM-DD, optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
+                    OutlinedTextField(value = notes, onValueChange = { notes = it },
+                        label = { Text("Notes (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                    if (validationError != null) Text(validationError!!, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val parsedAmount = target.trim().replace(",", "").toBigDecimalOrNull()
+                    val targetMinor = parsedAmount?.let { runCatching {
+                        it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
+                    }.getOrNull() }
+                    val parsedDate = if (dueDate.isBlank()) null else runCatching {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
+                            .parse(dueDate.trim())?.time
+                    }.getOrNull()
+                    when {
+                        title.isBlank() -> validationError = "Enter a name or description."
+                        targetMinor == null || targetMinor <= 0L -> validationError = "Enter an amount greater than zero."
+                        dueDate.isNotBlank() && parsedDate == null && record.type != FinancialRecord.ALLOWANCE ->
+                            validationError = "Use a valid date in YYYY-MM-DD format."
+                        record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME) &&
+                            targetMinor < record.currentMinor -> validationError = "The original amount cannot be less than what has already been recorded."
+                        else -> {
+                            onEdit(record.copy(
+                                title = title.trim(),
+                                targetMinor = targetMinor,
+                                dueDateEpochMillis = if (record.type == FinancialRecord.ALLOWANCE) null else parsedDate,
+                                notes = notes.trim()
+                            ))
+                            editRecord = null
+                        }
+                    }
+                }) { Text("Save changes") }
+            },
+            dismissButton = { TextButton(onClick = { editRecord = null }) { Text("Cancel") } }
+        )
+    }
+
+    historyRecord?.let { record ->
+        val recordEntries = entries.filter { it.financialRecordId == record.id }
+        AlertDialog(
+            onDismissRequest = { historyRecord = null },
+            title = { Text("Activity · ${record.title}", fontWeight = FontWeight.Bold) },
+            text = {
+                if (recordEntries.isEmpty()) {
+                    Text("No activity recorded yet. Updates you make from now on will appear here.")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.height(320.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(recordEntries, key = { it.id }) { entry ->
+                            Column(
+                                Modifier.fillMaxWidth().background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(14.dp)
+                                ).padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(
+                                        when (entry.entryType) {
+                                            FinancialRecordEntry.REPAYMENT -> "Repayment"
+                                            FinancialRecordEntry.COLLECTION -> "Collection"
+                                            FinancialRecordEntry.CONTRIBUTION -> "Savings contribution"
+                                            else -> "Allowance spending"
+                                        },
+                                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(financeKes(entry.amountMinor), style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold)
+                                }
+                                Text(
+                                    SimpleDateFormat("d MMM yyyy · h:mm a", Locale.getDefault())
+                                        .format(Date(entry.createdAtEpochMillis)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (entry.note.isNotBlank()) Text(entry.note, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { historyRecord = null }) { Text("Close") } }
         )
     }
 
@@ -519,6 +642,8 @@ private fun HeroMetric(modifier: Modifier = Modifier, label: String, value: Stri
 private fun FinancialRecordCard(
     record: FinancialRecord,
     onProgress: () -> Unit,
+    onEdit: () -> Unit,
+    onHistory: () -> Unit,
     onDelete: () -> Unit
 ) {
     val progress = if (record.targetMinor > 0L) (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
@@ -569,8 +694,13 @@ private fun FinancialRecordCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold
                     )
                 }
-                TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
-                    Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(onClick = onEdit, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                        Text("Edit")
+                    }
+                    TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                        Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
 
@@ -631,6 +761,13 @@ private fun FinancialRecordCard(
                 Text(record.notes, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            OutlinedButton(
+                onClick = onHistory,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(vertical = 10.dp)
+            ) { Text("View activity history") }
+
             Button(
                 onClick = onProgress,
                 modifier = Modifier.fillMaxWidth(),
