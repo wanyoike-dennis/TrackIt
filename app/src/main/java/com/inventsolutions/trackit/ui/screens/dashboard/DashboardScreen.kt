@@ -268,14 +268,19 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         bottomBar = {
             if (entryType == null) {
                 Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .navigationBarsPadding(),
+                    shape = RoundedCornerShape(26.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 10.dp
+                    shadowElevation = 8.dp,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Row(
                         Modifier.fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(horizontal = 8.dp, vertical = 7.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                            .padding(horizontal = 6.dp, vertical = 7.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         listOf("Home", "Activity", "Budgets", "Reports", "Money").forEach { tab ->
@@ -284,32 +289,25 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
                             Column(
                                 modifier = Modifier.weight(1f)
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primaryContainer
+                                        else Color.Transparent
+                                    )
                                     .clickable { selectedTab = tab }
-                                    .padding(horizontal = 2.dp, vertical = 3.dp),
+                                    .padding(horizontal = 1.dp, vertical = 7.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(
-                                            if (selected) MaterialTheme.colorScheme.primaryContainer
-                                            else Color.Transparent
-                                        )
-                                        .padding(horizontal = 17.dp, vertical = 5.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    TrackItNavigationIcon(
-                                        destination = tab,
-                                        color = if (selected) activeColor else inactiveColor,
-                                        modifier = Modifier.size(23.dp)
-                                    )
-                                }
+                                TrackItNavigationIcon(
+                                    destination = tab,
+                                    color = if (selected) activeColor else inactiveColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
                                 Text(
                                     text = tab,
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                     color = if (selected) activeColor else inactiveColor,
                                     maxLines = 1
                                 )
