@@ -184,6 +184,25 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         }
         .sumOf { it.amountMinor }
 
+    val weeklyCashFlow = (6 downTo 0).map { daysAgo ->
+        val dayStart = Calendar.getInstance().apply {
+            timeInMillis = todayStart
+            add(Calendar.DAY_OF_MONTH, -daysAgo)
+        }
+        val start = dayStart.timeInMillis
+        val end = (dayStart.clone() as Calendar).apply {
+            add(Calendar.DAY_OF_MONTH, 1)
+        }.timeInMillis
+        val dayTransactions = uiState.transactions.filter {
+            it.dateEpochMillis >= start && it.dateEpochMillis < end
+        }
+        WeeklyCashFlow(
+            label = SimpleDateFormat("EE", Locale.getDefault()).format(Date(start)),
+            income = dayTransactions.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor },
+            spending = dayTransactions.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor }
+        )
+    }
+
     val monthlyIncome = monthTransactions
         .filter { it.type == MoneyTransaction.INCOME }
         .sumOf { it.amountMinor }
@@ -438,6 +457,26 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                 accent = TrackItEmerald,
                                 modifier = Modifier.weight(1f)
                             )
+                        }
+                    }
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                SectionTitle("Cash flow", "Income vs spending · last 7 days")
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(50)
+                                ) {
+                                    Text("7 DAYS", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                }
+                            }
+                            WeeklyCashFlowCard(weeklyCashFlow)
                         }
                     }
                     item {
@@ -726,6 +765,103 @@ private fun OverviewCard(
             color = Color(0xFFD0D7E2),
             style = MaterialTheme.typography.bodySmall
         )
+    }
+}
+
+private data class WeeklyCashFlow(
+    val label: String,
+    val income: Long,
+    val spending: Long
+)
+
+@Composable
+private fun WeeklyCashFlowCard(days: List<WeeklyCashFlow>) {
+    val maxAmount = (days.maxOfOrNull { maxOf(it.income, it.spending) } ?: 0L).coerceAtLeast(1L)
+    val totalIncome = days.sumOf { it.income }
+    val totalSpending = days.sumOf { it.spending }
+
+    Card(
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Money movement", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold)
+                    Text("Compare what came in and went out",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Net", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        (if (totalIncome - totalSpending < 0L) "− " else "+ ") +
+                            formatKes(abs(totalIncome - totalSpending)).removePrefix("KSh "),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (totalIncome >= totalSpending) TrackItEmerald else MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().height(112.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                days.forEach { day ->
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().height(82.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Box(
+                                Modifier.width(9.dp).height(
+                                    (82f * (day.income.toDouble() / maxAmount.toDouble()).toFloat())
+                                        .coerceAtLeast(if (day.income > 0L) 4f else 2f).dp
+                                ).clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                                    .background(TrackItEmerald)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Box(
+                                Modifier.width(9.dp).height(
+                                    (82f * (day.spending.toDouble() / maxAmount.toDouble()).toFloat())
+                                        .coerceAtLeast(if (day.spending > 0L) 4f else 2f).dp
+                                ).clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                                    .background(TrackItAmber)
+                            )
+                        }
+                        Spacer(Modifier.height(7.dp))
+                        Text(day.label, style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.size(9.dp).clip(CircleShape).background(TrackItEmerald))
+                    Text("Income  ${formatKes(totalIncome)}", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.size(9.dp).clip(CircleShape).background(TrackItAmber))
+                    Text("Spent  ${formatKes(totalSpending)}", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 
