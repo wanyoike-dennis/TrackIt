@@ -37,6 +37,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.ExpenseCategory
+import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.MonthlyBudget
 import java.math.BigDecimal
@@ -72,6 +73,7 @@ fun TransactionEntryScreen(
     budgets: List<MonthlyBudget>,
     transactions: List<MoneyTransaction>,
     expenseCategories: List<ExpenseCategory>,
+    allowances: List<FinancialRecord>,
     onBack: () -> Unit,
     onClearError: () -> Unit,
     onCreateCategory: (name: String, budgetLimitMinor: Long?, budgetType: String) -> Unit,
@@ -81,7 +83,8 @@ fun TransactionEntryScreen(
         category: String,
         description: String,
         paymentMethod: String,
-        dateEpochMillis: Long
+        dateEpochMillis: Long,
+        allowanceRecordId: Long?
     ) -> Unit
 ) {
     val context = LocalContext.current
@@ -91,6 +94,8 @@ fun TransactionEntryScreen(
     var paymentMethod by remember { mutableStateOf("M-Pesa") }
     var paymentMenuExpanded by remember { mutableStateOf(false) }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
+    var allowanceMenuExpanded by remember { mutableStateOf(false) }
+    var selectedAllowanceId by remember { mutableStateOf<Long?>(null) }
     var createCategoryDialog by remember { mutableStateOf(false) }
     var newCategoryName by remember { mutableStateOf("") }
     var createBudgetNow by remember { mutableStateOf(false) }
@@ -393,6 +398,55 @@ fun TransactionEntryScreen(
                     }
                 }
 
+                if (!isIncome && allowances.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(
+                            "Allowance (optional)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedButton(
+                            onClick = { allowanceMenuExpanded = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val selectedAllowance = allowances.firstOrNull { it.id == selectedAllowanceId }
+                            Text(
+                                selectedAllowance?.let { "${it.title} · ${formatKes((it.targetMinor - it.currentMinor).coerceAtLeast(0L))} left" } ?: "No allowance selected",
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text("⌄")
+                        }
+                        DropdownMenu(
+                            expanded = allowanceMenuExpanded,
+                            onDismissRequest = { allowanceMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("No allowance — record expense only") },
+                                onClick = { selectedAllowanceId = null; allowanceMenuExpanded = false }
+                            )
+                            allowances.forEach { allowance ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(allowance.title)
+                                            Text(
+                                                "Remaining: ${formatKes((allowance.targetMinor - allowance.currentMinor).coerceAtLeast(0L))}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = { selectedAllowanceId = allowance.id; allowanceMenuExpanded = false }
+                                )
+                            }
+                        }
+                        Text(
+                            "The expense is recorded once. Selecting an allowance also reduces its remaining balance.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
@@ -461,7 +515,8 @@ fun TransactionEntryScreen(
                     category,
                     description,
                     paymentMethod,
-                    dateEpochMillis
+                    dateEpochMillis,
+                    selectedAllowanceId
                 )
             },
             enabled = !isSaving,
