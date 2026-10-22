@@ -303,8 +303,12 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     entries = uiState.financialEntries,
                     errorMessage = uiState.errorMessage,
                     onBackToHome = { selectedTab = "Home" },
-                    onAdd = { type, title, targetMinor, notes ->
-                        viewModel.addFinancialRecord(type, title, targetMinor, notes = notes)
+                    onAdd = { type, title, targetMinor, dueDateEpochMillis, notes ->
+                        viewModel.addFinancialRecord(
+                            type, title, targetMinor,
+                            dueDateEpochMillis = dueDateEpochMillis,
+                            notes = notes
+                        )
                     },
                     onAddProgress = viewModel::addFinancialProgress,
                     onEdit = viewModel::updateFinancialRecord,
