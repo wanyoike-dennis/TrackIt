@@ -526,6 +526,45 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             }
                         }
                     }
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SectionTitle("Debts & commitments", "Keep track of money owed in both directions")
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                DashboardMetricCard(
+                                    title = "You owe",
+                                    value = formatKes(debtRepayments),
+                                    detail = "Outstanding debts",
+                                    symbol = "↗",
+                                    accent = TrackItExpense,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                DashboardMetricCard(
+                                    title = "Owed to you",
+                                    value = formatKes(debtCollections),
+                                    detail = "Money to collect",
+                                    symbol = "↙",
+                                    accent = TrackItEmerald,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Card(
+                                modifier = Modifier.fillMaxWidth().clickable { selectedTab = "Money" },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Manage your financial plans", Modifier.weight(1f),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text("→", style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                }
+                            }
+                        }
+                    }
                     if (budgetAlerts.isNotEmpty()) {
                         item {
                             Card(
