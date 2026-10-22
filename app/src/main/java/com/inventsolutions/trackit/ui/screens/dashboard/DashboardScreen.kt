@@ -668,59 +668,96 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     Text("YOUR GOALS", style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.8.sp)
 
-                                    savingsGoals.take(3).forEachIndexed { index, goal ->
-                                        val goalProgress = if (goal.targetMinor > 0L)
-                                            (goal.currentMinor.toDouble() / goal.targetMinor).coerceIn(0.0, 1.0).toFloat()
-                                        else 0f
-                                        val goalRemaining = (goal.targetMinor - goal.currentMinor).coerceAtLeast(0L)
-                                        val goalColor = when (index % 4) {
-                                            0 -> TrackItEmerald
-                                            1 -> MaterialTheme.colorScheme.primary
-                                            2 -> TrackItAmber
-                                            else -> MaterialTheme.colorScheme.tertiary
-                                        }
-                                        Row(
-                                            Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                        ) {
-                                            CircularSavingsProgress(
-                                                progress = goalProgress,
-                                                size = 58.dp,
-                                                label = "${(goalProgress * 100).toInt()}%",
-                                                color = goalColor,
-                                                strokeWidth = 5.dp
-                                            )
-                                            Column(
-                                                Modifier.weight(1f),
-                                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        savingsGoals.take(2).forEachIndexed { index, goal ->
+                                            val goalProgress = if (goal.targetMinor > 0L)
+                                                (goal.currentMinor.toDouble() / goal.targetMinor).coerceIn(0.0, 1.0).toFloat()
+                                            else 0f
+                                            val goalRemaining = (goal.targetMinor - goal.currentMinor).coerceAtLeast(0L)
+                                            val goalColor = when (index % 4) {
+                                                0 -> TrackItEmerald
+                                                1 -> MaterialTheme.colorScheme.primary
+                                                2 -> TrackItAmber
+                                                else -> MaterialTheme.colorScheme.tertiary
+                                            }
+                                            Card(
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(16.dp),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = MaterialTheme.colorScheme.surface
+                                                ),
+                                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                             ) {
-                                                Text(goal.title, style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.SemiBold, maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis)
-                                                Text(
-                                                    "${formatKes(goal.currentMinor)} of ${formatKes(goal.targetMinor)}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                                Text(
-                                                    if (goalRemaining == 0L) "Target reached"
-                                                    else "${formatKes(goalRemaining)} remaining",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = if (goalRemaining == 0L) TrackItEmerald
-                                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
+                                                Column(
+                                                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 14.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    CircularSavingsProgress(
+                                                        progress = goalProgress,
+                                                        size = 62.dp,
+                                                        label = "${(goalProgress * 100).toInt()}%",
+                                                        color = goalColor,
+                                                        strokeWidth = 5.dp
+                                                    )
+                                                    Text(
+                                                        goal.title,
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        maxLines = 2,
+                                                        minLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                    )
+                                                    Text(
+                                                        formatKes(goal.currentMinor),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        "of ${formatKes(goal.targetMinor)}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        if (goalRemaining == 0L) "Target reached"
+                                                        else "${formatKes(goalRemaining)} left",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = if (goalRemaining == 0L) TrackItEmerald
+                                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 2,
+                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
                                             }
                                         }
                                     }
 
-                                    if (savingsGoals.size > 3) {
-                                        Text(
-                                            "View all $savingsGoalCount goals  →",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
+                                    if (savingsGoals.size > 2) {
+                                        Row(
+                                            Modifier.fillMaxWidth().clickable { selectedTab = "Money" },
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                "View all $savingsGoalCount goals",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("→", color = MaterialTheme.colorScheme.primary)
+                                        }
                                     }
                                 }
                             }
