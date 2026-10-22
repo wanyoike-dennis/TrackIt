@@ -15,18 +15,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +36,7 @@ fun ProfileScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Text("‹", style = MaterialTheme.typography.headlineMedium)
             }
             Column(Modifier.weight(1f)) {
                 Text("Profile", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -69,8 +60,7 @@ fun ProfileScreen(
                     shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
-                    Icon(Icons.Default.AccountCircle, contentDescription = null,
-                        modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("D", modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("Your TrackIt profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -85,13 +75,13 @@ fun ProfileScreen(
         ProfileOption(
             title = "Personal information",
             description = "Your profile details",
-            icon = { androidx.compose.material3.Icon(Icons.Default.AccountCircle, contentDescription = null) },
+            icon = { Text("●", color = MaterialTheme.colorScheme.primary) },
             onClick = {}
         )
         ProfileOption(
             title = "Appearance",
             description = "Theme and display preferences",
-            icon = { androidx.compose.material3.Icon(Icons.Default.Palette, contentDescription = null) },
+            icon = { Text("◐", color = MaterialTheme.colorScheme.primary) },
             onClick = {}
         )
 
@@ -101,7 +91,7 @@ fun ProfileScreen(
         ProfileOption(
             title = "Backup & Restore",
             description = "Export or restore your financial records",
-            icon = { androidx.compose.material3.Icon(Icons.Default.Backup, contentDescription = null) },
+            icon = { Text("⇅", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge) },
             onClick = onOpenBackupRestore
         )
 
@@ -111,7 +101,7 @@ fun ProfileScreen(
         ProfileOption(
             title = "Help & Support",
             description = "Get help using TrackIt",
-            icon = { androidx.compose.material3.Icon(Icons.Default.SupportAgent, contentDescription = null) },
+            icon = { Text("?", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge) },
             onClick = {}
         )
     }
@@ -143,8 +133,7 @@ private fun ProfileOption(
                 Text(description, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
