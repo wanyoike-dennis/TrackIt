@@ -238,7 +238,7 @@ fun FinancialPlansScreen(
                         when (section) {
                             FinanceSection.DEBTS -> "Know what is coming in and what must go out."
                             FinanceSection.SAVINGS -> "Make every contribution move you closer."
-                            FinanceSection.ALLOWANCE -> "Give day-to-day spending a clear boundary."
+                            FinanceSection.ALLOWANCE -> "A spending limit, not extra money. Your balance changes only when you record spending."
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -306,7 +306,7 @@ fun FinancialPlansScreen(
                             when (section) {
                                 FinanceSection.DEBTS -> "Add money you owe or money someone needs to pay you. Track each repayment or collection."
                                 FinanceSection.SAVINGS -> "Set a target for an emergency fund, a new phone, rent, or anything you are working towards."
-                                FinanceSection.ALLOWANCE -> "Set a spending limit for a week, month, or personal category and record what you use."
+                                FinanceSection.ALLOWANCE -> "Set a limit for your spending. Creating an allowance does not add or reserve money; only the amounts you record as spent reduce your available balance."
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
