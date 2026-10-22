@@ -148,13 +148,6 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val savingsTargetTotal = savingsGoals.sumOf { it.targetMinor }
     val savingsContributions = savingsGoals.sumOf { it.currentMinor }
     val savingsGoalCount = savingsGoals.size
-    val todaySpent = todayTransactions.sumOf { it.amountMinor }
-    val todayIncome = uiState.transactions
-        .filter {
-            it.type == MoneyTransaction.INCOME &&
-                it.dateEpochMillis >= todayStart && it.dateEpochMillis < tomorrowStart
-        }
-        .sumOf { it.amountMinor }
     val debtRepayments = uiState.financialRecords
         .filter { it.type == FinancialRecord.DEBT_I_OWE }
         .sumOf { it.currentMinor }
@@ -183,6 +176,13 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
         it.type == MoneyTransaction.EXPENSE &&
             it.dateEpochMillis >= todayStart && it.dateEpochMillis < tomorrowStart
     }
+    val todaySpent = todayTransactions.sumOf { it.amountMinor }
+    val todayIncome = uiState.transactions
+        .filter {
+            it.type == MoneyTransaction.INCOME &&
+                it.dateEpochMillis >= todayStart && it.dateEpochMillis < tomorrowStart
+        }
+        .sumOf { it.amountMinor }
 
     val monthlyIncome = monthTransactions
         .filter { it.type == MoneyTransaction.INCOME }
