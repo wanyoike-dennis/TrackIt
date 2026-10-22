@@ -71,15 +71,16 @@ private fun rangeFor(period: ReportPeriod, transactions: List<MoneyTransaction>,
     val previousStart = start.clone() as Calendar
     val previousEnd = start.clone() as Calendar
     when (period) {
-        ReportPeriod.TODAY -> { previousStart.add(Calendar.DAY_OF_MONTH, -1); previousEnd.timeInMillis = start.timeInMillis }
-        ReportPeriod.THIS_WEEK -> { previousStart.add(Calendar.WEEK_OF_YEAR, -1); previousEnd.timeInMillis = start.timeInMillis }
-        ReportPeriod.THIS_MONTH -> { previousStart.add(Calendar.MONTH, -1); previousEnd.timeInMillis = start.timeInMillis }
+        ReportPeriod.TODAY -> previousStart.add(Calendar.DAY_OF_MONTH, -1)
+        ReportPeriod.THIS_WEEK -> previousStart.add(Calendar.WEEK_OF_YEAR, -1)
+        ReportPeriod.THIS_MONTH -> previousStart.add(Calendar.MONTH, -1)
         ReportPeriod.ALL_TIME -> {
             val duration = (nowMillis - start.timeInMillis).coerceAtLeast(1L)
-            previousEnd.timeInMillis = start.timeInMillis
             previousStart.timeInMillis = (start.timeInMillis - duration).coerceAtLeast(0L)
         }
     }
+    val elapsedPeriod = (nowMillis - start.timeInMillis).coerceAtLeast(1L)
+    previousEnd.timeInMillis = minOf(start.timeInMillis, previousStart.timeInMillis + elapsedPeriod)
     return ReportRange(start.timeInMillis, end.timeInMillis, previousStart.timeInMillis, previousEnd.timeInMillis)
 }
 
