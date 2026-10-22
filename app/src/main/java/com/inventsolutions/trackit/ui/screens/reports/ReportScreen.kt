@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -131,9 +132,12 @@ fun ReportScreen(
     transactions: List<MoneyTransaction>,
     financialRecords: List<FinancialRecord>,
     financialEntries: List<FinancialRecordEntry>,
-    onBackToHome: () -> Unit
+    onBackToHome: () -> Unit,
+    onExportBackup: () -> Unit,
+    onRestoreBackup: () -> Unit
 ) {
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.THIS_MONTH) }
+    var showRestoreConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val nowMillis = System.currentTimeMillis()
     val range = rangeFor(selectedPeriod, transactions, financialEntries, nowMillis)
@@ -190,6 +194,34 @@ fun ReportScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Backup & restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Save all local transactions, budgets, categories, savings, debts and financial-plan history to a JSON file. Keep the file somewhere safe.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onExportBackup, modifier = Modifier.weight(1f)) {
+                            Text("Export backup")
+                        }
+                        OutlinedButton(onClick = { showRestoreConfirmation = true }, modifier = Modifier.weight(1f)) {
+                            Text("Restore backup")
+                        }
+                    }
+                }
+            }
+        }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -378,5 +410,25 @@ private fun ReportComparisonRow(label: String, current: Long, previous: Long) {
                 difference > 0L -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.error
             })
+    }
+    if (showRestoreConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirmation = false },
+            title = { Text("Replace current data?") },
+            text = {
+                Text(
+                    "Restoring replaces all current TrackIt records on this device with the records in the selected backup. Export a backup of your current data first if you may need it."
+                )
+            },
+            confirmButton = {
+                OutlinedButton(onClick = {
+                    showRestoreConfirmation = false
+                    onRestoreBackup()
+                }) { Text("Choose backup") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showRestoreConfirmation = false }) { Text("Cancel") }
+            }
+        )
     }
 }
