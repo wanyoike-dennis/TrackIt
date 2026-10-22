@@ -347,8 +347,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                 allowanceRecordId = allowanceRecordId
                             )
                             if (saved) {
-                                entryType = null
-                                noticeMessage = "Transaction saved successfully."
+                                entryType = null                                noticeMessage = "Transaction saved successfully."
                                 notice = true
                             }
                         }
@@ -697,8 +696,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(
                                 Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                verticalAlignment = Alignment.CenterVertically,                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     SectionTitle("Recent activity", "Your latest saved transactions")
@@ -757,6 +755,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     }
 
 
+}
 
 @Composable
 private fun OverviewCard(
@@ -1047,8 +1046,7 @@ private fun TrackItNavigationIcon(
             "Activity" -> {
                 // Transaction history: a simple clock with clear hands.
                 drawCircle(
-                    color = color,
-                    radius = size.minDimension * 0.34f,
+                    color = color,                    radius = size.minDimension * 0.34f,
                     center = androidx.compose.ui.geometry.Offset(x, y),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
                 )
