@@ -570,7 +570,7 @@ private fun FinancialRecordCard(
                     )
                 }
                 TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
-                    Text("More", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -589,8 +589,8 @@ private fun FinancialRecordCard(
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        when (record.type) {
-                            FinancialRecord.SAVINGS_GOAL -> "GOAL"
+                        when {
+                            record.type == FinancialRecord.SAVINGS_GOAL -> "GOAL"
                             isDebt -> "ORIGINAL"
                             else -> "LIMIT"
                         },
