@@ -63,7 +63,7 @@ fun FinancialPlansScreen(
     entries: List<FinancialRecordEntry>,
     errorMessage: String?,
     onBackToHome: () -> Unit,
-    onAdd: (type: String, title: String, targetMinor: Long, notes: String) -> Unit,
+    onAdd: (type: String, title: String, targetMinor: Long, dueDateEpochMillis: Long?, notes: String) -> Unit,
     onAddProgress: (FinancialRecord, Long, String) -> Unit,
     onEdit: (FinancialRecord) -> Unit,
     onDelete: (Long) -> Unit,
@@ -346,6 +346,7 @@ fun FinancialPlansScreen(
     if (showCreate) {
         var title by remember(section) { mutableStateOf("") }
         var amount by remember(section) { mutableStateOf("") }
+        var dueDate by remember(section) { mutableStateOf("") }
         var notes by remember(section) { mutableStateOf("") }
         var debtType by remember { mutableStateOf(FinancialRecord.DEBT_I_OWE) }
         var validationError by remember(section) { mutableStateOf<String?>(null) }
@@ -382,6 +383,11 @@ fun FinancialPlansScreen(
                             FinanceSection.SAVINGS -> "Savings target (KSh)"
                             FinanceSection.ALLOWANCE -> "Spending limit (KSh)"
                         }) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (section != FinanceSection.ALLOWANCE) {
+                        OutlinedTextField(value = dueDate, onValueChange = { dueDate = it; validationError = null },
+                            label = { Text("Target / due date (YYYY-MM-DD, optional)") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth())
+                    }
                     OutlinedTextField(value = notes, onValueChange = { notes = it },
                         label = { Text("Notes (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
                     if (validationError != null) {
@@ -396,16 +402,22 @@ fun FinancialPlansScreen(
                     val minor = parsed?.let { runCatching {
                         it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
                     }.getOrNull() }
+                    val parsedDate = if (dueDate.isBlank()) null else runCatching {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
+                            .parse(dueDate.trim())?.time
+                    }.getOrNull()
                     when {
                         title.isBlank() -> validationError = "Add a name or description first."
                         minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
+                        dueDate.isNotBlank() && parsedDate == null && section != FinanceSection.ALLOWANCE ->
+                            validationError = "Use a valid date in YYYY-MM-DD format."
                         else -> {
                             val type = when (section) {
                                 FinanceSection.DEBTS -> debtType
                                 FinanceSection.SAVINGS -> FinancialRecord.SAVINGS_GOAL
                                 FinanceSection.ALLOWANCE -> FinancialRecord.ALLOWANCE
                             }
-                            onAdd(type, title, minor, notes)
+                            onAdd(type, title, minor, parsedDate, notes)
                             showCreate = false
                         }
                     }
