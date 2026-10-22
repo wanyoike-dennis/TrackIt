@@ -104,12 +104,12 @@ fun TransactionEntryScreen(
     val categoryNames = (expenseCategories.map { it.name } + budgets.map { it.category })
         .distinctBy { it.trim().lowercase(Locale.getDefault()) }
         .sortedBy { it.lowercase(Locale.getDefault()) }
-    val selectedBudget = if (isIncome) null else budgets.firstOrNull {
-        it.category.equals(category, ignoreCase = true)
-    }
     val selectedDate = Calendar.getInstance().apply { timeInMillis = dateEpochMillis }
     val selectedMonthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date(dateEpochMillis))
     val currentMonthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
+    val selectedBudget = if (isIncome || selectedMonthKey != currentMonthKey) null else budgets.firstOrNull {
+        it.category.equals(category, ignoreCase = true)
+    }
     val selectedDayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(dateEpochMillis))
     val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     val monthSpend = if (selectedBudget != null && selectedMonthKey == currentMonthKey) {
