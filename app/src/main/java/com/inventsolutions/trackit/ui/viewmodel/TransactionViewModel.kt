@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventsolutions.trackit.data.local.ExpenseCategory
 import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.MonthlyBudget
 import com.inventsolutions.trackit.data.local.TrackItDatabase
@@ -27,6 +28,7 @@ data class TransactionUiState(
     val budgets: List<MonthlyBudget> = emptyList(),
     val expenseCategories: List<ExpenseCategory> = emptyList(),
     val financialRecords: List<FinancialRecord> = emptyList(),
+    val financialEntries: List<FinancialRecordEntry> = emptyList(),
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
@@ -62,6 +64,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             financialRecordDao.observeAll().collect { records ->
                 _uiState.update { it.copy(financialRecords = records) }
+            }
+        }
+        viewModelScope.launch {
+            financialRecordDao.observeAllEntries().collect { entries ->
+                _uiState.update { it.copy(financialEntries = entries) }
             }
         }
     }
@@ -310,17 +317,53 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun addFinancialProgress(record: FinancialRecord, amountMinor: Long) {
-        if (amountMinor <= 0L) {
-            _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
+    fun updateFinancialRecord(record: FinancialRecord) {
+        if (record.title.isBlank() || record.targetMinor <= 0L || record.currentMinor < 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter a title and a valid amount greater than zero.") }
             return
         }
         viewModelScope.launch {
             try {
-                financialRecordDao.update(record.copy(currentMinor = record.currentMinor + amountMinor))
+                financialRecordDao.update(record.copy(title = record.title.trim(), notes = record.notes.trim()))
                 _uiState.update { it.copy(errorMessage = null) }
             } catch (_: Exception) {
-                _uiState.update { it.copy(errorMessage = "Couldn't update this record. Please try again.") }
+                _uiState.update { it.copy(errorMessage = "Couldn't edit this plan. Please try again.") }
+            }
+        }
+    }
+
+    fun addFinancialProgress(record: FinancialRecord, amountMinor: Long, note: String = "") {
+        if (amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
+            return
+        }
+        val isDebt = record.type == FinancialRecord.DEBT_I_OWE ||
+            record.type == FinancialRecord.DEBT_OWED_TO_ME
+        val outstanding = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
+        if (isDebt && amountMinor > outstanding) {
+            _uiState.update { it.copy(errorMessage = "That amount is more than the outstanding debt.") }
+            return
+        }
+        val entryType = when (record.type) {
+            FinancialRecord.DEBT_I_OWE -> FinancialRecordEntry.REPAYMENT
+            FinancialRecord.DEBT_OWED_TO_ME -> FinancialRecordEntry.COLLECTION
+            FinancialRecord.SAVINGS_GOAL -> FinancialRecordEntry.CONTRIBUTION
+            else -> FinancialRecordEntry.SPENDING
+        }
+        viewModelScope.launch {
+            try {
+                financialRecordDao.saveProgress(
+                    record.copy(currentMinor = record.currentMinor + amountMinor),
+                    FinancialRecordEntry(
+                        financialRecordId = record.id,
+                        entryType = entryType,
+                        amountMinor = amountMinor,
+                        note = note.trim()
+                    )
+                )
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't save this update. Please try again.") }
             }
         }
     }
