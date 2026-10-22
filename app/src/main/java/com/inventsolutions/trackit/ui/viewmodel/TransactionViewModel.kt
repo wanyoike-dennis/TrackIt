@@ -10,6 +10,7 @@ import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.MonthlyBudget
 import com.inventsolutions.trackit.data.local.TrackItDatabase
+import com.inventsolutions.trackit.data.local.TrackItBackupManager
 import com.inventsolutions.trackit.data.repository.ExpenseCategoryRepository
 import com.inventsolutions.trackit.data.repository.MonthlyBudgetRepository
 import com.inventsolutions.trackit.data.repository.TransactionRepository
@@ -18,6 +19,8 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +38,15 @@ data class TransactionUiState(
 )
 
 class TransactionViewModel(application: Application) : AndroidViewModel(application) {
+
+    suspend fun exportBackupJson(): String = withContext(Dispatchers.IO) {
+        TrackItBackupManager.export(database)
+    }
+
+    suspend fun restoreBackupJson(json: String): Int = withContext(Dispatchers.IO) {
+        TrackItBackupManager.restore(database, json)
+    }
+
     private val app = application
     private val database = TrackItDatabase.getInstance(application)
     private val transactionRepository = TransactionRepository(database.transactionDao())
