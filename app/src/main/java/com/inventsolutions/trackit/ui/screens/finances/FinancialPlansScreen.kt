@@ -44,6 +44,7 @@ import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -772,8 +773,14 @@ private fun FinancialRecordCard(
             if (record.dueDateEpochMillis != null) {
                 val dueDateText = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
                     .format(Date(record.dueDateEpochMillis))
-                val overdue = record.dueDateEpochMillis < System.currentTimeMillis() &&
-                    (isDebt && remaining > 0L || record.type == FinancialRecord.SAVINGS_GOAL && remaining > 0L)
+                val todayStart = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                val overdue = record.dueDateEpochMillis < todayStart && remaining > 0L &&
+                    (isDebt || record.type == FinancialRecord.SAVINGS_GOAL)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(if (overdue) "!" else "◷",
                         color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
