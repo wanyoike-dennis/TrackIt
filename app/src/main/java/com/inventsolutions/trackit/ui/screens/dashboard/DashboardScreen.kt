@@ -228,6 +228,16 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     it.entryType == com.inventsolutions.trackit.data.local.FinancialRecordEntry.WITHDRAWAL
             }
             .sumOf { it.amountMinor }
+    val daysElapsed = now.get(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
+    val daysInMonth = now.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val projectedMonthlySpend = if (monthlySpent > 0L) {
+        (monthlySpent.toDouble() / daysElapsed * daysInMonth).toLong()
+    } else 0L
+    val topExpenseCategory = monthTransactions
+        .filter { it.type == MoneyTransaction.EXPENSE }
+        .groupBy { it.category.trim().ifBlank { "Uncategorized" } }
+        .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
+        .maxByOrNull { it.value }
     val dailyBudgetDays = now.getActualMaximum(Calendar.DAY_OF_MONTH)
     val todaySpendByCategory = todayTransactions
         .groupBy { it.category.lowercase(Locale.getDefault()) }
@@ -471,6 +481,72 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                 accent = TrackItEmerald,
                                 modifier = Modifier.weight(1f)
                             )
+                        }
+                    }
+                    if (monthlySpent > 0L) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
+                                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("↗", color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        Spacer(Modifier.width(10.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Spending insight", style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold)
+                                            Text("Based on ${daysElapsed} of ${daysInMonth} days",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Daily average", style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(formatKes(monthlySpent / daysElapsed),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold)
+                                        }
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Month-end estimate", style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(formatKes(projectedMonthlySpend),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    if (topExpenseCategory != null) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        Text(
+                                            "Highest recorded expense category: ${topExpenseCategory.key} (${formatKes(topExpenseCategory.value)}).",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        "Estimate assumes spending continues at the current daily average.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                     item {
