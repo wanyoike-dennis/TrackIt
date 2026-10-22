@@ -456,7 +456,11 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     transactions = uiState.transactions,
                     financialRecords = uiState.financialRecords,
                     financialEntries = uiState.financialEntries,
+                    recurringTransactions = uiState.recurringTransactions,
                     onBackToHome = { selectedTab = "Home" },
+                    onAddRecurringTransaction = viewModel::addRecurringTransaction,
+                    onSetRecurringTransactionActive = viewModel::setRecurringTransactionActive,
+                    onDeleteRecurringTransaction = viewModel::deleteRecurringTransaction,
                     onExportBackup = {
                         scope.launch {
                             runCatching { withContext(Dispatchers.IO) { viewModel.exportBackupJson() } }
