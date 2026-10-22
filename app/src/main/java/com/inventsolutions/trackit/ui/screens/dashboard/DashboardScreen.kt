@@ -686,7 +686,8 @@ private fun DashboardLightPreview() {
             monthLabel = "OCTOBER 2026",
             income = 3_200_000,
             spent = 1_358_000,
-            remaining = 1_842_000
+            available = 1_842_000,
+            monthlyNet = 1_842_000
         )
     }
 }
@@ -699,7 +700,8 @@ private fun DashboardDarkPreview() {
             monthLabel = "OCTOBER 2026",
             income = 3_200_000,
             spent = 1_358_000,
-            remaining = 1_842_000
+            available = 1_842_000,
+            monthlyNet = 1_842_000
         )
     }
 }
