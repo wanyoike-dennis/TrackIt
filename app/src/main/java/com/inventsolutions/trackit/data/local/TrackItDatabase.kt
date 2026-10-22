@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class],
-    version = 8,
+    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class],
+    version = 9,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
@@ -17,6 +17,7 @@ abstract class TrackItDatabase : RoomDatabase() {
     abstract fun monthlyBudgetDao(): MonthlyBudgetDao
     abstract fun expenseCategoryDao(): ExpenseCategoryDao
     abstract fun financialRecordDao(): FinancialRecordDao
+    abstract fun recurringTransactionDao(): RecurringTransactionDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -134,6 +135,27 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS recurring_transactions (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "title TEXT NOT NULL, " +
+                        "type TEXT NOT NULL, " +
+                        "amountMinor INTEGER NOT NULL, " +
+                        "category TEXT NOT NULL, " +
+                        "description TEXT NOT NULL, " +
+                        "paymentMethod TEXT NOT NULL, " +
+                        "frequency TEXT NOT NULL, " +
+                        "nextRunEpochMillis INTEGER NOT NULL, " +
+                        "active INTEGER NOT NULL, " +
+                        "createdAtEpochMillis INTEGER NOT NULL)"
+                )
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_recurring_transactions_nextRunEpochMillis ON recurring_transactions(nextRunEpochMillis)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_recurring_transactions_active ON recurring_transactions(active)")
+            }
+        }
+
         @Volatile
         private var INSTANCE: TrackItDatabase? = null
 
@@ -144,7 +166,7 @@ abstract class TrackItDatabase : RoomDatabase() {
                     TrackItDatabase::class.java,
                     "trackit_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .build()
                     .also { INSTANCE = it }
             }
