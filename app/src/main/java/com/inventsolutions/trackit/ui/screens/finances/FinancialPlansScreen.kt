@@ -308,7 +308,7 @@ fun FinancialPlansScreen(
                             when (section) {
                                 FinanceSection.DEBTS -> "Add money you owe or money someone needs to pay you. Track each repayment or collection."
                                 FinanceSection.SAVINGS -> "Set a target for an emergency fund, a new phone, rent, or anything you are working towards."
-                                FinanceSection.ALLOWANCE -> "Set a limit for your spending. Creating an allowance does not add or reserve money; only the amounts you record as spent reduce your available balance."
+                                FinanceSection.ALLOWANCE -> "Set a spending limit, then record actual purchases in Add Expense. You can link each expense to an allowance so the remaining balance stays accurate."
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -976,19 +976,21 @@ private fun FinancialRecordCard(
                 ) { Text("Withdraw savings") }
             }
 
-            Button(
-                onClick = onProgress,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isDebt || remaining > 0L,
-                shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(vertical = 12.dp)
-            ) {
-                Text(when (record.type) {
-                    FinancialRecord.DEBT_OWED_TO_ME -> if (remaining == 0L) "Debt collected" else "Record collection"
-                    FinancialRecord.DEBT_I_OWE -> if (remaining == 0L) "Debt settled" else "Record repayment"
-                    FinancialRecord.SAVINGS_GOAL -> if (remaining == 0L) "Add more savings" else "Add contribution"
-                    else -> "Record spending"
-                })
+            if (!isAllowance) {
+                Button(
+                    onClick = onProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isDebt || remaining > 0L,
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Text(when (record.type) {
+                        FinancialRecord.DEBT_OWED_TO_ME -> if (remaining == 0L) "Debt collected" else "Record collection"
+                        FinancialRecord.DEBT_I_OWE -> if (remaining == 0L) "Debt settled" else "Record repayment"
+                        FinancialRecord.SAVINGS_GOAL -> if (remaining == 0L) "Add more savings" else "Add contribution"
+                        else -> "Record spending"
+                    })
+                }
             }
         }
     }
