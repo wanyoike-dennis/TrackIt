@@ -223,9 +223,9 @@ fun ReportScreen(
                     if (allowancePlans.isEmpty()) {
                         Text("No allowance plans yet.", style = MaterialTheme.typography.bodyMedium)
                     } else {
-                        ReportComparisonRow("Total allowance limits", allowanceLimitTotal, 0L)
-                        ReportComparisonRow("Used across allowances", allowanceSpentTotal, 0L)
-                        ReportComparisonRow("Remaining allowance", allowanceRemainingTotal, 0L)
+                        AllowanceSummaryRow("Total allowance limits", allowanceLimitTotal)
+                        AllowanceSummaryRow("Used across allowances", allowanceSpentTotal)
+                        AllowanceSummaryRow("Remaining allowance", allowanceRemainingTotal)
                     }
                 }
             }
@@ -294,6 +294,18 @@ fun ReportScreen(
             Text("Reports use transactions stored locally on this device. No internet connection is required.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+@Composable
+private fun AllowanceSummaryRow(label: String, value: Long) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(reportKes(value), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
     }
 }
 
