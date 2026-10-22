@@ -204,7 +204,10 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun setRecurringTransactionActive(item: RecurringTransaction, active: Boolean) {
         viewModelScope.launch {
-            runCatching { recurringTransactionDao.update(item.copy(active = active)) }
+            runCatching {
+                recurringTransactionDao.update(item.copy(active = active))
+                if (active) processDueRecurringTransactions()
+            }
                 .onSuccess { _uiState.update { state -> state.copy(errorMessage = null) } }
                 .onFailure { _uiState.update { state -> state.copy(errorMessage = "Couldn't update this recurring transaction.") } }
         }
