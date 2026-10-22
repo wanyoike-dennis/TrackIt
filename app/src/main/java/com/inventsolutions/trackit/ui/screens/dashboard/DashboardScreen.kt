@@ -345,6 +345,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                 FinancialPlansScreen(
                     records = uiState.financialRecords,
                     entries = uiState.financialEntries,
+                    transactions = uiState.transactions,
                     errorMessage = uiState.errorMessage,
                     onBackToHome = { selectedTab = "Home" },
                     onAdd = { type, title, targetMinor, dueDateEpochMillis, notes, savingsCategory, contributionMethod, plannedContributionMinor ->
