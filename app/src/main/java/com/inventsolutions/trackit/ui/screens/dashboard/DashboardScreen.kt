@@ -45,6 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.ui.theme.TrackItAmber
 import com.inventsolutions.trackit.ui.theme.TrackItAmberTint
 import com.inventsolutions.trackit.ui.theme.TrackItBackgroundDark
@@ -68,6 +69,7 @@ import com.inventsolutions.trackit.ui.screens.budgets.BudgetScreen
 import com.inventsolutions.trackit.ui.screens.transactions.TransactionEntryScreen
 import com.inventsolutions.trackit.ui.screens.transactions.TransactionHistoryScreen
 import com.inventsolutions.trackit.ui.screens.reports.ReportScreen
+import com.inventsolutions.trackit.ui.screens.finances.FinancialPlansScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
 private data class ActivityItem(
@@ -202,7 +204,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                         Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        listOf("Home", "Activity", "Budgets", "Reports").forEach { tab ->
+                        listOf("Home", "Activity", "Budgets", "Reports", "Money").forEach { tab ->
                             Column(
                                 modifier = Modifier.clip(RoundedCornerShape(14.dp))
                                     .clickable { selectedTab = tab }
@@ -214,7 +216,8 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                         "Home" -> "⌂"
                                         "Activity" -> "↕"
                                         "Budgets" -> "▤"
-                                        else -> "▥"
+                                        "Reports" -> "▥"
+                                        else -> "$"
                                     },
                                     color = if (selectedTab == tab) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -293,6 +296,16 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                 ReportScreen(
                     transactions = uiState.transactions,
                     onBackToHome = { selectedTab = "Home" }
+                )
+            } else if (selectedTab == "Money") {
+                FinancialPlansScreen(
+                    records = uiState.financialRecords,
+                    errorMessage = uiState.errorMessage,
+                    onBackToHome = { selectedTab = "Home" },
+                    onAdd = viewModel::addFinancialRecord,
+                    onAddProgress = viewModel::addFinancialProgress,
+                    onDelete = viewModel::deleteFinancialRecord,
+                    onClearError = viewModel::clearError
                 )
             } else {
                 LazyColumn(
