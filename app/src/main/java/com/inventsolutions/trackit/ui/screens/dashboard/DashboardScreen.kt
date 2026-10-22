@@ -133,12 +133,15 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val allIncome = uiState.transactions
         .filter { it.type == MoneyTransaction.INCOME }
         .sumOf { it.amountMinor }
+    val linkedAllowanceSpending = uiState.transactions
+        .filter { it.type == MoneyTransaction.EXPENSE && it.allowanceRecordId != null }
+        .sumOf { it.amountMinor }
     val allRecordedExpenses = uiState.transactions
         .filter { it.type == MoneyTransaction.EXPENSE }
         .sumOf { it.amountMinor } +
-        uiState.financialRecords
+        (uiState.financialRecords
             .filter { it.type == FinancialRecord.ALLOWANCE }
-            .sumOf { it.currentMinor }
+            .sumOf { it.currentMinor } - linkedAllowanceSpending).coerceAtLeast(0L)
     val savingsContributions = uiState.financialRecords
         .filter { it.type == FinancialRecord.SAVINGS_GOAL }
         .sumOf { it.currentMinor }
@@ -282,13 +285,14 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     budgets = uiState.budgets,
                     transactions = uiState.transactions,
                     expenseCategories = uiState.expenseCategories,
+                    allowances = uiState.financialRecords.filter { it.type == FinancialRecord.ALLOWANCE },
                     onBack = {
                         entryType = null
                         viewModel.clearError()
                     },
                     onClearError = viewModel::clearError,
                     onCreateCategory = viewModel::createExpenseCategory,
-                    onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis ->
+                    onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId ->
                         scope.launch {
                             val saved = viewModel.addTransaction(
                                 type = type,
@@ -296,7 +300,8 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                 category = category,
                                 description = description,
                                 paymentMethod = paymentMethod,
-                                dateEpochMillis = dateEpochMillis
+                                dateEpochMillis = dateEpochMillis,
+                                allowanceRecordId = allowanceRecordId
                             )
                             if (saved) {
                                 entryType = null
