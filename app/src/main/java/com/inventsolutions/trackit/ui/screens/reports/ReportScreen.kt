@@ -19,6 +19,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
+import com.inventsolutions.trackit.data.local.RecurringTransaction
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -132,12 +135,25 @@ fun ReportScreen(
     transactions: List<MoneyTransaction>,
     financialRecords: List<FinancialRecord>,
     financialEntries: List<FinancialRecordEntry>,
+    recurringTransactions: List<RecurringTransaction>,
     onBackToHome: () -> Unit,
     onExportBackup: () -> Unit,
-    onRestoreBackup: () -> Unit
+    onRestoreBackup: () -> Unit,
+    onAddRecurringTransaction: (String, String, Long, String, String, String, String, Long) -> Unit,
+    onSetRecurringTransactionActive: (RecurringTransaction, Boolean) -> Unit,
+    onDeleteRecurringTransaction: (Long) -> Unit
 ) {
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.THIS_MONTH) }
     var showRestoreConfirmation by remember { mutableStateOf(false) }
+    var showRecurringDialog by remember { mutableStateOf(false) }
+    var recurringTitle by remember { mutableStateOf("") }
+    var recurringType by remember { mutableStateOf(MoneyTransaction.EXPENSE) }
+    var recurringAmount by remember { mutableStateOf("") }
+    var recurringCategory by remember { mutableStateOf("") }
+    var recurringDescription by remember { mutableStateOf("") }
+    var recurringPaymentMethod by remember { mutableStateOf("Cash") }
+    var recurringFrequency by remember { mutableStateOf(RecurringTransaction.MONTHLY) }
+    var recurringError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val nowMillis = System.currentTimeMillis()
     val range = rangeFor(selectedPeriod, transactions, financialEntries, nowMillis)
@@ -194,6 +210,53 @@ fun ReportScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("Recurring transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Automatically record regular income or expenses when the app is opened.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        OutlinedButton(onClick = { recurringError = null; showRecurringDialog = true }) { Text("Add") }
+                    }
+                    if (recurringTransactions.isEmpty()) {
+                        Text("No recurring transactions set up yet.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        recurringTransactions.forEach { item ->
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        "${item.frequency.lowercase().replaceFirstChar { it.uppercase() }} · ${item.category} · ${reportKes(item.amountMinor)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        if (item.active) "Next: " + SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(item.nextRunEpochMillis)) else "Paused",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (item.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    TextButton(onClick = { onSetRecurringTransactionActive(item, !item.active) }) {
+                                        Text(if (item.active) "Pause" else "Resume")
+                                    }
+                                    TextButton(onClick = { onDeleteRecurringTransaction(item.id) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                                }
+                            }
+                        }
+                    }
+                    Text("A missed schedule creates one catch-up entry, then advances to the next future date. Check the transaction history after opening the app.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -410,6 +473,51 @@ private fun ReportComparisonRow(label: String, current: Long, previous: Long) {
                 difference > 0L -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.error
             })
+    }
+    if (showRecurringDialog) {
+        AlertDialog(
+            onDismissRequest = { showRecurringDialog = false },
+            title = { Text("New recurring transaction") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("First occurrence is recorded now. Later occurrences are created when you open TrackIt.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(value = recurringTitle, onValueChange = { recurringTitle = it }, label = { Text("Name (e.g. Rent)") }, singleLine = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = recurringType == MoneyTransaction.EXPENSE, onClick = { recurringType = MoneyTransaction.EXPENSE }, label = { Text("Expense") })
+                        FilterChip(selected = recurringType == MoneyTransaction.INCOME, onClick = { recurringType = MoneyTransaction.INCOME }, label = { Text("Income") })
+                    }
+                    OutlinedTextField(value = recurringAmount, onValueChange = { recurringAmount = it }, label = { Text("Amount (KES)") }, singleLine = true)
+                    OutlinedTextField(value = recurringCategory, onValueChange = { recurringCategory = it }, label = { Text("Category") }, singleLine = true)
+                    OutlinedTextField(value = recurringDescription, onValueChange = { recurringDescription = it }, label = { Text("Description (optional)") }, singleLine = true)
+                    OutlinedTextField(value = recurringPaymentMethod, onValueChange = { recurringPaymentMethod = it }, label = { Text("Payment method") }, singleLine = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = recurringFrequency == RecurringTransaction.WEEKLY, onClick = { recurringFrequency = RecurringTransaction.WEEKLY }, label = { Text("Weekly") })
+                        FilterChip(selected = recurringFrequency == RecurringTransaction.MONTHLY, onClick = { recurringFrequency = RecurringTransaction.MONTHLY }, label = { Text("Monthly") })
+                    }
+                    if (recurringError != null) Text(recurringError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                OutlinedButton(onClick = {
+                    val amount = recurringAmount.trim().replace(",", "").toBigDecimalOrNull()
+                    val minor = runCatching { amount?.movePointRight(2)?.longValueExact() }.getOrNull()
+                    if (recurringTitle.isBlank() || minor == null || minor <= 0L || recurringCategory.isBlank() || recurringPaymentMethod.isBlank()) {
+                        recurringError = "Enter a name, valid amount, category and payment method."
+                    } else {
+                        onAddRecurringTransaction(
+                            recurringTitle, recurringType, minor, recurringCategory, recurringDescription,
+                            recurringPaymentMethod, recurringFrequency, System.currentTimeMillis()
+                        )
+                        showRecurringDialog = false
+                        recurringTitle = ""; recurringAmount = ""; recurringCategory = ""; recurringDescription = ""
+                        recurringPaymentMethod = "Cash"; recurringError = null
+                    }
+                }) { Text("Save schedule") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRecurringDialog = false }) { Text("Cancel") }
+            }
+        )
     }
     if (showRestoreConfirmation) {
         AlertDialog(
