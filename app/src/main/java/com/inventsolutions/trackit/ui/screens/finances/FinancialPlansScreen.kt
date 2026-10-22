@@ -769,6 +769,22 @@ private fun FinancialRecordCard(
                     fontWeight = FontWeight.Bold, color = accent)
             }
 
+            if (record.dueDateEpochMillis != null) {
+                val dueDateText = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+                    .format(Date(record.dueDateEpochMillis))
+                val overdue = record.dueDateEpochMillis < System.currentTimeMillis() &&
+                    (isDebt && remaining > 0L || record.type == FinancialRecord.SAVINGS_GOAL && remaining > 0L)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(if (overdue) "!" else "◷",
+                        color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        if (overdue) "Overdue · $dueDateText" else "Target date · $dueDateText",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (overdue) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
+            }
             if (record.notes.isNotBlank()) {
                 Text(record.notes, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
