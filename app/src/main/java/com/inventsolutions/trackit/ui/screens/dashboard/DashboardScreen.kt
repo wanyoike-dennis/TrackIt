@@ -116,6 +116,10 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var selectedTab by remember { mutableStateOf("Home") }
+    var entryType by remember { mutableStateOf<String?>(null) }
+    var notice by remember { mutableStateOf(false) }
+    var noticeMessage by remember { mutableStateOf("") }
     var pendingBackupJson by remember { mutableStateOf<String?>(null) }
     val createBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -160,11 +164,6 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             }
         }
     }
-    var selectedTab by remember { mutableStateOf("Home") }
-    var entryType by remember { mutableStateOf<String?>(null) }
-    var notice by remember { mutableStateOf(false) }
-    var noticeMessage by remember { mutableStateOf("") }
-
     val now = remember { Calendar.getInstance() }
     val monthStart = remember {
         (now.clone() as Calendar).apply {
