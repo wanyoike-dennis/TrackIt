@@ -1029,7 +1029,7 @@ private fun DashboardGlyph(name: String, color: Color, modifier: Modifier = Modi
                 drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.2f, top), androidx.compose.ui.geometry.Offset(size.width * 0.8f, top), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
             }
             "budget" -> {
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.Size(right - left, bottom - top), androidx.compose.ui.geometry.CornerRadius(stroke * 1.8f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Size(right - left, bottom - top), androidx.compose.ui.geometry.CornerRadius(stroke * 1.8f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
                 listOf(0.36f, 0.5f, 0.64f).forEach { y ->
                     drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.32f, size.height * y), androidx.compose.ui.geometry.Offset(size.width * 0.68f, size.height * y), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
                 }
