@@ -1067,6 +1067,7 @@ private fun CircularSavingsProgress(
     color: Color,
     strokeWidth: androidx.compose.ui.unit.Dp = 9.dp
 ) {
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
     Box(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
@@ -1077,7 +1078,7 @@ private fun CircularSavingsProgress(
                 cap = androidx.compose.ui.graphics.StrokeCap.Round
             )
             drawArc(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = trackColor,
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
