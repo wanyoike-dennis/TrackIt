@@ -208,7 +208,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                             Column(
                                 modifier = Modifier.clip(RoundedCornerShape(14.dp))
                                     .clickable { selectedTab = tab }
-                                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                                    .padding(horizontal = 6.dp, vertical = 5.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
