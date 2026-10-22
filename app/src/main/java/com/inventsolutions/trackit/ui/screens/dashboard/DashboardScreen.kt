@@ -593,23 +593,23 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             SectionTitle("Quick actions", "What would you like to do?")
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                QuickAction("＋", "Add income", TrackItEmeraldTint, TrackItEmerald,
+                                QuickAction("income", "Add income", TrackItEmeraldTint, TrackItEmerald,
                                     Modifier.weight(1f)) {
                                     viewModel.clearError()
                                     entryType = MoneyTransaction.INCOME
                                 }
-                                QuickAction("−", "Add expense", TrackItExpenseTintLight, TrackItExpense,
+                                QuickAction("expense", "Add expense", TrackItExpenseTintLight, TrackItExpense,
                                     Modifier.weight(1f)) {
                                     viewModel.clearError()
                                     entryType = MoneyTransaction.EXPENSE
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                QuickAction("▤", "Budgets", MaterialTheme.colorScheme.secondaryContainer,
+                                QuickAction("budget", "Budgets", MaterialTheme.colorScheme.secondaryContainer,
                                     MaterialTheme.colorScheme.onSecondaryContainer, Modifier.weight(1f)) {
                                     selectedTab = "Budgets"
                                 }
-                                QuickAction("\$", "Savings & debts", TrackItAmberTint, TrackItAmber,
+                                QuickAction("savings", "Savings & debts", TrackItAmberTint, TrackItAmber,
                                     Modifier.weight(1f)) {
                                     selectedTab = "Money"
                                 }
@@ -753,58 +753,85 @@ private fun OverviewCard(
     monthlyNet: Long
 ) {
     val isDark = MaterialTheme.colorScheme.background == TrackItBackgroundDark
-    val cardShape = RoundedCornerShape(26.dp)
+    val cardShape = RoundedCornerShape(28.dp)
     val cardBackground = if (isDark) TrackItNavyElevated else TrackItNavy
     val monthPillBackground = if (isDark) TrackItNavySurface else TrackItNavyElevated
+    val mutedText = Color(0xFFD0D7E2)
 
     Column(
-        Modifier.fillMaxWidth()
-            .clip(cardShape)
-            .background(cardBackground)
-            .then(
-                if (isDark) Modifier.border(
-                    width = 1.dp,
-                    color = TrackItNavySurface,
-                    shape = cardShape
-                ) else Modifier
-            )
+        Modifier.fillMaxWidth().clip(cardShape).background(cardBackground)
+            .then(if (isDark) Modifier.border(1.dp, TrackItNavySurface, cardShape) else Modifier)
             .padding(22.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("MONEY POSITION", Modifier.weight(1f), color = Color(0xFFB8C2D1),
-                style = MaterialTheme.typography.labelMedium, letterSpacing = 1.1.sp)
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
+                    DashboardGlyph("savings", Color(0xFF6EE7B7), Modifier.size(21.dp))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("MY MONEY", color = Color(0xFFB8C2D1),
+                        style = MaterialTheme.typography.labelMedium, letterSpacing = 1.1.sp)
+                    Text("Financial overview", color = mutedText, style = MaterialTheme.typography.labelSmall)
+                }
+            }
             Surface(color = monthPillBackground, shape = RoundedCornerShape(50)) {
-                Text(monthLabel, Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                Text(monthLabel, Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                     color = Color(0xFFE5EAF1), style = MaterialTheme.typography.labelSmall)
             }
         }
-        Spacer(Modifier.height(18.dp))
-        Text("Money available from recorded activity", color = Color(0xFFD0D7E2),
-            style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(22.dp))
+        Text("AVAILABLE MONEY", color = Color(0xFFB8C2D1),
+            style = MaterialTheme.typography.labelMedium, letterSpacing = 0.8.sp)
+        Spacer(Modifier.height(5.dp))
         Text(formatKes(available), color = Color.White,
-            style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(20.dp))
-        HorizontalDivider(color = TrackItNavySurface)
-        Spacer(Modifier.height(18.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("↗  Income", color = Color(0xFF6EE7B7), style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(5.dp))
-                Text(formatKes(income), color = Color.White, style = MaterialTheme.typography.titleMedium)
-            }
-            Column(Modifier.weight(1f)) {
-                Text("↘  Spent", color = Color(0xFFFFA3A3), style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(5.dp))
-                Text(formatKes(spent), color = Color.White, style = MaterialTheme.typography.titleMedium)
+            style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(10.dp))
+        Surface(color = Color.White.copy(alpha = 0.09f), shape = RoundedCornerShape(12.dp)) {
+            Row(Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Box(Modifier.size(7.dp).clip(CircleShape)
+                    .background(if (monthlyNet >= 0L) Color(0xFF6EE7B7) else Color(0xFFFFA3A3)))
+                Text(
+                    "This month  \${if (monthlyNet < 0L) "− " else "+ "}\${formatKes(kotlin.math.abs(monthlyNet)).removePrefix("KSh ")} net",
+                    color = mutedText, style = MaterialTheme.typography.labelMedium
+                )
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Net this month: ${formatKes(monthlyNet)}",
-            color = Color(0xFFD0D7E2),
-            style = MaterialTheme.typography.bodySmall
-        )
+        Spacer(Modifier.height(22.dp))
+        HorizontalDivider(color = Color.White.copy(alpha = 0.16f))
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OverviewStat("INCOME", income, "income", Color(0xFF6EE7B7), Modifier.weight(1f))
+            OverviewStat("SPENDING", spent, "expense", Color(0xFFFFB86B), Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun OverviewStat(
+    title: String,
+    amount: Long,
+    symbol: String,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier.clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.07f))
+            .padding(horizontal = 11.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
+        DashboardGlyph(symbol, accent, Modifier.size(19.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, color = Color(0xFFB8C2D1),
+                style = MaterialTheme.typography.labelSmall, letterSpacing = 0.5.sp)
+            Text(formatKes(amount), color = Color.White,
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -961,19 +988,60 @@ private fun QuickAction(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Row(Modifier.fillMaxWidth().padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(tint),
+        Column(Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(tint),
                 contentAlignment = Alignment.Center) {
-                Text(symbol, color = accent, fontSize = 24.sp, fontWeight = FontWeight.Medium)
+                DashboardGlyph(symbol, accent, Modifier.size(23.dp))
             }
-            Text(title, color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+                Text("↗", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 }
 
+@Composable
+private fun DashboardGlyph(name: String, color: Color, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val stroke = size.minDimension * 0.09f
+        val left = size.width * 0.18f
+        val right = size.width * 0.82f
+        val top = size.height * 0.18f
+        val bottom = size.height * 0.82f
+        val midX = size.width / 2f
+        val midY = size.height / 2f
+        when (name) {
+            "income" -> {
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom), androidx.compose.ui.geometry.Offset(midX, top), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top), androidx.compose.ui.geometry.Offset(size.width * 0.27f, size.height * 0.39f), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top), androidx.compose.ui.geometry.Offset(size.width * 0.73f, size.height * 0.39f), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.2f, bottom), androidx.compose.ui.geometry.Offset(size.width * 0.8f, bottom), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            }
+            "expense" -> {
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top), androidx.compose.ui.geometry.Offset(midX, bottom), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom), androidx.compose.ui.geometry.Offset(size.width * 0.27f, size.height * 0.61f), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom), androidx.compose.ui.geometry.Offset(size.width * 0.73f, size.height * 0.61f), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.2f, top), androidx.compose.ui.geometry.Offset(size.width * 0.8f, top), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            }
+            "budget" -> {
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.Size(right - left, bottom - top), androidx.compose.ui.geometry.CornerRadius(stroke * 1.8f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                listOf(0.36f, 0.5f, 0.64f).forEach { y ->
+                    drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.32f, size.height * y), androidx.compose.ui.geometry.Offset(size.width * 0.68f, size.height * y), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                }
+            }
+            else -> {
+                drawCircle(color, radius = size.minDimension * 0.34f, center = androidx.compose.ui.geometry.Offset(midX, midY), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.29f), androidx.compose.ui.geometry.Offset(midX, size.height * 0.71f), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.29f, midY), androidx.compose.ui.geometry.Offset(size.width * 0.71f, midY), strokeWidth = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            }
+        }
+    }
+}
 @Composable
 private fun MiniBudget(
     title: String, spent: String, budget: String, progress: Float,
