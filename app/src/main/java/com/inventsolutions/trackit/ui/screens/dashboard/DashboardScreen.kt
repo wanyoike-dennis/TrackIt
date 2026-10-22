@@ -1,5 +1,10 @@
 package com.inventsolutions.trackit.ui.screens.dashboard
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -110,6 +115,51 @@ private fun todayStartForReminder(source: Calendar): Long =
 fun DashboardScreen(viewModel: TransactionViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var pendingBackupJson by remember { mutableStateOf<String?>(null) }
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val json = pendingBackupJson
+        pendingBackupJson = null
+        if (uri != null && json != null) {
+            scope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(json) }
+                            ?: error("Could not open the selected backup destination.")
+                    }
+                }.onSuccess {
+                    noticeMessage = "TrackIt backup saved successfully."
+                    notice = true
+                }.onFailure {
+                    noticeMessage = "Couldn't save the backup. Choose another location and try again."
+                    notice = true
+                }
+            }
+        }
+    }
+    val restoreBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                runCatching {
+                    val json = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                            ?: error("Could not read the selected backup.")
+                    }
+                    withContext(Dispatchers.IO) { viewModel.restoreBackupJson(json) }
+                }.onSuccess { count ->
+                    noticeMessage = "Backup restored. $count records imported. Please review your dashboard."
+                    notice = true
+                }.onFailure { error ->
+                    noticeMessage = error.message ?: "Couldn't restore this backup. Your existing data was not changed."
+                    notice = true
+                }
+            }
+        }
+    }
     var selectedTab by remember { mutableStateOf("Home") }
     var entryType by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf(false) }
@@ -407,7 +457,21 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     transactions = uiState.transactions,
                     financialRecords = uiState.financialRecords,
                     financialEntries = uiState.financialEntries,
-                    onBackToHome = { selectedTab = "Home" }
+                    onBackToHome = { selectedTab = "Home" },
+                    onExportBackup = {
+                        scope.launch {
+                            runCatching { withContext(Dispatchers.IO) { viewModel.exportBackupJson() } }
+                                .onSuccess { json ->
+                                    pendingBackupJson = json
+                                    createBackupLauncher.launch("TrackIt-backup-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.json")
+                                }
+                                .onFailure {
+                                    noticeMessage = "Couldn't prepare a backup. Please try again."
+                                    notice = true
+                                }
+                        }
+                    },
+                    onRestoreBackup = { restoreBackupLauncher.launch(arrayOf("application/json", "text/*")) }
                 )
             } else if (selectedTab == "Money") {
                 FinancialPlansScreen(
