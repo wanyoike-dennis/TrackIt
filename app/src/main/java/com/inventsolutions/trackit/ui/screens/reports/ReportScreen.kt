@@ -113,13 +113,13 @@ fun ReportScreen(
         currentEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
     val net = income - expenses -
         currentEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
-        currentEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION }.sumOf { it.amountMinor }
+        currentEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION || it.entryType == FinancialRecordEntry.WITHDRAWAL }.sumOf { it.amountMinor }
     val previousIncome = previous.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor }
     val previousExpenses = previous.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor } +
         previousEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
     val previousNet = previousIncome - previousExpenses -
         previousEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
-        previousEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION }.sumOf { it.amountMinor }
+        previousEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION || it.entryType == FinancialRecordEntry.WITHDRAWAL }.sumOf { it.amountMinor }
     val allowanceTitles = financialRecords.filter { it.type == FinancialRecord.ALLOWANCE }.associate { it.id to it.title }
     val regularCategorySpending = current.filter { it.type == MoneyTransaction.EXPENSE }
         .groupBy { it.category.trim().ifBlank { "Uncategorized" } }
