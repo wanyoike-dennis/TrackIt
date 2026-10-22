@@ -1103,36 +1103,32 @@ private fun DashboardGlyph(name: String, color: Color, modifier: Modifier = Modi
 
         when (name) {
             "income" -> {
-                // Money received: a clear upward arrow entering the wallet.
-                drawRoundRect(
-                    color,
-                    androidx.compose.ui.geometry.Offset(left, top + size.height * 0.12f),
-                    androidx.compose.ui.geometry.Size(right - left, bottom - top - size.height * 0.12f),
-                    androidx.compose.ui.geometry.CornerRadius(stroke * 2f),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
-                )
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.72f),
-                    androidx.compose.ui.geometry.Offset(midX, size.height * 0.15f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.15f),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.31f, size.height * 0.34f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.15f),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.69f, size.height * 0.34f), strokeWidth = stroke, cap = cap)
+                // Simple upward arrow over a baseline: money coming in.
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom),
+                    androidx.compose.ui.geometry.Offset(midX, top), strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.27f, size.height * 0.39f),
+                    strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.73f, size.height * 0.39f),
+                    strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.20f, bottom),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.80f, bottom),
+                    strokeWidth = stroke, cap = cap)
             }
             "expense" -> {
-                // Money spent: a downward arrow leaving the wallet.
-                drawRoundRect(
-                    color,
-                    androidx.compose.ui.geometry.Offset(left, top),
-                    androidx.compose.ui.geometry.Size(right - left, bottom - top - size.height * 0.12f),
-                    androidx.compose.ui.geometry.CornerRadius(stroke * 2f),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
-                )
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.15f),
-                    androidx.compose.ui.geometry.Offset(midX, size.height * 0.72f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.72f),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.31f, size.height * 0.53f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.72f),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.69f, size.height * 0.53f), strokeWidth = stroke, cap = cap)
+                // Simple downward arrow ending at a baseline: money going out.
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top),
+                    androidx.compose.ui.geometry.Offset(midX, bottom), strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.27f, size.height * 0.61f),
+                    strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.73f, size.height * 0.61f),
+                    strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.20f, top),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.80f, top),
+                    strokeWidth = stroke, cap = cap)
             }
             "budget" -> {
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(left, top - size.height * 0.10f), androidx.compose.ui.geometry.Size(right - left, bottom - top + size.height * 0.20f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.8f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
@@ -1153,7 +1149,7 @@ private fun DashboardGlyph(name: String, color: Color, modifier: Modifier = Modi
                     color,
                     androidx.compose.ui.geometry.Offset(size.width * 0.54f, size.height * 0.43f),
                     androidx.compose.ui.geometry.Size(size.width * 0.34f, size.height * 0.20f),
-                    androidx.compose.ui.graphics.CornerRadius(stroke * 1.5f),
+                    androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
                 )
                 drawCircle(color, radius = stroke * 0.85f,
