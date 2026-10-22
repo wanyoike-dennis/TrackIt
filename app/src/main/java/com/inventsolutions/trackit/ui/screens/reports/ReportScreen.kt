@@ -114,6 +114,10 @@ fun ReportScreen(
     val net = income - expenses -
         currentEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
         currentEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION || it.entryType == FinancialRecordEntry.WITHDRAWAL }.sumOf { it.amountMinor }
+    val allowancePlans = financialRecords.filter { it.type == FinancialRecord.ALLOWANCE }
+    val allowanceLimitTotal = allowancePlans.sumOf { it.targetMinor }
+    val allowanceSpentTotal = allowancePlans.sumOf { it.currentMinor }
+    val allowanceRemainingTotal = allowancePlans.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
     val previousIncome = previous.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor }
     val previousExpenses = previous.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor } +
         previousEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
@@ -199,6 +203,29 @@ fun ReportScreen(
                             Text(reportKes(expenses), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
+                    }
+                }
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Allowance plans · not extra expenses", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Actual purchases are counted in Expenses above. Allowances are limits used to track those purchases, not separate spending.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (allowancePlans.isEmpty()) {
+                        Text("No allowance plans yet.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        ReportComparisonRow("Total allowance limits", allowanceLimitTotal, 0L)
+                        ReportComparisonRow("Used across allowances", allowanceSpentTotal, 0L)
+                        ReportComparisonRow("Remaining allowance", allowanceRemainingTotal, 0L)
                     }
                 }
             }
