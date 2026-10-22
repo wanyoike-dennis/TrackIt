@@ -137,14 +137,11 @@ fun ReportScreen(
     financialEntries: List<FinancialRecordEntry>,
     recurringTransactions: List<RecurringTransaction>,
     onBackToHome: () -> Unit,
-    onExportBackup: () -> Unit,
-    onRestoreBackup: () -> Unit,
     onAddRecurringTransaction: (String, String, Long, String, String, String, String, Long) -> Unit,
     onSetRecurringTransactionActive: (RecurringTransaction, Boolean) -> Unit,
     onDeleteRecurringTransaction: (Long) -> Unit
 ) {
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.THIS_MONTH) }
-    var showRestoreConfirmation by remember { mutableStateOf(false) }
     var showRecurringDialog by remember { mutableStateOf(false) }
     var recurringTitle by remember { mutableStateOf("") }
     var recurringType by remember { mutableStateOf(MoneyTransaction.EXPENSE) }
@@ -408,34 +405,7 @@ fun ReportScreen(
                 }
             }
         }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Column(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Backup & restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "Save all local transactions, budgets, categories, savings, debts and financial-plan history to a JSON file. Keep the file somewhere safe.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = onExportBackup, modifier = Modifier.weight(1f)) {
-                            Text("Export backup")
-                        }
-                        OutlinedButton(onClick = { showRestoreConfirmation = true }, modifier = Modifier.weight(1f)) {
-                            Text("Restore backup")
-                        }
-                    }
-                }
-            }
-        }
+
     }
 
     if (showRecurringDialog) {
@@ -483,26 +453,7 @@ fun ReportScreen(
             }
         )
     }
-    if (showRestoreConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showRestoreConfirmation = false },
-            title = { Text("Replace current data?") },
-            text = {
-                Text(
-                    "Restoring replaces all current TrackIt records on this device with the records in the selected backup. Export a backup of your current data first if you may need it."
-                )
-            },
-            confirmButton = {
-                OutlinedButton(onClick = {
-                    showRestoreConfirmation = false
-                    onRestoreBackup()
-                }) { Text("Choose backup") }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showRestoreConfirmation = false }) { Text("Cancel") }
-            }
-        )
-    }
+
 }
 
 @Composable
