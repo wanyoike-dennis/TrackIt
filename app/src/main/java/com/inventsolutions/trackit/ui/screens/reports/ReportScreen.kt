@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -53,7 +55,12 @@ private fun reportDayStart(source: Calendar): Calendar = (source.clone() as Cale
     set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
 }
 
-private fun rangeFor(period: ReportPeriod, transactions: List<MoneyTransaction>, nowMillis: Long): ReportRange {
+private fun rangeFor(
+    period: ReportPeriod,
+    transactions: List<MoneyTransaction>,
+    financialEntries: List<FinancialRecordEntry>,
+    nowMillis: Long
+): ReportRange {
     val now = Calendar.getInstance().apply { timeInMillis = nowMillis }
     val todayStart = reportDayStart(now)
     val start = when (period) {
@@ -64,7 +71,10 @@ private fun rangeFor(period: ReportPeriod, transactions: List<MoneyTransaction>,
         }
         ReportPeriod.THIS_MONTH -> (todayStart.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
         ReportPeriod.ALL_TIME -> Calendar.getInstance().apply {
-            timeInMillis = transactions.minOfOrNull { it.dateEpochMillis } ?: nowMillis
+            timeInMillis = minOf(
+                transactions.minOfOrNull { it.dateEpochMillis } ?: Long.MAX_VALUE,
+                financialEntries.minOfOrNull { it.createdAtEpochMillis } ?: Long.MAX_VALUE
+            ).takeIf { it != Long.MAX_VALUE } ?: nowMillis
         }.let(::reportDayStart)
     }
     val end = (now.clone() as Calendar).apply { add(Calendar.MILLISECOND, 1) }
@@ -85,21 +95,40 @@ private fun rangeFor(period: ReportPeriod, transactions: List<MoneyTransaction>,
 }
 
 @Composable
-fun ReportScreen(transactions: List<MoneyTransaction>, onBackToHome: () -> Unit) {
+fun ReportScreen(
+    transactions: List<MoneyTransaction>,
+    financialRecords: List<FinancialRecord>,
+    financialEntries: List<FinancialRecordEntry>,
+    onBackToHome: () -> Unit
+) {
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.THIS_MONTH) }
     val nowMillis = System.currentTimeMillis()
-    val range = rangeFor(selectedPeriod, transactions, nowMillis)
+    val range = rangeFor(selectedPeriod, transactions, financialEntries, nowMillis)
     val current = transactions.filter { it.dateEpochMillis >= range.start && it.dateEpochMillis < range.end }
     val previous = transactions.filter { it.dateEpochMillis >= range.previousStart && it.dateEpochMillis < range.previousEnd }
+    val currentEntries = financialEntries.filter { it.createdAtEpochMillis >= range.start && it.createdAtEpochMillis < range.end }
+    val previousEntries = financialEntries.filter { it.createdAtEpochMillis >= range.previousStart && it.createdAtEpochMillis < range.previousEnd }
     val income = current.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor }
-    val expenses = current.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor }
-    val net = income - expenses
+    val expenses = current.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor } +
+        currentEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
+    val net = income - expenses -
+        currentEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
+        currentEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION }.sumOf { it.amountMinor }
     val previousIncome = previous.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor }
-    val previousExpenses = previous.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor }
-    val previousNet = previousIncome - previousExpenses
-    val categorySpending = current.filter { it.type == MoneyTransaction.EXPENSE }
+    val previousExpenses = previous.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor } +
+        previousEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
+    val previousNet = previousIncome - previousExpenses -
+        previousEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
+        previousEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION }.sumOf { it.amountMinor }
+    val allowanceTitles = financialRecords.filter { it.type == FinancialRecord.ALLOWANCE }.associate { it.id to it.title }
+    val regularCategorySpending = current.filter { it.type == MoneyTransaction.EXPENSE }
         .groupBy { it.category.trim().ifBlank { "Uncategorized" } }
-        .map { (name, items) -> CategorySpend(name, items.sumOf { it.amountMinor }) }
+        .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
+    val allowanceCategorySpending = currentEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }
+        .groupBy { allowanceTitles[it.financialRecordId] ?: "Allowance spending" }
+        .mapValues { (_, items) -> items.sumOf { it.amountMinor } }
+    val categorySpending = (regularCategorySpending.keys + allowanceCategorySpending.keys).distinct()
+        .map { name -> CategorySpend(name, (regularCategorySpending[name] ?: 0L) + (allowanceCategorySpending[name] ?: 0L)) }
         .sortedByDescending { it.amount }
     val totalCategorySpend = categorySpending.sumOf { it.amount }
     val periodLabel = when (selectedPeriod) {
@@ -110,9 +139,13 @@ fun ReportScreen(transactions: List<MoneyTransaction>, onBackToHome: () -> Unit)
         ReportPeriod.TODAY -> SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(nowMillis))
         ReportPeriod.THIS_WEEK -> "Since " + SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(range.start))
         ReportPeriod.THIS_MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date(nowMillis))
-        ReportPeriod.ALL_TIME -> if (transactions.isEmpty()) "No transactions yet" else
-            SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(transactions.minOf { it.dateEpochMillis })) +
-                " – " + SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(nowMillis))
+        ReportPeriod.ALL_TIME -> if (transactions.isEmpty() && financialEntries.isEmpty()) "No activity yet" else
+            SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(
+                minOf(
+                    transactions.minOfOrNull { it.dateEpochMillis } ?: Long.MAX_VALUE,
+                    financialEntries.minOfOrNull { it.createdAtEpochMillis } ?: Long.MAX_VALUE
+                ).takeIf { it != Long.MAX_VALUE } ?: nowMillis
+            )) + " – " + SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(nowMillis))
     }
 
     LazyColumn(
