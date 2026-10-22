@@ -30,5 +30,6 @@ data class FinancialRecordEntry(
         const val REPAYMENT = "REPAYMENT"
         const val COLLECTION = "COLLECTION"
         const val SPENDING = "SPENDING"
+        const val WITHDRAWAL = "WITHDRAWAL"
     }
 }
