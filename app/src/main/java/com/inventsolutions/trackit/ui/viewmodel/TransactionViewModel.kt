@@ -287,7 +287,10 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         title: String,
         targetMinor: Long,
         dueDateEpochMillis: Long? = null,
-        notes: String = ""
+        notes: String = "",
+        savingsCategory: String = FinancialRecord.SAVINGS_GENERAL,
+        contributionMethod: String = FinancialRecord.CONTRIBUTION_FLEXIBLE,
+        plannedContributionMinor: Long = 0L
     ) {
         if (type !in setOf(
                 FinancialRecord.DEBT_OWED_TO_ME,
@@ -307,7 +310,10 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                         title = title.trim(),
                         targetMinor = targetMinor,
                         dueDateEpochMillis = dueDateEpochMillis,
-                        notes = notes.trim()
+                        notes = notes.trim(),
+                        savingsCategory = if (type == FinancialRecord.SAVINGS_GOAL) savingsCategory.trim() else FinancialRecord.SAVINGS_GENERAL,
+                        contributionMethod = if (type == FinancialRecord.SAVINGS_GOAL) contributionMethod else FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                        plannedContributionMinor = if (type == FinancialRecord.SAVINGS_GOAL) plannedContributionMinor else 0L
                     )
                 )
                 _uiState.update { it.copy(errorMessage = null) }
@@ -364,6 +370,33 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 _uiState.update { it.copy(errorMessage = null) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(errorMessage = "Couldn't save this update. Please try again.") }
+            }
+        }
+    }
+
+    fun withdrawSavings(record: FinancialRecord, amountMinor: Long, note: String = "") {
+        if (record.type != FinancialRecord.SAVINGS_GOAL || amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter a valid withdrawal amount.") }
+            return
+        }
+        if (amountMinor > record.currentMinor) {
+            _uiState.update { it.copy(errorMessage = "You cannot withdraw more than the amount saved.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                financialRecordDao.saveProgress(
+                    record.copy(currentMinor = record.currentMinor - amountMinor),
+                    FinancialRecordEntry(
+                        financialRecordId = record.id,
+                        entryType = FinancialRecordEntry.WITHDRAWAL,
+                        amountMinor = amountMinor,
+                        note = note.trim()
+                    )
+                )
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't record this withdrawal. Please try again.") }
             }
         }
     }
