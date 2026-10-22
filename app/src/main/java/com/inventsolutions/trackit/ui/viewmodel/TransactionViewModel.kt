@@ -203,6 +203,40 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         return "KSh " + formatter.format(minor / 100.0)
     }
 
+    fun updateTransaction(transaction: MoneyTransaction) {
+        if (transaction.amountMinor <= 0L || transaction.category.isBlank() || transaction.paymentMethod.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Check the amount, category, and payment method.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val normalized = transaction.copy(
+                    category = transaction.category.trim(),
+                    description = transaction.description.trim(),
+                    paymentMethod = transaction.paymentMethod.trim()
+                )
+                if (normalized.type == MoneyTransaction.EXPENSE) {
+                    categoryRepository.ensureCategory(normalized.category)
+                }
+                transactionRepository.update(normalized)
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't update this transaction. Please try again.") }
+            }
+        }
+    }
+
+    fun deleteTransaction(transactionId: Long) {
+        viewModelScope.launch {
+            try {
+                transactionRepository.delete(transactionId)
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't delete this transaction. Please try again.") }
+            }
+        }
+    }
+
     fun saveBudget(category: String, limitMinor: Long, budgetType: String) {
         if (category.isBlank() || limitMinor <= 0L) return
         viewModelScope.launch {
