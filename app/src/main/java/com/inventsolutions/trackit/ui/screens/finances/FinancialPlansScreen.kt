@@ -64,8 +64,9 @@ fun FinancialPlansScreen(
     entries: List<FinancialRecordEntry>,
     errorMessage: String?,
     onBackToHome: () -> Unit,
-    onAdd: (type: String, title: String, targetMinor: Long, dueDateEpochMillis: Long?, notes: String) -> Unit,
+    onAdd: (type: String, title: String, targetMinor: Long, dueDateEpochMillis: Long?, notes: String, savingsCategory: String, contributionMethod: String, plannedContributionMinor: Long) -> Unit,
     onAddProgress: (FinancialRecord, Long, String) -> Unit,
+    onWithdraw: (FinancialRecord, Long, String) -> Unit,
     onEdit: (FinancialRecord) -> Unit,
     onDelete: (Long) -> Unit,
     onClearError: () -> Unit
@@ -73,6 +74,7 @@ fun FinancialPlansScreen(
     var section by remember { mutableStateOf(FinanceSection.SAVINGS) }
     var showCreate by remember { mutableStateOf(false) }
     var progressRecord by remember { mutableStateOf<FinancialRecord?>(null) }
+    var withdrawalRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var deleteRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var editRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var historyRecord by remember { mutableStateOf<FinancialRecord?>(null) }
@@ -330,6 +332,7 @@ fun FinancialPlansScreen(
                     onProgress = { progressRecord = record },
                     onEdit = { editRecord = record },
                     onHistory = { historyRecord = record },
+                    onWithdraw = { withdrawalRecord = record },
                     onDelete = { deleteRecord = record }
                 )
             }
@@ -345,11 +348,14 @@ fun FinancialPlansScreen(
     }
 
     if (showCreate) {
-        var title by remember(section) { mutableStateOf("") }
-        var amount by remember(section) { mutableStateOf("") }
+        var title by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "Emergency fund" else "") }
+        var amount by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "60000" else "") }
         var dueDate by remember(section) { mutableStateOf("") }
         var notes by remember(section) { mutableStateOf("") }
         var debtType by remember { mutableStateOf(FinancialRecord.DEBT_I_OWE) }
+        var savingsCategory by remember(section) { mutableStateOf(FinancialRecord.SAVINGS_EMERGENCY) }
+        var contributionMethod by remember(section) { mutableStateOf(FinancialRecord.CONTRIBUTION_MONTHLY) }
+        var plannedContribution by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "2000" else "") }
         var validationError by remember(section) { mutableStateOf<String?>(null) }
         AlertDialog(
             onDismissRequest = { showCreate = false },
@@ -384,6 +390,43 @@ fun FinancialPlansScreen(
                             FinanceSection.SAVINGS -> "Savings target (KSh)"
                             FinanceSection.ALLOWANCE -> "Spending limit (KSh)"
                         }) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (section == FinanceSection.SAVINGS) {
+                        OutlinedTextField(
+                            value = savingsCategory,
+                            onValueChange = { savingsCategory = it },
+                            label = { Text("Savings category") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Contribution plan", style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_WEEKLY },
+                                label = { Text("Weekly") })
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_MONTHLY },
+                                label = { Text("Monthly") })
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_FLEXIBLE },
+                                label = { Text("Flexible") })
+                            FilterChip(selected = contributionMethod == FinancialRecord.CONTRIBUTION_ONE_TIME,
+                                onClick = { contributionMethod = FinancialRecord.CONTRIBUTION_ONE_TIME },
+                                label = { Text("One-time") })
+                        }
+                        if (contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY ||
+                            contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) {
+                            OutlinedTextField(
+                                value = plannedContribution,
+                                onValueChange = { plannedContribution = it; validationError = null },
+                                label = { Text("${if (contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) "Monthly" else "Weekly"} contribution (KSh)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                     if (section != FinanceSection.ALLOWANCE) {
                         OutlinedTextField(value = dueDate, onValueChange = { dueDate = it; validationError = null },
                             label = { Text("Target / due date (YYYY-MM-DD, optional)") }, singleLine = true,
@@ -407,24 +450,81 @@ fun FinancialPlansScreen(
                         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
                             .parse(dueDate.trim())?.time
                     }.getOrNull()
+                    val parsedContribution = if (contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY ||
+                        contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) {
+                        plannedContribution.trim().replace(",", "").toBigDecimalOrNull()?.let { value ->
+                            runCatching { value.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull()
+                        }
+                    } else 0L
                     when {
                         title.isBlank() -> validationError = "Add a name or description first."
                         minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
                         dueDate.isNotBlank() && parsedDate == null && section != FinanceSection.ALLOWANCE ->
                             validationError = "Use a valid date in YYYY-MM-DD format."
+                        section == FinanceSection.SAVINGS && savingsCategory.isBlank() ->
+                            validationError = "Enter a savings category."
+                        section == FinanceSection.SAVINGS &&
+                            (contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY ||
+                                contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) &&
+                            (parsedContribution == null || parsedContribution <= 0L) ->
+                            validationError = "Enter a valid contribution amount."
                         else -> {
                             val type = when (section) {
                                 FinanceSection.DEBTS -> debtType
                                 FinanceSection.SAVINGS -> FinancialRecord.SAVINGS_GOAL
                                 FinanceSection.ALLOWANCE -> FinancialRecord.ALLOWANCE
                             }
-                            onAdd(type, title, minor, parsedDate, notes)
+                            onAdd(
+                                type, title, minor, parsedDate, notes,
+                                savingsCategory.trim(), contributionMethod,
+                                parsedContribution ?: 0L
+                            )
                             showCreate = false
                         }
                     }
                 }) { Text("Create plan") }
             },
             dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } }
+        )
+    }
+
+    withdrawalRecord?.let { record ->
+        var amount by remember(record.id) { mutableStateOf("") }
+        var note by remember(record.id) { mutableStateOf("") }
+        var validationError by remember(record.id) { mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { withdrawalRecord = null },
+            title = { Text("Withdraw from savings", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(record.title, style = MaterialTheme.typography.titleMedium)
+                    Text("${financeKes(record.currentMinor)} currently saved",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
+                        label = { Text("Withdrawal amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = note, onValueChange = { note = it },
+                        label = { Text("Reason (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                    if (validationError != null) Text(validationError!!, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val parsed = amount.trim().replace(",", "").toBigDecimalOrNull()
+                    val minor = parsed?.let { runCatching {
+                        it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
+                    }.getOrNull() }
+                    when {
+                        minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
+                        minor > record.currentMinor -> validationError = "You cannot withdraw more than the amount saved."
+                        else -> {
+                            onWithdraw(record, minor, note)
+                            withdrawalRecord = null
+                        }
+                    }
+                }) { Text("Record withdrawal") }
+            },
+            dismissButton = { TextButton(onClick = { withdrawalRecord = null }) { Text("Cancel") } }
         )
     }
 
@@ -572,6 +672,7 @@ fun FinancialPlansScreen(
                                             FinancialRecordEntry.REPAYMENT -> "Repayment"
                                             FinancialRecordEntry.COLLECTION -> "Collection"
                                             FinancialRecordEntry.CONTRIBUTION -> "Savings contribution"
+                                            FinancialRecordEntry.WITHDRAWAL -> "Savings withdrawal"
                                             else -> "Allowance spending"
                                         },
                                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
@@ -657,6 +758,7 @@ private fun FinancialRecordCard(
     onProgress: () -> Unit,
     onEdit: () -> Unit,
     onHistory: () -> Unit,
+    onWithdraw: () -> Unit,
     onDelete: () -> Unit
 ) {
     val progress = if (record.targetMinor > 0L) (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
@@ -700,7 +802,7 @@ private fun FinancialRecordCard(
                         when (record.type) {
                             FinancialRecord.DEBT_OWED_TO_ME -> "MONEY OWED TO YOU"
                             FinancialRecord.DEBT_I_OWE -> "YOUR DEBT TO REPAY"
-                            FinancialRecord.SAVINGS_GOAL -> "SAVINGS TARGET"
+                            FinancialRecord.SAVINGS_GOAL -> record.savingsCategory.uppercase()
                             else -> "ALLOWANCE"
                         },
                         style = MaterialTheme.typography.labelSmall, letterSpacing = 0.8.sp,
@@ -792,6 +894,15 @@ private fun FinancialRecordCard(
                     )
                 }
             }
+            if (record.type == FinancialRecord.SAVINGS_GOAL &&
+                record.contributionMethod in setOf(FinancialRecord.CONTRIBUTION_WEEKLY, FinancialRecord.CONTRIBUTION_MONTHLY)) {
+                Text(
+                    "${if (record.contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) "Monthly" else "Weekly"} plan · ${financeKes(record.plannedContributionMinor)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             if (record.notes.isNotBlank()) {
                 Text(record.notes, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -802,6 +913,15 @@ private fun FinancialRecordCard(
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 10.dp)
             ) { Text("View activity history") }
+
+            if (record.type == FinancialRecord.SAVINGS_GOAL && record.currentMinor > 0L) {
+                OutlinedButton(
+                    onClick = onWithdraw,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) { Text("Withdraw savings") }
+            }
 
             Button(
                 onClick = onProgress,
