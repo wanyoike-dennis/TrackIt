@@ -300,12 +300,14 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             } else if (selectedTab == "Money") {
                 FinancialPlansScreen(
                     records = uiState.financialRecords,
+                    entries = uiState.financialEntries,
                     errorMessage = uiState.errorMessage,
                     onBackToHome = { selectedTab = "Home" },
                     onAdd = { type, title, targetMinor, notes ->
                         viewModel.addFinancialRecord(type, title, targetMinor, notes = notes)
                     },
                     onAddProgress = viewModel::addFinancialProgress,
+                    onEdit = viewModel::updateFinancialRecord,
                     onDelete = viewModel::deleteFinancialRecord,
                     onClearError = viewModel::clearError
                 )
