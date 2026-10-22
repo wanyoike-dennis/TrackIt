@@ -8,13 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [MoneyTransaction::class, MonthlyBudget::class],
-    version = 3,
+    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class],
+    version = 4,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun monthlyBudgetDao(): MonthlyBudgetDao
+    abstract fun expenseCategoryDao(): ExpenseCategoryDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -42,6 +43,32 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS expense_categories (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "name TEXT NOT NULL, " +
+                        "normalizedName TEXT NOT NULL, " +
+                        "createdAtEpochMillis INTEGER NOT NULL)"
+                )
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_expense_categories_normalizedName " +
+                        "ON expense_categories(normalizedName)"
+                )
+                database.execSQL(
+                    "INSERT OR IGNORE INTO expense_categories (name, normalizedName, createdAtEpochMillis) " +
+                        "SELECT category, lower(trim(category)), CAST(strftime('%s','now') AS INTEGER) * 1000 " +
+                        "FROM transactions WHERE trim(category) != '' GROUP BY lower(trim(category))"
+                )
+                database.execSQL(
+                    "INSERT OR IGNORE INTO expense_categories (name, normalizedName, createdAtEpochMillis) " +
+                        "SELECT category, lower(trim(category)), CAST(strftime('%s','now') AS INTEGER) * 1000 " +
+                        "FROM monthly_budgets WHERE trim(category) != '' GROUP BY lower(trim(category))"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: TrackItDatabase? = null
 
@@ -52,7 +79,7 @@ abstract class TrackItDatabase : RoomDatabase() {
                     TrackItDatabase::class.java,
                     "trackit_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }
