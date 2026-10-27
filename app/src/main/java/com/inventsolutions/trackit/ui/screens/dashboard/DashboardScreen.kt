@@ -1493,6 +1493,12 @@ private fun TrackItNavigationIcon(
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.44f, h * 0.34f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.5f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.66f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.67f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
             }
+            "Hustles" -> {
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.34f), androidx.compose.ui.geometry.Size(w * 0.70f, h * 0.52f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.35f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.30f, h * 0.20f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
+                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.53f), androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.53f), strokeWidth = stroke, cap = cap)
+                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.44f, h * 0.49f), androidx.compose.ui.geometry.Offset(w * 0.56f, h * 0.49f), strokeWidth = stroke * 1.5f, cap = cap)
+            }
             "Money" -> {
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.55f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.33f, h * 0.23f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
