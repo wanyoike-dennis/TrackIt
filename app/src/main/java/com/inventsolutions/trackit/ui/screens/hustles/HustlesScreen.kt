@@ -257,7 +257,9 @@ fun HustlesScreen(onBack: () -> Unit) {
                         } else {
                             Text(scopedTransactions.size.toString() + " records · All time", style = MaterialTheme.typography.labelMedium, color = StudioMuted)
                             scopedTransactions.sortedByDescending { it.dateEpochMillis }.forEachIndexed { index, record ->
-                                ActivityRow(record, hustles.firstOrNull { it.id == record.hustleId }?.name.orEmpty(), true)
+                                ActivityRow(record, hustles.firstOrNull { it.id == record.hustleId }?.name.orEmpty(), true) {
+                                    scope.launch { dao.deleteTransaction(record.id) }
+                                }
                                 if (index < scopedTransactions.lastIndex) HorizontalDivider(color = StudioLine, modifier = Modifier.padding(start = 48.dp))
                             }
                         }
@@ -497,7 +499,7 @@ private fun HustleRow(hustle: Hustle, subtitle: String, value: String, index: In
 }
 
 @Composable
-private fun ActivityRow(record: HustleTransaction, hustleName: String, showDate: Boolean = false) {
+private fun ActivityRow(record: HustleTransaction, hustleName: String, showDate: Boolean = false, onDelete: (() -> Unit)? = null) {
     val isIncome = record.type == HustleTransaction.INCOME
     Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(36.dp).clip(CircleShape).background(if (isIncome) StudioGreenTint else StudioRedTint), contentAlignment = Alignment.Center) {
@@ -509,8 +511,15 @@ private fun ActivityRow(record: HustleTransaction, hustleName: String, showDate:
             val detail = hustleName.ifBlank { "Hustle" } + if (showDate) " · " + hustleDate(record.dateEpochMillis) else if (record.category.isNotBlank()) " · " + record.category else ""
             Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text((if (isIncome) "+" else "−") + hustleKes(record.amountMinor), color = if (isIncome) StudioGreen else MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text((if (isIncome) "+" else "−") + hustleKes(record.amountMinor), color = if (isIncome) StudioGreen else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            if (onDelete != null) {
+                TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
+                    Text("Delete", style = MaterialTheme.typography.labelSmall, color = TrackItExpense)
+                }
+            }
+        }
     }
 }
 
