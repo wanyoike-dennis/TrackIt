@@ -1,10 +1,16 @@
 package com.inventsolutions.trackit.ui.screens.hustles
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -75,107 +82,231 @@ fun HustlesScreen(onBack: () -> Unit) {
     val outstanding = debtBalances.filter { balance -> scopedDebts.any { it.id == balance.debtId } }.sumOf { it.outstandingAmountMinor }
     val recentTransactions = scopedTransactions.sortedByDescending { it.dateEpochMillis }.take(5)
 
-    Scaffold { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            Modifier.fillMaxSize()
+                .padding(padding)
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("Side Hustles", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Track what you earn from your work", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.size(46.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(com.inventsolutions.trackit.ui.theme.TrackItEmeraldTint),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text("↗", color = com.inventsolutions.trackit.ui.theme.TrackItEmeraldDark, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Side Hustles", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Your work. Your progress.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                TextButton(onClick = onBack) { Text("Back") }
+                TextButton(onClick = onBack) { Text("Close") }
             }
 
-            // Make the current scope explicit and accessible before any money is entered.
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("VIEWING", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                androidx.compose.material3.ExposedDropdownMenuBox(
-                    expanded = false,
-                    onExpandedChange = {}
+            // A dark, high-contrast profit hero gives the module a clear visual anchor.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = com.inventsolutions.trackit.ui.theme.TrackItNavy)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // A straightforward selector button opens the complete hustle list below.
-                    OutlinedButton(onClick = { section = "My Hustles" }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedHustle?.name ?: "All hustles", modifier = Modifier.weight(1f))
-                        Text("Change")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("TOTAL NET PROFIT", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB8C2D1), fontWeight = FontWeight.SemiBold)
+                            Text("All-time overview", style = MaterialTheme.typography.bodySmall, color = Color(0xFFB8C2D1))
+                        }
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF243B35)),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            Text("↗", color = Color(0xFF6EE7B7), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Text(
+                        hustleKes(income - expenses),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF172B2A)).padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Earnings", color = Color(0xFFB8C2D1), style = MaterialTheme.typography.labelSmall)
+                            Text(hustleKes(income), color = Color(0xFF6EE7B7), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Expenses", color = Color(0xFFB8C2D1), style = MaterialTheme.typography.labelSmall)
+                            Text(hustleKes(expenses), color = Color(0xFFFCA5A5), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Your hustles", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(selectedHustle?.name ?: "Combined performance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    TextButton(onClick = { section = "My Hustles" }) { Text("Manage") }
+                }
+                Card(
+                    Modifier.fillMaxWidth().clickable { section = "My Hustles" },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            Text("▦", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(selectedHustle?.name ?: "All hustles", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("${hustles.count { it.active }} active hustle(s) · ${hustles.size} total", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text("⌄", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleLarge)
                     }
                 }
                 if (hustles.isEmpty()) {
-                    Text("Create your first hustle to start recording earnings and expenses.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button(onClick = { showAddHustle = true }, modifier = Modifier.fillMaxWidth()) { Text("Create my first hustle") }
+                    Text("Start by adding the work you do, then record what you earn and spend.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = { showAddHustle = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("＋  Add your first hustle") }
                 }
             }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { recordType = HustleTransaction.INCOME; showAddRecord = true },
-                    enabled = hustles.any { it.active },
-                    modifier = Modifier.weight(1f)
-                ) { Text("＋ Add earning") }
-                OutlinedButton(
-                    onClick = { recordType = HustleTransaction.EXPENSE; showAddRecord = true },
-                    enabled = hustles.any { it.active },
-                    modifier = Modifier.weight(1f)
-                ) { Text("− Add expense") }
-            }
-
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricCard("Earnings", hustleKes(income), Modifier.weight(1f))
-                MetricCard("Expenses", hustleKes(expenses), Modifier.weight(1f))
-            }
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Net profit", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(hustleKes(income - expenses), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text("Earnings minus recorded expenses", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Quick actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionTile(
+                        title = "Add earning",
+                        subtitle = "Money received",
+                        symbol = "↗",
+                        accent = Color(0xFF16845B),
+                        tint = Color(0xFFE1F7EC),
+                        modifier = Modifier.weight(1f),
+                        enabled = hustles.any { it.active }
+                    ) { recordType = HustleTransaction.INCOME; showAddRecord = true }
+                    ActionTile(
+                        title = "Add expense",
+                        subtitle = "Money spent",
+                        symbol = "↘",
+                        accent = Color(0xFFC44949),
+                        tint = Color(0xFFFDECEC),
+                        modifier = Modifier.weight(1f),
+                        enabled = hustles.any { it.active }
+                    ) { recordType = HustleTransaction.EXPENSE; showAddRecord = true }
                 }
             }
-            Card(Modifier.fillMaxWidth().clickable { section = "Debts" }) {
-                Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Outstanding debts", fontWeight = FontWeight.SemiBold)
-                        Text(hustleKes(outstanding), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("${scopedDebts.size} debt records · View and record repayments", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Financial snapshot", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("All time", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SnapshotTile("Earnings", hustleKes(income), "↗", Color(0xFF16845B), Color(0xFFE1F7EC), Modifier.weight(1f))
+                    SnapshotTile("Expenses", hustleKes(expenses), "↘", Color(0xFFC44949), Color(0xFFFDECEC), Modifier.weight(1f))
+                }
+                Card(
+                    Modifier.fillMaxWidth().clickable { section = "Debts" },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        androidx.compose.foundation.layout.Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFFFF3D6)), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            Text("◇", color = Color(0xFF9A6700), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("Outstanding debts", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("${scopedDebts.size} records · Track repayments", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(hustleKes(outstanding), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("View details  ›", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
-                    TextButton(onClick = { section = "Debts" }) { Text("Manage") }
                 }
             }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Recent activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { section = "Records" }) { Text("View all") }
-            }
-            if (recentTransactions.isEmpty()) {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("No records yet", fontWeight = FontWeight.SemiBold)
-                        Text("Your hustle earnings and expenses will appear here after you add them.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Recent activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("The latest hustle transactions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    TextButton(onClick = { section = "Records" }) { Text("See all") }
                 }
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f, fill = false)) {
-                    items(recentTransactions, key = { it.id }) { record ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(record.description.ifBlank { record.category.ifBlank { if (record.type == HustleTransaction.INCOME) "Earning" else "Expense" } }, fontWeight = FontWeight.SemiBold)
-                                    Text(hustles.firstOrNull { it.id == record.hustleId }?.name.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    if (recentTransactions.isEmpty()) {
+                        Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            androidx.compose.foundation.layout.Box(Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                Text("↗", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text("Your story starts here", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("Add an earning or expense to see your activity here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        Column {
+                            recentTransactions.forEachIndexed { index, record ->
+                                Row(
+                                    Modifier.fillMaxWidth().clickable { section = "Records" }.padding(horizontal = 16.dp, vertical = 14.dp),
+                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    val isIncome = record.type == HustleTransaction.INCOME
+                                    androidx.compose.foundation.layout.Box(
+                                        Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(if (isIncome) Color(0xFFE1F7EC) else Color(0xFFFDECEC)),
+                                        contentAlignment = androidx.compose.ui.Alignment.Center
+                                    ) {
+                                        Text(if (isIncome) "↗" else "↘", color = if (isIncome) Color(0xFF16845B) else Color(0xFFC44949), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                    }
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Text(record.description.ifBlank { record.category.ifBlank { if (isIncome) "Earning" else "Expense" } }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                        Text(hustles.firstOrNull { it.id == record.hustleId }?.name.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                    }
+                                    Text(
+                                        (if (isIncome) "+" else "−") + hustleKes(record.amountMinor),
+                                        color = if (isIncome) Color(0xFF16845B) else MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
                                 }
-                                Text(
-                                    (if (record.type == HustleTransaction.INCOME) "+" else "−") + hustleKes(record.amountMinor),
-                                    color = if (record.type == HustleTransaction.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                if (index < recentTransactions.lastIndex) androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
                             }
                         }
                     }
                 }
             }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { section = "My Hustles" }, modifier = Modifier.weight(1f)) { Text("My hustles") }
-                OutlinedButton(onClick = { section = "Reports" }, modifier = Modifier.weight(1f)) { Text("Reports") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = { section = "My Hustles" }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(15.dp)) { Text("Manage hustles") }
+                OutlinedButton(onClick = { section = "Reports" }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(15.dp)) { Text("View reports") }
             }
             if (message != null) Text(message!!, color = MaterialTheme.colorScheme.error)
         }
@@ -329,6 +460,72 @@ fun HustlesScreen(onBack: () -> Unit) {
                 counterparty = ""; amount = ""; note = ""; showAddDebt = false; message = null
             }
         }) { Text("Save debt") } }, dismissButton = { TextButton(onClick = { showAddDebt = false }) { Text("Cancel") } })
+    }
+}
+
+
+@Composable
+private fun ActionTile(
+    title: String,
+    subtitle: String,
+    symbol: String,
+    accent: Color,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(tint),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(symbol, color = accent, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SnapshotTile(
+    title: String,
+    value: String,
+    symbol: String,
+    accent: Color,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(tint),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(symbol, color = accent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+        }
     }
 }
 
