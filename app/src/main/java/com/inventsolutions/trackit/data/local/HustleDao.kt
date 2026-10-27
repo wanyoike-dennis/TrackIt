@@ -50,6 +50,9 @@ interface HustleDao {
     @Query("SELECT * FROM hustle_debt_settlements WHERE debtId = :debtId ORDER BY dateEpochMillis DESC, id DESC")
     fun observeSettlements(debtId: Long): Flow<List<HustleDebtSettlement>>
 
+    @Query("SELECT d.id AS debtId, d.originalAmountMinor AS originalAmountMinor, COALESCE(SUM(s.amountMinor), 0) AS settledAmountMinor FROM hustle_debts d LEFT JOIN hustle_debt_settlements s ON s.debtId = d.id GROUP BY d.id")
+    fun observeDebtBalances(): Flow<List<HustleDebtBalance>>
+
     @Query("SELECT COALESCE(SUM(amountMinor), 0) FROM hustle_debt_settlements WHERE debtId = :debtId")
     suspend fun settledAmount(debtId: Long): Long
 
