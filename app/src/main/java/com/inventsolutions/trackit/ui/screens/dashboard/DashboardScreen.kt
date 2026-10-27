@@ -81,6 +81,7 @@ import com.inventsolutions.trackit.ui.screens.reports.ReportScreen
 import com.inventsolutions.trackit.ui.screens.finances.FinancialPlansScreen
 import com.inventsolutions.trackit.ui.screens.profile.ProfileScreen
 import com.inventsolutions.trackit.ui.screens.profile.BackupRestoreScreen
+import com.inventsolutions.trackit.ui.screens.hustles.HustlesScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
 private data class ActivityItem(
@@ -362,7 +363,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("Home", "Activity", "Budgets", "Reports", "Money").forEach { tab ->
+                        listOf("Home", "Activity", "Budgets", "Reports", "Money", "Hustles").forEach { tab ->
                             val selected = selectedTab == tab
                             val activeColor = MaterialTheme.colorScheme.primary
                             val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -468,6 +469,8 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                     onDeleteRecurringTransaction = viewModel::deleteRecurringTransaction,
 
                 )
+            } else if (selectedTab == "Hustles") {
+                HustlesScreen(onBack = { selectedTab = "Home" })
             } else if (selectedTab == "Profile") {
                 ProfileScreen(
                     onOpenBackupRestore = { selectedTab = "Backup" },
