@@ -51,8 +51,9 @@ fun HustlesScreen(onBack: () -> Unit) {
     val debts by dao.observeDebts(null).collectAsState(initial = emptyList())
     val debtBalances by dao.observeDebtBalances().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+
     var section by remember { mutableStateOf("Overview") }
-    var selectedHustle by remember { mutableStateOf<Long?>(null) }
+    var selectedHustleId by remember { mutableStateOf<Long?>(null) }
     var showAddHustle by remember { mutableStateOf(false) }
     var showAddRecord by remember { mutableStateOf(false) }
     var showAddDebt by remember { mutableStateOf(false) }
@@ -66,145 +67,233 @@ fun HustlesScreen(onBack: () -> Unit) {
     var recordType by remember { mutableStateOf(HustleTransaction.INCOME) }
     var message by remember { mutableStateOf<String?>(null) }
 
-    val scopedHustles = if (selectedHustle == null) hustles else hustles.filter { it.id == selectedHustle }
-    val scopedTransactions = transactions.filter { selectedHustle == null || it.hustleId == selectedHustle }
+    val selectedHustle = hustles.firstOrNull { it.id == selectedHustleId && it.active }
+    val scopedTransactions = transactions.filter { selectedHustleId == null || it.hustleId == selectedHustleId }
+    val scopedDebts = debts.filter { selectedHustleId == null || it.hustleId == selectedHustleId }
     val income = scopedTransactions.filter { it.type == HustleTransaction.INCOME }.sumOf { it.amountMinor }
     val expenses = scopedTransactions.filter { it.type == HustleTransaction.EXPENSE }.sumOf { it.amountMinor }
-    val scopedDebts = debts.filter { selectedHustle == null || it.hustleId == selectedHustle }
     val outstanding = debtBalances.filter { balance -> scopedDebts.any { it.id == balance.debtId } }.sumOf { it.outstandingAmountMinor }
+    val recentTransactions = scopedTransactions.sortedByDescending { it.dateEpochMillis }.take(5)
 
     Scaffold { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("Side Hustles", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Your independent earnings workspace", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Track what you earn from your work", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TextButton(onClick = onBack) { Text("Home") }
+                TextButton(onClick = onBack) { Text("Back") }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("Overview", "Hustles", "Records", "Debts", "Reports").forEach { item ->
-                    OutlinedButton(onClick = { section = item }, modifier = Modifier.weight(1f)) {
-                        Text(item.take(1), fontWeight = if (section == item) FontWeight.Bold else FontWeight.Normal)
+
+            // Make the current scope explicit and accessible before any money is entered.
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("VIEWING", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.material3.ExposedDropdownMenuBox(
+                    expanded = false,
+                    onExpandedChange = {}
+                ) {
+                    // A straightforward selector button opens the complete hustle list below.
+                    OutlinedButton(onClick = { section = "My Hustles" }, modifier = Modifier.fillMaxWidth()) {
+                        Text(selectedHustle?.name ?: "All hustles", modifier = Modifier.weight(1f))
+                        Text("Change")
                     }
                 }
-            }
-            if (section == "Overview" || section == "Reports") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricCard("Earnings", hustleKes(income), Modifier.weight(1f))
-                    MetricCard("Expenses", hustleKes(expenses), Modifier.weight(1f))
+                if (hustles.isEmpty()) {
+                    Text("Create your first hustle to start recording earnings and expenses.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = { showAddHustle = true }, modifier = Modifier.fillMaxWidth()) { Text("Create my first hustle") }
                 }
-                MetricCard("Net profit", hustleKes(income - expenses), Modifier.fillMaxWidth())
-                Text("Outstanding balances: ${hustleKes(outstanding)}", style = MaterialTheme.typography.titleMedium)
-                Text("${scopedDebts.size} debt records", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                Text("Profit is calculated from hustle records only. Personal transactions and budgets are not included.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
-            if (section == "Hustles") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("My hustles", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Button(onClick = { showAddHustle = true }) { Text("Add hustle") }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { recordType = HustleTransaction.INCOME; showAddRecord = true },
+                    enabled = hustles.any { it.active },
+                    modifier = Modifier.weight(1f)
+                ) { Text("＋ Add earning") }
+                OutlinedButton(
+                    onClick = { recordType = HustleTransaction.EXPENSE; showAddRecord = true },
+                    enabled = hustles.any { it.active },
+                    modifier = Modifier.weight(1f)
+                ) { Text("− Add expense") }
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MetricCard("Earnings", hustleKes(income), Modifier.weight(1f))
+                MetricCard("Expenses", hustleKes(expenses), Modifier.weight(1f))
+            }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Net profit", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(hustleKes(income - expenses), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("Earnings minus recorded expenses", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(hustles, key = { it.id }) { hustle ->
-                        Card(Modifier.fillMaxWidth().clickable { selectedHustle = if (selectedHustle == hustle.id) null else hustle.id }) {
-                            Column(Modifier.padding(14.dp)) {
-                                Text(hustle.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                if (hustle.description.isNotBlank()) Text(hustle.description, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(if (selectedHustle == hustle.id) "Selected · tap to show all hustles" else "Tap to filter by this hustle")
-                                TextButton(onClick = { scope.launch { dao.update(hustle.copy(active = !hustle.active, updatedAtEpochMillis = System.currentTimeMillis())) } }) {
-                                    Text(if (hustle.active) "Archive" else "Reactivate")
+            }
+            Card(Modifier.fillMaxWidth().clickable { section = "Debts" }) {
+                Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Outstanding debts", fontWeight = FontWeight.SemiBold)
+                        Text(hustleKes(outstanding), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("${scopedDebts.size} debt records · View and record repayments", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    }
+                    TextButton(onClick = { section = "Debts" }) { Text("Manage") }
+                }
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Recent activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { section = "Records" }) { Text("View all") }
+            }
+            if (recentTransactions.isEmpty()) {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("No records yet", fontWeight = FontWeight.SemiBold)
+                        Text("Your hustle earnings and expenses will appear here after you add them.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f, fill = false)) {
+                    items(recentTransactions, key = { it.id }) { record ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(record.description.ifBlank { record.category.ifBlank { if (record.type == HustleTransaction.INCOME) "Earning" else "Expense" } }, fontWeight = FontWeight.SemiBold)
+                                    Text(hustles.firstOrNull { it.id == record.hustleId }?.name.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                                 }
+                                Text(
+                                    (if (record.type == HustleTransaction.INCOME) "+" else "−") + hustleKes(record.amountMinor),
+                                    color = if (record.type == HustleTransaction.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }
                 }
             }
-            if (section == "Records") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Earnings & expenses", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Button(onClick = { showAddRecord = true }) { Text("Add record") }
-                }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(scopedTransactions, key = { it.id }) { record ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(record.description.ifBlank { record.category.ifBlank { "Hustle record" } }, fontWeight = FontWeight.SemiBold)
-                                Text("${record.type} · ${hustles.firstOrNull { it.id == record.hustleId }?.name.orEmpty()}")
-                                Text(hustleKes(if (record.type == HustleTransaction.EXPENSE) -record.amountMinor else record.amountMinor), color = if (record.type == HustleTransaction.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                                TextButton(onClick = { scope.launch { dao.deleteTransaction(record.id) } }) { Text("Delete") }
-                            }
-                        }
-                    }
-                }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { section = "My Hustles" }, modifier = Modifier.weight(1f)) { Text("My hustles") }
+                OutlinedButton(onClick = { section = "Reports" }, modifier = Modifier.weight(1f)) { Text("Reports") }
             }
-            if (section == "Debts") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Debt register", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Button(onClick = { showAddDebt = true }) { Text("Add debt") }
-                }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(scopedDebts, key = { it.id }) { debt ->
-                        val settlements by dao.observeSettlements(debt.id).collectAsState(initial = emptyList())
-                        val settled = settlements.sumOf { it.amountMinor }
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(debt.counterparty, fontWeight = FontWeight.SemiBold)
-                                Text(if (debt.direction == HustleDebt.CUSTOMER_OWES_ME) "Owes me" else "I owe")
-                                Text("Outstanding: ${hustleKes((debt.originalAmountMinor - settled).coerceAtLeast(0L))}")
-                                var settlementAmount by remember(debt.id) { mutableStateOf("") }
-                                OutlinedTextField(value = settlementAmount, onValueChange = { settlementAmount = it }, label = { Text("Settlement amount (KES)") }, modifier = Modifier.fillMaxWidth())
-                                Button(onClick = {
-                                    val minor = settlementAmount.toBigDecimalOrNull()?.movePointRight(2)?.toLong()
-                                    if (minor == null || minor <= 0) message = "Enter a valid positive settlement amount."
-                                    else scope.launch {
-                                        runCatching { dao.settleDebt(debt.id, minor, "", System.currentTimeMillis()) }
-                                            .onSuccess { settlementAmount = ""; message = "Settlement recorded." }
-                                            .onFailure { message = it.message ?: "Could not record settlement." }
-                                    }
-                                }) { Text("Record settlement") }
-                            }
-                        }
-                    }
-                }
-            }
-            if (selectedHustle != null) TextButton(onClick = { selectedHustle = null }) { Text("Clear hustle filter") }
             if (message != null) Text(message!!, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(4.dp))
         }
     }
 
+    if (section != "Overview") {
+        AlertDialog(
+            onDismissRequest = { section = "Overview" },
+            title = { Text(when (section) { "My Hustles" -> "My hustles"; "Records" -> "All records"; "Debts" -> "Manage debts"; else -> "Hustle reports" }) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    when (section) {
+                        "My Hustles" -> {
+                            Text("Choose a hustle to view its finances, or create a new one.")
+                            hustles.forEach { hustle ->
+                                Card(Modifier.fillMaxWidth().clickable {
+                                    selectedHustleId = hustle.id
+                                    section = "Overview"
+                                }) {
+                                    Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(hustle.name, fontWeight = FontWeight.SemiBold)
+                                            Text(if (hustle.active) "Active" else "Archived", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        TextButton(onClick = {
+                                            scope.launch { dao.update(hustle.copy(active = !hustle.active, updatedAtEpochMillis = System.currentTimeMillis())) }
+                                        }) { Text(if (hustle.active) "Archive" else "Restore") }
+                                    }
+                                }
+                            }
+                            Button(onClick = { showAddHustle = true; section = "Overview" }, modifier = Modifier.fillMaxWidth()) { Text("＋ Create a hustle") }
+                            if (selectedHustleId != null) TextButton(onClick = { selectedHustleId = null; section = "Overview" }) { Text("Show all hustles") }
+                        }
+                        "Records" -> {
+                            if (scopedTransactions.isEmpty()) Text("No earnings or expenses recorded yet.")
+                            scopedTransactions.sortedByDescending { it.dateEpochMillis }.take(30).forEach { record ->
+                                Text("${record.description.ifBlank { record.category.ifBlank { record.type.lowercase().replaceFirstChar { it.uppercase() } } }} · ${hustleKes(record.amountMinor)}")
+                                TextButton(onClick = { scope.launch { dao.deleteTransaction(record.id) } }) { Text("Delete record") }
+                            }
+                        }
+                        "Debts" -> {
+                            Button(onClick = { showAddDebt = true; section = "Overview" }, modifier = Modifier.fillMaxWidth(), enabled = hustles.any { it.active }) { Text("＋ Add debt") }
+                            if (scopedDebts.isEmpty()) Text("No debts recorded for this selection.")
+                            scopedDebts.forEach { debt ->
+                                val settlements by dao.observeSettlements(debt.id).collectAsState(initial = emptyList())
+                                val settled = settlements.sumOf { it.amountMinor }
+                                Text("${debt.counterparty} · ${if (debt.direction == HustleDebt.CUSTOMER_OWES_ME) "Owes you" else "You owe"}")
+                                Text("Outstanding: ${hustleKes((debt.originalAmountMinor - settled).coerceAtLeast(0L))}")
+                                var settlementAmount by remember(debt.id) { mutableStateOf("") }
+                                OutlinedTextField(settlementAmount, { settlementAmount = it }, label = { Text("Repayment amount (KES)") }, modifier = Modifier.fillMaxWidth())
+                                TextButton(onClick = {
+                                    val minor = settlementAmount.toBigDecimalOrNull()?.movePointRight(2)?.toLong()
+                                    if (minor == null || minor <= 0) message = "Enter a valid repayment amount."
+                                    else scope.launch {
+                                        runCatching { dao.settleDebt(debt.id, minor, "", System.currentTimeMillis()) }
+                                            .onSuccess { settlementAmount = ""; message = "Repayment saved." }
+                                            .onFailure { message = it.message ?: "Could not save repayment." }
+                                    }
+                                }) { Text("Save repayment") }
+                            }
+                        }
+                        "Reports" -> {
+                            Text("All-time summary for the selected hustle scope")
+                            Text("Total earnings: ${hustleKes(income)}")
+                            Text("Total expenses: ${hustleKes(expenses)}")
+                            Text("Net profit: ${hustleKes(income - expenses)}")
+                            Text("Outstanding debts: ${hustleKes(outstanding)}")
+                            Text("This initial report uses all recorded dates. Date filters will be added separately.")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { section = "Overview" }) { Text("Done") } }
+        )
+    }
+
     if (showAddHustle) {
-        AlertDialog(onDismissRequest = { showAddHustle = false }, title = { Text("Add a hustle") }, text = {
+        AlertDialog(onDismissRequest = { showAddHustle = false }, title = { Text("Create a hustle") }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(hustleName, { hustleName = it }, label = { Text("Hustle name") })
-                OutlinedTextField(hustleDescription, { hustleDescription = it }, label = { Text("Description (optional)") })
+                OutlinedTextField(hustleName, { hustleName = it }, label = { Text("Hustle name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(hustleDescription, { hustleDescription = it }, label = { Text("Description (optional)") }, modifier = Modifier.fillMaxWidth())
             }
         }, confirmButton = { Button(onClick = {
             val clean = hustleName.trim()
             if (clean.isBlank()) message = "Enter a hustle name."
             else scope.launch {
                 runCatching { dao.insert(Hustle(name = clean, normalizedName = clean.lowercase(Locale.ROOT), description = hustleDescription.trim())) }
-                    .onSuccess { hustleName = ""; hustleDescription = ""; showAddHustle = false; message = null }
+                    .onSuccess {
+                        hustleName = ""; hustleDescription = ""; showAddHustle = false; message = null
+                        selectedHustleId = it
+                    }
                     .onFailure { message = "A hustle with that name may already exist." }
             }
-        }) { Text("Save") } }, dismissButton = { TextButton(onClick = { showAddHustle = false }) { Text("Cancel") } })
+        }) { Text("Create hustle") } }, dismissButton = { TextButton(onClick = { showAddHustle = false }) { Text("Cancel") } })
     }
+
     if (showAddRecord) {
-        AlertDialog(onDismissRequest = { showAddRecord = false }, title = { Text("Add hustle record") }, text = {
+        val activeHustles = hustles.filter { it.active }
+        AlertDialog(onDismissRequest = { showAddRecord = false }, title = { Text(if (recordType == HustleTransaction.INCOME) "Add earning" else "Add expense") }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { recordType = HustleTransaction.INCOME }) { Text("Earning") }
                     OutlinedButton(onClick = { recordType = HustleTransaction.EXPENSE }) { Text("Expense") }
                 }
-                OutlinedTextField(amount, { amount = it }, label = { Text("Amount (KES)") })
-                OutlinedTextField(category, { category = it }, label = { Text("Category / service") })
-                OutlinedTextField(note, { note = it }, label = { Text("Description (optional)") })
-                Text("Hustle: ${hustles.firstOrNull { it.id == selectedHustle }?.name ?: "Choose one in My hustles"}")
+                Text("Which hustle?", fontWeight = FontWeight.SemiBold)
+                activeHustles.forEach { hustle ->
+                    OutlinedButton(onClick = { selectedHustleId = hustle.id }, modifier = Modifier.fillMaxWidth()) {
+                        Text((if (selectedHustleId == hustle.id) "✓ " else "") + hustle.name)
+                    }
+                }
+                OutlinedTextField(amount, { amount = it }, label = { Text("Amount (KES)") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(category, { category = it }, label = { Text("Category or service (optional)") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(note, { note = it }, label = { Text("Description (optional)") }, modifier = Modifier.fillMaxWidth())
             }
         }, confirmButton = { Button(onClick = {
-            val target = selectedHustle
+            val target = selectedHustleId
             val minor = amount.toBigDecimalOrNull()?.movePointRight(2)?.toLong()
-            if (target == null || hustles.none { it.id == target && it.active }) message = "Select an active hustle in My hustles first."
+            if (target == null || activeHustles.none { it.id == target }) message = "Choose an active hustle."
             else if (minor == null || minor <= 0) message = "Enter a valid positive amount."
             else scope.launch {
                 dao.insertTransaction(HustleTransaction(hustleId = target, type = recordType, amountMinor = minor, category = category.trim(), description = note.trim()))
@@ -212,23 +301,29 @@ fun HustlesScreen(onBack: () -> Unit) {
             }
         }) { Text("Save record") } }, dismissButton = { TextButton(onClick = { showAddRecord = false }) { Text("Cancel") } })
     }
+
     if (showAddDebt) {
         AlertDialog(onDismissRequest = { showAddDebt = false }, title = { Text("Add debt") }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(counterparty, { counterparty = it }, label = { Text("Customer / supplier") })
-                OutlinedTextField(amount, { amount = it }, label = { Text("Original amount (KES)") })
-                OutlinedTextField(note, { note = it }, label = { Text("Description (optional)") })
+                Text("Which hustle is this debt for?", fontWeight = FontWeight.SemiBold)
+                hustles.filter { it.active }.forEach { hustle ->
+                    OutlinedButton(onClick = { selectedHustleId = hustle.id }, modifier = Modifier.fillMaxWidth()) {
+                        Text((if (selectedHustleId == hustle.id) "✓ " else "") + hustle.name)
+                    }
+                }
+                OutlinedTextField(counterparty, { counterparty = it }, label = { Text("Customer or supplier") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(amount, { amount = it }, label = { Text("Amount (KES)") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(note, { note = it }, label = { Text("Description (optional)") }, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { direction = HustleDebt.CUSTOMER_OWES_ME }) { Text("Owes me") }
                     OutlinedButton(onClick = { direction = HustleDebt.I_OWE }) { Text("I owe") }
                 }
-                Text("Select a hustle first in My hustles.")
             }
         }, confirmButton = { Button(onClick = {
-            val target = selectedHustle
+            val target = selectedHustleId
             val minor = amount.toBigDecimalOrNull()?.movePointRight(2)?.toLong()
-            if (target == null || hustles.none { it.id == target && it.active }) message = "Select an active hustle in My hustles first."
-            else if (counterparty.isBlank() || minor == null || minor <= 0) message = "Enter a counterparty and valid positive amount."
+            if (target == null || hustles.none { it.id == target && it.active }) message = "Choose an active hustle."
+            else if (counterparty.isBlank() || minor == null || minor <= 0) message = "Enter a name and a valid amount."
             else scope.launch {
                 dao.insertDebt(HustleDebt(hustleId = target, direction = direction, counterparty = counterparty.trim(), description = note.trim(), originalAmountMinor = minor))
                 counterparty = ""; amount = ""; note = ""; showAddDebt = false; message = null
