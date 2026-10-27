@@ -464,6 +464,17 @@ private fun SectionHeading(title: String, subtitle: String, onClick: () -> Unit)
 }
 
 @Composable
+private fun SectionHeading(title: String, subtitle: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        TextButton(onClick = onClick) { Text("See all") }
+    }
+}
+
+@Composable
 private fun HustleRow(hustle: Hustle, subtitle: String, value: String, index: Int, onClick: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
