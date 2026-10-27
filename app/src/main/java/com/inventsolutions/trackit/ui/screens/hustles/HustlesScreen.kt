@@ -49,6 +49,7 @@ fun HustlesScreen(onBack: () -> Unit) {
     val hustles by dao.observeAll().collectAsState(initial = emptyList())
     val transactions by dao.observeTransactions(null, 0L, Long.MAX_VALUE).collectAsState(initial = emptyList())
     val debts by dao.observeDebts(null).collectAsState(initial = emptyList())
+    val debtBalances by dao.observeDebtBalances().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var section by remember { mutableStateOf("Overview") }
     var selectedHustle by remember { mutableStateOf<Long?>(null) }
@@ -70,9 +71,7 @@ fun HustlesScreen(onBack: () -> Unit) {
     val income = scopedTransactions.filter { it.type == HustleTransaction.INCOME }.sumOf { it.amountMinor }
     val expenses = scopedTransactions.filter { it.type == HustleTransaction.EXPENSE }.sumOf { it.amountMinor }
     val scopedDebts = debts.filter { selectedHustle == null || it.hustleId == selectedHustle }
-    val outstanding = scopedDebts.sumOf { debt ->
-        (debt.originalAmountMinor - transactions.filter { false }.sumOf { it.amountMinor }).coerceAtLeast(0L)
-    }
+    val outstanding = debtBalances.filter { balance -> scopedDebts.any { it.id == balance.debtId } }.sumOf { it.outstandingAmountMinor }
 
     Scaffold { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -96,7 +95,8 @@ fun HustlesScreen(onBack: () -> Unit) {
                     MetricCard("Expenses", hustleKes(expenses), Modifier.weight(1f))
                 }
                 MetricCard("Net profit", hustleKes(income - expenses), Modifier.fillMaxWidth())
-                Text("Outstanding debt records: ${scopedDebts.size}", style = MaterialTheme.typography.titleMedium)
+                Text("Outstanding balances: ${hustleKes(outstanding)}", style = MaterialTheme.typography.titleMedium)
+                Text("${scopedDebts.size} debt records", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 Text("Profit is calculated from hustle records only. Personal transactions and budgets are not included.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
             if (section == "Hustles") {
