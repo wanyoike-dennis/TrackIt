@@ -9,7 +9,7 @@ import org.json.JSONObject
 
 /**
  * Versioned, user-controlled JSON backup for TrackIt's local Room tables.
- * Restore validates the complete payload before replacing any local rows.
+ * Restore validates the payload and replaces rows in a single SQLite transaction.
  */
 object TrackItBackupManager {
     private const val FORMAT_VERSION = 1
@@ -19,7 +19,18 @@ object TrackItBackupManager {
         "financial_records",
         "transactions",
         "recurring_transactions",
-        "financial_record_entries"
+        "financial_record_entries",
+        "hustles",
+        "hustle_transactions",
+        "hustle_debts",
+        "hustle_debt_settlements"
+    )
+    private val requiredLegacyTables = setOf(
+        "expense_categories", "monthly_budgets", "financial_records",
+        "transactions", "financial_record_entries"
+    )
+    private val hustleTables = setOf(
+        "hustles", "hustle_transactions", "hustle_debts", "hustle_debt_settlements"
     )
     private val tables = restoreOrder.toSet()
 
@@ -62,19 +73,32 @@ object TrackItBackupManager {
         require(root.optString("app") == "TrackIt") { "This file is not a TrackIt backup." }
         require(root.optInt("formatVersion", -1) == FORMAT_VERSION) { "This TrackIt backup version is not supported." }
         val data = root.optJSONObject("tables") ?: error("The backup is missing its data tables.")
-        require(restoreOrder.filterNot { it == "recurring_transactions" }.all { data.optJSONArray(it) != null }) { "The backup is incomplete." }
+        require(requiredLegacyTables.all { data.optJSONArray(it) != null }) { "The backup is incomplete." }
+        require(data.has("recurring_transactions").not() || data.optJSONArray("recurring_transactions") != null) {
+            "The recurring transaction data is malformed."
+        }
         require(data.keys().asSequence().all { it in tables }) { "The backup contains an unknown table." }
+        val includesHustleData = hustleTables.any(data::has)
+        if (includesHustleData) {
+            require(hustleTables.all { data.optJSONArray(it) != null }) { "The hustle data in this backup is incomplete." }
+        }
 
         val sqlDb = database.openHelper.writableDatabase
         var restoredRows = 0
         sqlDb.beginTransaction()
         try {
-            // Delete children before parents to respect foreign-key constraints.
+            // Legacy backups do not contain hustle tables; preserve current hustle data in that case.
             listOf("financial_record_entries", "recurring_transactions", "transactions", "financial_records", "monthly_budgets", "expense_categories")
-                .forEach { sqlDb.delete(it, null, null) }
+                .forEach { table ->
+                    if (table != "recurring_transactions" || data.has(table)) sqlDb.delete(table, null, null)
+                }
+            if (includesHustleData) {
+                listOf("hustle_debt_settlements", "hustle_transactions", "hustle_debts", "hustles")
+                    .forEach { sqlDb.delete(it, null, null) }
+            }
 
             restoreOrder.forEach { table ->
-                val rows = data.optJSONArray(table) ?: JSONArray()
+                val rows = data.optJSONArray(table) ?: return@forEach
                 for (rowIndex in 0 until rows.length()) {
                     val row = rows.getJSONObject(rowIndex)
                     val values = ContentValues()
