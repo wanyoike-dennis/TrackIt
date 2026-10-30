@@ -72,23 +72,10 @@ abstract class TrackItDatabase : RoomDatabase() {
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_recurring_transactions_active ON recurring_transactions(active)")
             }
         }
+        // Keep the version step for installations upgrading from database version 9.
+        // Hustles tables are no longer created by this migration.
         private val MIGRATION_9_10 = object : Migration(9, 10) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("CREATE TABLE IF NOT EXISTS hustles (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, normalizedName TEXT NOT NULL, description TEXT NOT NULL, active INTEGER NOT NULL, createdAtEpochMillis INTEGER NOT NULL, updatedAtEpochMillis INTEGER NOT NULL)")
-                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_hustles_normalizedName ON hustles(normalizedName)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustles_active ON hustles(active)")
-                database.execSQL("CREATE TABLE IF NOT EXISTS hustle_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, hustleId INTEGER NOT NULL, type TEXT NOT NULL, amountMinor INTEGER NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL, paymentMethod TEXT NOT NULL, dateEpochMillis INTEGER NOT NULL, createdAtEpochMillis INTEGER NOT NULL, updatedAtEpochMillis INTEGER NOT NULL, FOREIGN KEY(hustleId) REFERENCES hustles(id) ON UPDATE NO ACTION ON DELETE RESTRICT)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_transactions_hustleId ON hustle_transactions(hustleId)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_transactions_type ON hustle_transactions(type)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_transactions_dateEpochMillis ON hustle_transactions(dateEpochMillis)")
-                database.execSQL("CREATE TABLE IF NOT EXISTS hustle_debts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, hustleId INTEGER NOT NULL, direction TEXT NOT NULL, counterparty TEXT NOT NULL, description TEXT NOT NULL, originalAmountMinor INTEGER NOT NULL, dueDateEpochMillis INTEGER, createdAtEpochMillis INTEGER NOT NULL, updatedAtEpochMillis INTEGER NOT NULL, FOREIGN KEY(hustleId) REFERENCES hustles(id) ON UPDATE NO ACTION ON DELETE RESTRICT)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_debts_hustleId ON hustle_debts(hustleId)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_debts_direction ON hustle_debts(direction)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_debts_dueDateEpochMillis ON hustle_debts(dueDateEpochMillis)")
-                database.execSQL("CREATE TABLE IF NOT EXISTS hustle_debt_settlements (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, debtId INTEGER NOT NULL, amountMinor INTEGER NOT NULL, note TEXT NOT NULL, dateEpochMillis INTEGER NOT NULL, createdAtEpochMillis INTEGER NOT NULL, FOREIGN KEY(debtId) REFERENCES hustle_debts(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_debt_settlements_debtId ON hustle_debt_settlements(debtId)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_hustle_debt_settlements_dateEpochMillis ON hustle_debt_settlements(dateEpochMillis)")
-            }
+            override fun migrate(database: SupportSQLiteDatabase) = Unit
         }
 
         private val MIGRATION_10_11 = object : Migration(10, 11) {
