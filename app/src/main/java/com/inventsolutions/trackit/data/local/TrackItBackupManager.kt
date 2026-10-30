@@ -25,10 +25,6 @@ object TrackItBackupManager {
         "expense_categories", "monthly_budgets", "financial_records",
         "transactions", "financial_record_entries"
     )
-    // Accept legacy format-v1 backups but ignore the removed Hustles feature data.
-    private val removedLegacyTables = setOf(
-        "hustles", "hustle_transactions", "hustle_debts", "hustle_debt_settlements"
-    )
     private val tables = restoreOrder.toSet()
 
     fun export(database: TrackItDatabase): String {
@@ -74,7 +70,7 @@ object TrackItBackupManager {
         require(data.has("recurring_transactions").not() || data.optJSONArray("recurring_transactions") != null) {
             "The recurring transaction data is malformed."
         }
-        require(data.keys().asSequence().all { it in tables || it in removedLegacyTables }) { "The backup contains an unknown table." }
+        require(data.keys().asSequence().all { it in tables }) { "The backup contains an unknown table." }
 
         val sqlDb = database.openHelper.writableDatabase
         var restoredRows = 0
