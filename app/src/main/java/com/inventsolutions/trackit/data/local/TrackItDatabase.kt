@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class, Hustle::class, HustleTransaction::class, HustleDebt::class, HustleDebtSettlement::class],
-    version = 10,
+    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class],
+    version = 11,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
@@ -18,7 +18,6 @@ abstract class TrackItDatabase : RoomDatabase() {
     abstract fun expenseCategoryDao(): ExpenseCategoryDao
     abstract fun financialRecordDao(): FinancialRecordDao
     abstract fun recurringTransactionDao(): RecurringTransactionDao
-    abstract fun hustleDao(): HustleDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -92,12 +91,21 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("DROP TABLE IF EXISTS hustle_debt_settlements")
+                database.execSQL("DROP TABLE IF EXISTS hustle_transactions")
+                database.execSQL("DROP TABLE IF EXISTS hustle_debts")
+                database.execSQL("DROP TABLE IF EXISTS hustles")
+            }
+        }
+
         @Volatile private var INSTANCE: TrackItDatabase? = null
 
         fun getInstance(context: Context): TrackItDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(context.applicationContext, TrackItDatabase::class.java, "trackit_database")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     .build()
                     .also { INSTANCE = it }
             }
