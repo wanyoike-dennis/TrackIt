@@ -120,6 +120,10 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val personalProfile = context.getSharedPreferences("trackit_personal_profile", android.content.Context.MODE_PRIVATE)
+    val profileName = personalProfile.getString("full_name", "").orEmpty().trim()
+    val profileInitials = profileName.split(" ").filter { it.isNotBlank() }.take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("").ifBlank { "P" }
     var selectedTab by remember { mutableStateOf("Home") }
     var entryType by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf(false) }
@@ -537,8 +541,14 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                 Text(greeting, style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.height(2.dp))
-                                Text("Your money at a glance", style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                                Text(
+                                    if (profileName.isNotBlank()) "$greeting, $profileName" else "Your money at a glance",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                                 Spacer(Modifier.height(3.dp))
                                 Text(SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()),
                                     style = MaterialTheme.typography.bodyMedium,
@@ -550,7 +560,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     .clickable { selectedTab = "Profile" },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("T", style = MaterialTheme.typography.titleLarge,
+                                Text(profileInitials, style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
