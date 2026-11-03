@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.ui.screens.accounts.AccountsScreen
 import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.ui.theme.TrackItAmber
 import com.inventsolutions.trackit.ui.theme.TrackItAmberTint
 import com.inventsolutions.trackit.ui.theme.TrackItBackgroundDark
@@ -239,7 +240,16 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
             it.createdAtEpochMillis >= account.openingDateEpochMillis &&
                 (it.fromAccountId == account.id || it.toAccountId == account.id)
         }.sumOf { if (it.toAccountId == account.id) it.amountMinor else -it.amountMinor }
-        account.openingBalanceMinor + transactionMovement + transferMovement
+        val financialMovement = uiState.financialEntries.filter {
+            it.accountId == account.id && it.createdAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf {
+            when (it.entryType) {
+                FinancialRecordEntry.CONTRIBUTION, FinancialRecordEntry.REPAYMENT -> -it.amountMinor
+                FinancialRecordEntry.WITHDRAWAL, FinancialRecordEntry.COLLECTION -> it.amountMinor
+                else -> 0L
+            }
+        }
+        account.openingBalanceMinor + transactionMovement + transferMovement + financialMovement
     }
     val availableBalance = if (uiState.accounts.any { !it.archived }) accountBalancesTotal
         else allIncome - allRecordedExpenses - savingsContributions - debtRepayments + debtCollections
@@ -455,6 +465,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
             } else if (selectedTab == "Activity") {
                 TransactionHistoryScreen(
                     transactions = uiState.transactions,
+                    accounts = uiState.accounts,
                     errorMessage = uiState.errorMessage,
                     onBack = { selectedTab = "Home"; viewModel.clearError() },
                     onUpdate = viewModel::updateTransaction,
@@ -552,8 +563,8 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                             plannedContributionMinor = plannedContributionMinor
                         )
                     },
-                    onAddProgress = viewModel::addFinancialProgress,
-                    onWithdraw = viewModel::withdrawSavings,
+                    onAddProgress = { record, amount, note, accountId -> viewModel.addFinancialProgress(record, amount, note, accountId) },
+                    onWithdraw = { record, amount, note, accountId -> viewModel.withdrawSavings(record, amount, note, accountId) },
                     onEdit = viewModel::updateFinancialRecord,
                     onDelete = viewModel::deleteFinancialRecord,
                     onClearError = viewModel::clearError
