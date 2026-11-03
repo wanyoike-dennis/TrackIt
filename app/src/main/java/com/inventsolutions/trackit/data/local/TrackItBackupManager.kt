@@ -19,7 +19,9 @@ object TrackItBackupManager {
         "financial_records",
         "transactions",
         "recurring_transactions",
-        "financial_record_entries"
+        "financial_record_entries",
+        "financial_accounts",
+        "account_transfers"
     )
     private val requiredLegacyTables = setOf(
         "expense_categories", "monthly_budgets", "financial_records",
@@ -76,7 +78,7 @@ object TrackItBackupManager {
         var restoredRows = 0
         sqlDb.beginTransaction()
         try {
-            listOf("financial_record_entries", "recurring_transactions", "transactions", "financial_records", "monthly_budgets", "expense_categories")
+            listOf("account_transfers", "financial_record_entries", "recurring_transactions", "transactions", "financial_records", "monthly_budgets", "expense_categories", "financial_accounts")
                 .forEach { table ->
                     if (table != "recurring_transactions" || data.has(table)) sqlDb.delete(table, null, null)
                 }
