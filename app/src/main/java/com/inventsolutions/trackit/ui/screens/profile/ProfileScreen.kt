@@ -31,6 +31,7 @@ private const val PROFILE_PREFS = "trackit_personal_profile"
 @Composable
 fun ProfileScreen(
     onOpenPersonalInformation: () -> Unit,
+    onOpenAppearance: () -> Unit,
     onOpenBackupRestore: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -120,7 +121,7 @@ fun ProfileScreen(
             title = "Appearance",
             description = "Theme and display preferences",
             icon = { Text("◐", color = MaterialTheme.colorScheme.primary) },
-            onClick = {}
+            onClick = onOpenAppearance
         )
 
         Spacer(Modifier.height(2.dp))
