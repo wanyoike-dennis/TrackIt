@@ -106,6 +106,7 @@ abstract class TrackItDatabase : RoomDatabase() {
         private val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE financial_record_entries ADD COLUMN accountId INTEGER")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_financial_record_entries_accountId ON financial_record_entries(accountId)")
             }
         }
 
