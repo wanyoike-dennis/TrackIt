@@ -80,6 +80,7 @@ import com.inventsolutions.trackit.ui.screens.transactions.TransactionHistoryScr
 import com.inventsolutions.trackit.ui.screens.reports.ReportScreen
 import com.inventsolutions.trackit.ui.screens.finances.FinancialPlansScreen
 import com.inventsolutions.trackit.ui.screens.profile.ProfileScreen
+import com.inventsolutions.trackit.ui.screens.profile.PersonalInformationScreen
 import com.inventsolutions.trackit.ui.screens.profile.BackupRestoreScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
@@ -345,7 +346,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (entryType == null && selectedTab != "Profile" && selectedTab != "Backup") {
+            if (entryType == null && selectedTab != "Profile" && selectedTab != "PersonalInformation" && selectedTab != "Backup") {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -470,8 +471,13 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                 )
             } else if (selectedTab == "Profile") {
                 ProfileScreen(
+                    onOpenPersonalInformation = { selectedTab = "PersonalInformation" },
                     onOpenBackupRestore = { selectedTab = "Backup" },
                     onBack = { selectedTab = "Home" }
+                )
+            } else if (selectedTab == "PersonalInformation") {
+                PersonalInformationScreen(
+                    onBack = { selectedTab = "Profile" }
                 )
             } else if (selectedTab == "Backup") {
                 BackupRestoreScreen(
