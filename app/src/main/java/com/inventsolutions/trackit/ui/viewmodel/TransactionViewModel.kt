@@ -185,12 +185,14 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         description: String,
         paymentMethod: String,
         frequency: String,
-        firstRunEpochMillis: Long
+        firstRunEpochMillis: Long,
+        accountId: Long? = null
     ) {
         if (title.isBlank() || category.isBlank() || amountMinor <= 0L ||
             type !in setOf(MoneyTransaction.INCOME, MoneyTransaction.EXPENSE) ||
             paymentMethod.isBlank() ||
-            frequency !in setOf(RecurringTransaction.WEEKLY, RecurringTransaction.MONTHLY)
+            frequency !in setOf(RecurringTransaction.WEEKLY, RecurringTransaction.MONTHLY) ||
+            (accountId != null && _uiState.value.accounts.none { it.id == accountId && !it.archived })
         ) {
             _uiState.update { it.copy(errorMessage = "Enter a title, valid amount, category, payment method and repeat frequency.") }
             return
@@ -207,7 +209,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                         description = description.trim(),
                         paymentMethod = paymentMethod.trim(),
                         frequency = frequency,
-                        nextRunEpochMillis = firstRunEpochMillis
+                        nextRunEpochMillis = firstRunEpochMillis,
+                        accountId = accountId
                     )
                 )
                 processDueRecurringTransactions()
