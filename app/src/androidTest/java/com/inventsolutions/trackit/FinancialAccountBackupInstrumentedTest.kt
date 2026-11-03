@@ -14,7 +14,6 @@ import com.inventsolutions.trackit.data.local.TrackItDatabase
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -136,7 +135,7 @@ class FinancialAccountBackupInstrumentedTest {
 
         val restoredRows = TrackItBackupManager.restore(database, backup)
 
-        assertEquals(8, restoredRows)
+        assertEquals(10, restoredRows)
         assertEquals(2, database.financialAccountDao().observeAll().firstForTest().size)
         assertEquals(1, database.accountTransferDao().observeAll().firstForTest().size)
         assertEquals(3, database.financialRecordDao().observeAllEntries().firstForTest().size)
