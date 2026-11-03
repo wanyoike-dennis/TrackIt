@@ -493,6 +493,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     financialRecords = uiState.financialRecords,
                     financialEntries = uiState.financialEntries,
                     recurringTransactions = uiState.recurringTransactions,
+                    accounts = uiState.accounts,
                     onBackToHome = { selectedTab = "Home" },
                     onAddRecurringTransaction = viewModel::addRecurringTransaction,
                     onSetRecurringTransactionActive = viewModel::setRecurringTransactionActive,
