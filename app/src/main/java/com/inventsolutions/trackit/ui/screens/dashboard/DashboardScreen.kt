@@ -465,7 +465,6 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
             } else if (selectedTab == "Activity") {
                 TransactionHistoryScreen(
                     transactions = uiState.transactions,
-                    accounts = uiState.accounts,
                     errorMessage = uiState.errorMessage,
                     onBack = { selectedTab = "Home"; viewModel.clearError() },
                     onUpdate = viewModel::updateTransaction,
