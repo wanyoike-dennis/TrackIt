@@ -1,5 +1,6 @@
 package com.inventsolutions.trackit.ui.screens.profile
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+
+private const val PROFILE_PREFS = "trackit_personal_profile"
 
 @Composable
 fun ProfileScreen(
@@ -29,6 +34,19 @@ fun ProfileScreen(
     onOpenBackupRestore: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val preferences = context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
+    val fullName = preferences.getString("full_name", "").orEmpty()
+    val email = preferences.getString("email", "").orEmpty()
+    val phone = preferences.getString("phone", "").orEmpty()
+    val location = preferences.getString("location", "").orEmpty()
+    val initials = fullName.trim().split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifBlank { "P" }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -45,24 +63,46 @@ fun ProfileScreen(
         }
 
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenPersonalInformation),
             shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Row(
+            Column(
                 Modifier.fillMaxWidth().padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                    Text("P", modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                        Text(initials, modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(fullName.ifBlank { "Your name" }, style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold)
+                        Text(email.ifBlank { "Add your email address" }, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("Edit  ›", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("Personal profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Keep your contact details up to date.", style = MaterialTheme.typography.bodySmall,
+                if (phone.isNotBlank() || location.isNotBlank()) {
+                    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    if (phone.isNotBlank()) {
+                        ProfileDetailLine(label = "Phone", value = phone)
+                    }
+                    if (location.isNotBlank()) {
+                        ProfileDetailLine(label = "Location", value = location)
+                    }
+                }
+                if (fullName.isBlank() && email.isBlank() && phone.isBlank() && location.isBlank()) {
+                    Text("Add your personal details to complete your profile.",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -72,7 +112,7 @@ fun ProfileScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         ProfileOption(
             title = "Personal information",
-            description = "Name, email, phone and location",
+            description = "Update your name, email, phone and location",
             icon = { Text("●", color = MaterialTheme.colorScheme.primary) },
             onClick = onOpenPersonalInformation
         )
@@ -102,6 +142,16 @@ fun ProfileScreen(
             icon = { Text("?", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge) },
             onClick = {}
         )
+    }
+}
+
+@Composable
+private fun ProfileDetailLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, modifier = Modifier.weight(0.32f), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, modifier = Modifier.weight(0.68f), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
