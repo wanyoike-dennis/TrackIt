@@ -231,7 +231,18 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
             dueDate != null && dueDate >= todayStartForReminder(now) && dueDate < reminderWindowEnd
         }
         .sortedBy { it.dueDateEpochMillis }
-    val availableBalance = allIncome - allRecordedExpenses - savingsContributions - debtRepayments + debtCollections
+    val accountBalancesTotal = uiState.accounts.filter { !it.archived }.sumOf { account ->
+        val transactionMovement = uiState.transactions.filter {
+            it.accountId == account.id && it.createdAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf { if (it.type == MoneyTransaction.INCOME) it.amountMinor else -it.amountMinor }
+        val transferMovement = uiState.accountTransfers.filter {
+            it.createdAtEpochMillis >= account.openingDateEpochMillis &&
+                (it.fromAccountId == account.id || it.toAccountId == account.id)
+        }.sumOf { if (it.toAccountId == account.id) it.amountMinor else -it.amountMinor }
+        account.openingBalanceMinor + transactionMovement + transferMovement
+    }
+    val availableBalance = if (uiState.accounts.any { !it.archived }) accountBalancesTotal
+        else allIncome - allRecordedExpenses - savingsContributions - debtRepayments + debtCollections
     val todayStart = remember {
         (now.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -1530,7 +1541,7 @@ private fun TrackItNavigationIcon(
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.66f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.67f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
             }
 
-            "Money" -> {
+            "Accounts" -> {\n                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))\n                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.43f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.43f), strokeWidth = stroke, cap = cap)\n                drawCircle(color, radius = stroke * 0.8f, center = androidx.compose.ui.geometry.Offset(w * 0.68f, h * 0.64f))\n            }\n            "Money" -> {
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
                 drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.55f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.33f, h * 0.23f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
                 drawCircle(color, radius = stroke * 0.9f, center = androidx.compose.ui.geometry.Offset(w * 0.67f, h * 0.545f))
