@@ -9,6 +9,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.inventsolutions.trackit.notifications.BudgetNotifications
 import com.inventsolutions.trackit.ui.screens.dashboard.DashboardScreen
 import com.inventsolutions.trackit.ui.theme.TrackItTheme
@@ -24,8 +29,26 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         transactionViewModel = ViewModelProvider(this)[TransactionViewModel::class.java]
         setContent {
-            TrackItTheme {
-                DashboardScreen(transactionViewModel)
+            val appearancePreferences = getSharedPreferences("trackit_appearance", MODE_PRIVATE)
+            var themeMode by remember {
+                mutableStateOf(appearancePreferences.getString("theme_mode", "system") ?: "system")
+            }
+            val darkTheme = when (themeMode) {
+                "light" -> false
+                "dark" -> true
+                else -> isSystemInDarkTheme()
+            }
+            TrackItTheme(darkTheme = darkTheme) {
+                DashboardScreen(
+                    viewModel = transactionViewModel,
+                    themeMode = themeMode,
+                    onThemeModeChanged = { mode ->
+                        if (mode == "system" || mode == "light" || mode == "dark") {
+                            appearancePreferences.edit().putString("theme_mode", mode).apply()
+                            themeMode = mode
+                        }
+                    }
+                )
             }
         }
     }
