@@ -19,7 +19,8 @@ data class MoneyTransaction(
     val paymentMethod: String,
     val dateEpochMillis: Long,
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
-    val allowanceRecordId: Long? = null
+    val allowanceRecordId: Long? = null,
+    val accountId: Long? = null
 ) {
     companion object {
         const val INCOME = "INCOME"
