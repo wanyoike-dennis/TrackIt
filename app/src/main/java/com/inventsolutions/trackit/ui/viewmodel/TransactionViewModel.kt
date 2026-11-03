@@ -738,11 +738,22 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun addAccountTransfer(fromAccountId: Long, toAccountId: Long, amountMinor: Long, dateEpochMillis: Long, note: String = "") {
         val state = _uiState.value
-        if (fromAccountId == toAccountId || amountMinor <= 0L ||
-            state.accounts.none { it.id == fromAccountId && !it.archived } ||
-            state.accounts.none { it.id == toAccountId && !it.archived }
-        ) {
+        val source = state.accounts.firstOrNull { it.id == fromAccountId && !it.archived }
+        val destinationExists = state.accounts.any { it.id == toAccountId && !it.archived }
+        if (fromAccountId == toAccountId || amountMinor <= 0L || source == null || !destinationExists) {
             _uiState.update { it.copy(errorMessage = "Choose two different active accounts and enter a valid amount.") }
+            return
+        }
+        val sourceTransactions = state.transactions.filter {
+            it.accountId == fromAccountId && it.createdAtEpochMillis >= source.openingDateEpochMillis
+        }.sumOf { if (it.type == MoneyTransaction.INCOME) it.amountMinor else -it.amountMinor }
+        val sourceTransfers = state.accountTransfers.filter {
+            it.createdAtEpochMillis >= source.openingDateEpochMillis &&
+                (it.fromAccountId == fromAccountId || it.toAccountId == fromAccountId)
+        }.sumOf { if (it.toAccountId == fromAccountId) it.amountMinor else -it.amountMinor }
+        val sourceBalance = source.openingBalanceMinor + sourceTransactions + sourceTransfers
+        if (amountMinor > sourceBalance) {
+            _uiState.update { it.copy(errorMessage = "This transfer is more than the available balance in " + source.name + ".") }
             return
         }
         viewModelScope.launch {
