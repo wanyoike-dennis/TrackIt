@@ -551,6 +551,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     records = uiState.financialRecords,
                     entries = uiState.financialEntries,
                     transactions = uiState.transactions,
+                    accounts = uiState.accounts,
                     errorMessage = uiState.errorMessage,
                     onBackToHome = { selectedTab = "Home" },
                     onAdd = { type, title, targetMinor, dueDateEpochMillis, notes, savingsCategory, contributionMethod, plannedContributionMinor ->
