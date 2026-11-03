@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import com.inventsolutions.trackit.data.local.ExpenseCategory
+import com.inventsolutions.trackit.data.local.FinancialAccount
+import com.inventsolutions.trackit.data.local.AccountTransfer
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
@@ -37,6 +39,8 @@ data class TransactionUiState(
     val financialRecords: List<FinancialRecord> = emptyList(),
     val financialEntries: List<FinancialRecordEntry> = emptyList(),
     val recurringTransactions: List<RecurringTransaction> = emptyList(),
+    val accounts: List<FinancialAccount> = emptyList(),
+    val accountTransfers: List<AccountTransfer> = emptyList(),
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
@@ -117,6 +121,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val categoryRepository = ExpenseCategoryRepository(database.expenseCategoryDao())
     private val financialRecordDao = database.financialRecordDao()
     private val recurringTransactionDao = database.recurringTransactionDao()
+    private val financialAccountDao = database.financialAccountDao()
+    private val accountTransferDao = database.accountTransferDao()
     private val recurringProcessingMutex = Mutex()
     private val monthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
@@ -154,6 +160,16 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             recurringTransactionDao.observeAll().collect { items ->
                 _uiState.update { it.copy(recurringTransactions = items) }
+            }
+        }
+        viewModelScope.launch {
+            financialAccountDao.observeAll().collect { accounts ->
+                _uiState.update { it.copy(accounts = accounts) }
+            }
+        }
+        viewModelScope.launch {
+            accountTransferDao.observeAll().collect { transfers ->
+                _uiState.update { it.copy(accountTransfers = transfers) }
             }
         }
         viewModelScope.launch {
@@ -244,7 +260,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                             category = item.category,
                             description = listOf(item.title, item.description).filter { it.isNotBlank() }.joinToString(" — "),
                             paymentMethod = item.paymentMethod,
-                            dateEpochMillis = occurrenceDate
+                            dateEpochMillis = occurrenceDate,
+                            accountId = item.accountId
                         )
                     )
                     recurringTransactionDao.update(item.copy(nextRunEpochMillis = nextRun))
@@ -260,7 +277,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         description: String,
         paymentMethod: String,
         dateEpochMillis: Long,
-        allowanceRecordId: Long? = null
+        allowanceRecordId: Long? = null,
+        accountId: Long? = null
     ): Boolean {
         if (amountMinor <= 0L) {
             _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
@@ -292,7 +310,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 description = description.trim(),
                 paymentMethod = paymentMethod,
                 dateEpochMillis = dateEpochMillis,
-                allowanceRecordId = if (type == MoneyTransaction.EXPENSE) allowanceRecordId else null
+                allowanceRecordId = if (type == MoneyTransaction.EXPENSE) allowanceRecordId else null,
+                accountId = accountId
             )
             val stateBeforeSave = _uiState.value
             database.withTransaction {
@@ -682,6 +701,65 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 _uiState.update { it.copy(errorMessage = null) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(errorMessage = "Couldn't delete this record. Please try again.") }
+            }
+        }
+    }
+
+    fun addFinancialAccount(name: String, type: String, openingBalanceMinor: Long, openingDateEpochMillis: Long = System.currentTimeMillis()) {
+        val cleanName = name.trim()
+        if (cleanName.isBlank() || type !in FinancialAccount.TYPES || openingBalanceMinor < 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter an account name and a valid opening balance.") }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                financialAccountDao.insert(
+                    FinancialAccount(
+                        name = cleanName,
+                        type = type,
+                        openingBalanceMinor = openingBalanceMinor,
+                        openingDateEpochMillis = openingDateEpochMillis
+                    )
+                )
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't create this account. Please try again.") }
+            }
+        }
+    }
+
+    fun archiveFinancialAccount(account: FinancialAccount) {
+        viewModelScope.launch {
+            runCatching { financialAccountDao.update(account.copy(archived = true)) }
+                .onFailure { _uiState.update { state -> state.copy(errorMessage = "Couldn't archive this account.") } }
+        }
+    }
+
+    fun addAccountTransfer(fromAccountId: Long, toAccountId: Long, amountMinor: Long, dateEpochMillis: Long, note: String = "") {
+        val state = _uiState.value
+        if (fromAccountId == toAccountId || amountMinor <= 0L ||
+            state.accounts.none { it.id == fromAccountId && !it.archived } ||
+            state.accounts.none { it.id == toAccountId && !it.archived }
+        ) {
+            _uiState.update { it.copy(errorMessage = "Choose two different active accounts and enter a valid amount.") }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                accountTransferDao.insert(
+                    AccountTransfer(
+                        fromAccountId = fromAccountId,
+                        toAccountId = toAccountId,
+                        amountMinor = amountMinor,
+                        note = note.trim(),
+                        dateEpochMillis = dateEpochMillis
+                    )
+                )
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't record this transfer. Please try again.") }
             }
         }
     }
