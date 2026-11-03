@@ -777,6 +777,25 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun updateFinancialAccount(account: FinancialAccount) {
+        val cleanName = account.name.trim()
+        if (cleanName.isBlank() || account.type !in FinancialAccount.TYPES) {
+            _uiState.update { it.copy(errorMessage = "Enter a valid account name and type.") }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                val existing = _uiState.value.accounts.firstOrNull { it.id == account.id }
+                    ?: error("Account no longer exists.")
+                financialAccountDao.update(existing.copy(name = cleanName, type = account.type))
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't update this account. Please try again.") }
+            }
+        }
+    }
+
     fun archiveFinancialAccount(account: FinancialAccount) {
         viewModelScope.launch {
             runCatching { financialAccountDao.update(account.copy(archived = true)) }
