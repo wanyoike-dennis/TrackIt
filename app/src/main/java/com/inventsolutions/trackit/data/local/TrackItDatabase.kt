@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class, FinancialAccount::class, AccountTransfer::class],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
@@ -103,12 +103,18 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE financial_record_entries ADD COLUMN accountId INTEGER")
+            }
+        }
+
         @Volatile private var INSTANCE: TrackItDatabase? = null
 
         fun getInstance(context: Context): TrackItDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(context.applicationContext, TrackItDatabase::class.java, "trackit_database")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                     .build()
                     .also { INSTANCE = it }
             }
