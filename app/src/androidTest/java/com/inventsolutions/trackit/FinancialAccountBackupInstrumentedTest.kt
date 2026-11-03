@@ -11,6 +11,7 @@ import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.TrackItBackupManager
 import com.inventsolutions.trackit.data.local.TrackItDatabase
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -181,5 +182,5 @@ class FinancialAccountBackupInstrumentedTest {
     }
 
     private suspend fun <T> kotlinx.coroutines.flow.Flow<T>.firstForTest(): T =
-        kotlinx.coroutines.flow.first(this)
+        this.first()
 }
