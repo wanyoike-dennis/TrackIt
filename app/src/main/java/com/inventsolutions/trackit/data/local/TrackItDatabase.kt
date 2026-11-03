@@ -91,7 +91,7 @@ abstract class TrackItDatabase : RoomDatabase() {
 
         private val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("CREATE TABLE IF NOT EXISTS financial_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL, openingBalanceMinor INTEGER NOT NULL, openingDateEpochMillis INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'KES', archived INTEGER NOT NULL DEFAULT 0, createdAtEpochMillis INTEGER NOT NULL)")
+                database.execSQL("CREATE TABLE IF NOT EXISTS financial_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL, openingBalanceMinor INTEGER NOT NULL, openingDateEpochMillis INTEGER NOT NULL, currency TEXT NOT NULL, archived INTEGER NOT NULL, createdAtEpochMillis INTEGER NOT NULL)")
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_financial_accounts_archived ON financial_accounts(archived)")
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_financial_accounts_createdAtEpochMillis ON financial_accounts(createdAtEpochMillis)")
                 database.execSQL("CREATE TABLE IF NOT EXISTS account_transfers (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, fromAccountId INTEGER NOT NULL, toAccountId INTEGER NOT NULL, amountMinor INTEGER NOT NULL, note TEXT NOT NULL, dateEpochMillis INTEGER NOT NULL, createdAtEpochMillis INTEGER NOT NULL)")
