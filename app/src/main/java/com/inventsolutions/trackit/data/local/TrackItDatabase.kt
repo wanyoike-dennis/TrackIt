@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class],
-    version = 11,
+    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class, FinancialAccount::class, AccountTransfer::class],
+    version = 12,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
@@ -18,6 +18,8 @@ abstract class TrackItDatabase : RoomDatabase() {
     abstract fun expenseCategoryDao(): ExpenseCategoryDao
     abstract fun financialRecordDao(): FinancialRecordDao
     abstract fun recurringTransactionDao(): RecurringTransactionDao
+    abstract fun financialAccountDao(): FinancialAccountDao
+    abstract fun accountTransferDao(): AccountTransferDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -87,12 +89,26 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS financial_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL, openingBalanceMinor INTEGER NOT NULL, openingDateEpochMillis INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'KES', archived INTEGER NOT NULL DEFAULT 0, createdAtEpochMillis INTEGER NOT NULL)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_financial_accounts_archived ON financial_accounts(archived)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_financial_accounts_createdAtEpochMillis ON financial_accounts(createdAtEpochMillis)")
+                database.execSQL("CREATE TABLE IF NOT EXISTS account_transfers (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, fromAccountId INTEGER NOT NULL, toAccountId INTEGER NOT NULL, amountMinor INTEGER NOT NULL, note TEXT NOT NULL, dateEpochMillis INTEGER NOT NULL, createdAtEpochMillis INTEGER NOT NULL)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_account_transfers_fromAccountId ON account_transfers(fromAccountId)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_account_transfers_toAccountId ON account_transfers(toAccountId)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_account_transfers_dateEpochMillis ON account_transfers(dateEpochMillis)")
+                database.execSQL("ALTER TABLE transactions ADD COLUMN accountId INTEGER")
+                database.execSQL("ALTER TABLE recurring_transactions ADD COLUMN accountId INTEGER")
+            }
+        }
+
         @Volatile private var INSTANCE: TrackItDatabase? = null
 
         fun getInstance(context: Context): TrackItDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(context.applicationContext, TrackItDatabase::class.java, "trackit_database")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                     .build()
                     .also { INSTANCE = it }
             }
