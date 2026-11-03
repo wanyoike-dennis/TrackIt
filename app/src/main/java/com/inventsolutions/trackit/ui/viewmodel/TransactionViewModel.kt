@@ -288,6 +288,10 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             _uiState.update { it.copy(errorMessage = "Choose or enter a category.") }
             return false
         }
+        if (accountId != null && _uiState.value.accounts.none { it.id == accountId && !it.archived }) {
+            _uiState.update { it.copy(errorMessage = "Choose an active account or leave the transaction unassigned.") }
+            return false
+        }
 
         if (allowanceRecordId != null) {
             val allowance = _uiState.value.financialRecords.firstOrNull { it.id == allowanceRecordId }
