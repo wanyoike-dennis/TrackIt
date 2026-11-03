@@ -15,6 +15,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +40,7 @@ import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.RecurringTransaction
+import com.inventsolutions.trackit.data.local.FinancialAccount
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -136,8 +139,9 @@ fun ReportScreen(
     financialRecords: List<FinancialRecord>,
     financialEntries: List<FinancialRecordEntry>,
     recurringTransactions: List<RecurringTransaction>,
+    accounts: List<FinancialAccount>,
     onBackToHome: () -> Unit,
-    onAddRecurringTransaction: (String, String, Long, String, String, String, String, Long) -> Unit,
+    onAddRecurringTransaction: (String, String, Long, String, String, String, String, Long, Long?) -> Unit,
     onSetRecurringTransactionActive: (RecurringTransaction, Boolean) -> Unit,
     onDeleteRecurringTransaction: (Long) -> Unit
 ) {
@@ -151,6 +155,8 @@ fun ReportScreen(
     var recurringPaymentMethod by remember { mutableStateOf("Cash") }
     var recurringFrequency by remember { mutableStateOf(RecurringTransaction.MONTHLY) }
     var recurringError by remember { mutableStateOf<String?>(null) }
+    var selectedRecurringAccountId by remember { mutableStateOf<Long?>(null) }
+    var recurringAccountMenuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val nowMillis = System.currentTimeMillis()
     val range = rangeFor(selectedPeriod, transactions, financialEntries, nowMillis)
@@ -424,6 +430,30 @@ fun ReportScreen(
                     OutlinedTextField(value = recurringCategory, onValueChange = { recurringCategory = it }, label = { Text("Category") }, singleLine = true)
                     OutlinedTextField(value = recurringDescription, onValueChange = { recurringDescription = it }, label = { Text("Description (optional)") }, singleLine = true)
                     OutlinedTextField(value = recurringPaymentMethod, onValueChange = { recurringPaymentMethod = it }, label = { Text("Payment method") }, singleLine = true)
+                    if (accounts.any { !it.archived }) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Account (optional)", style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            androidx.compose.foundation.layout.Box {
+                                OutlinedButton(onClick = { recurringAccountMenuExpanded = true }) {
+                                    Text(accounts.firstOrNull { it.id == selectedRecurringAccountId }?.name ?: "Unassigned")
+                                }
+                                DropdownMenu(expanded = recurringAccountMenuExpanded, onDismissRequest = { recurringAccountMenuExpanded = false }) {
+                                    DropdownMenuItem(text = { Text("Unassigned") }, onClick = {
+                                        selectedRecurringAccountId = null
+                                        recurringAccountMenuExpanded = false
+                                    })
+                                    accounts.filter { !it.archived }.forEach { account ->
+                                        DropdownMenuItem(text = { Text(account.name) }, onClick = {
+                                            selectedRecurringAccountId = account.id
+                                            recurringAccountMenuExpanded = false
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(selected = recurringFrequency == RecurringTransaction.WEEKLY, onClick = { recurringFrequency = RecurringTransaction.WEEKLY }, label = { Text("Weekly") })
                         FilterChip(selected = recurringFrequency == RecurringTransaction.MONTHLY, onClick = { recurringFrequency = RecurringTransaction.MONTHLY }, label = { Text("Monthly") })
@@ -440,11 +470,11 @@ fun ReportScreen(
                     } else {
                         onAddRecurringTransaction(
                             recurringTitle, recurringType, minor, recurringCategory, recurringDescription,
-                            recurringPaymentMethod, recurringFrequency, System.currentTimeMillis()
+                            recurringPaymentMethod, recurringFrequency, System.currentTimeMillis(), selectedRecurringAccountId
                         )
                         showRecurringDialog = false
                         recurringTitle = ""; recurringAmount = ""; recurringCategory = ""; recurringDescription = ""
-                        recurringPaymentMethod = "Cash"; recurringError = null
+                        recurringPaymentMethod = "Cash"; selectedRecurringAccountId = null; recurringError = null
                     }
                 }) { Text("Save schedule") }
             },
