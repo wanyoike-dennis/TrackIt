@@ -54,6 +54,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.ui.screens.accounts.AccountsScreen
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.ui.theme.TrackItAmber
 import com.inventsolutions.trackit.ui.theme.TrackItAmberTint
@@ -368,7 +369,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                         horizontalArrangement = Arrangement.spacedBy(3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("Home", "Activity", "Budgets", "Reports", "Money").forEach { tab ->
+                        listOf("Home", "Activity", "Budgets", "Reports", "Accounts", "Money").forEach { tab ->
                             val selected = selectedTab == tab
                             val activeColor = MaterialTheme.colorScheme.primary
                             val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -413,13 +414,14 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     transactions = uiState.transactions,
                     expenseCategories = uiState.expenseCategories,
                     allowances = uiState.financialRecords.filter { it.type == FinancialRecord.ALLOWANCE },
+                    accounts = uiState.accounts,
                     onBack = {
                         entryType = null
                         viewModel.clearError()
                     },
                     onClearError = viewModel::clearError,
                     onCreateCategory = viewModel::createExpenseCategory,
-                    onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId ->
+                    onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId, accountId ->
                         scope.launch {
                             val saved = viewModel.addTransaction(
                                 type = type,
@@ -428,7 +430,8 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                                 description = description,
                                 paymentMethod = paymentMethod,
                                 dateEpochMillis = dateEpochMillis,
-                                allowanceRecordId = allowanceRecordId
+                                allowanceRecordId = allowanceRecordId,
+                                accountId = accountId
                             )
                             if (saved) {
                                 entryType = null
@@ -508,6 +511,18 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                         }
                     },
                     onRestoreBackup = { restoreBackupLauncher.launch(arrayOf("application/json", "text/*")) }
+                )
+            } else if (selectedTab == "Accounts") {
+                AccountsScreen(
+                    accounts = uiState.accounts,
+                    transactions = uiState.transactions,
+                    transfers = uiState.accountTransfers,
+                    errorMessage = uiState.errorMessage,
+                    onAddAccount = viewModel::addFinancialAccount,
+                    onTransfer = viewModel::addAccountTransfer,
+                    onArchive = viewModel::archiveFinancialAccount,
+                    onClearError = viewModel::clearError,
+                    onBack = { selectedTab = "Home"; viewModel.clearError() }
                 )
             } else if (selectedTab == "Money") {
                 FinancialPlansScreen(
