@@ -538,17 +538,17 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
                                     in 12..16 -> "Good afternoon"
                                     else -> "Good evening"
                                 }
-                                Text(greeting, style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(2.dp))
                                 Text(
-                                    if (profileName.isNotBlank()) "$greeting, $profileName" else "Your money at a glance",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground,
+                                    if (profileName.isNotBlank()) "$greeting, $profileName" else greeting,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                Spacer(Modifier.height(2.dp))
+                                Text("Your money at a glance", style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                                 Spacer(Modifier.height(3.dp))
                                 Text(SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()),
                                     style = MaterialTheme.typography.bodyMedium,
