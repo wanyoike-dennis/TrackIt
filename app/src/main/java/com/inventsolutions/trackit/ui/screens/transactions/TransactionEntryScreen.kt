@@ -40,6 +40,7 @@ import com.inventsolutions.trackit.data.local.ExpenseCategory
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.MonthlyBudget
+import com.inventsolutions.trackit.data.local.FinancialAccount
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DateFormat
@@ -74,6 +75,7 @@ fun TransactionEntryScreen(
     transactions: List<MoneyTransaction>,
     expenseCategories: List<ExpenseCategory>,
     allowances: List<FinancialRecord>,
+    accounts: List<FinancialAccount>,
     onBack: () -> Unit,
     onClearError: () -> Unit,
     onCreateCategory: (name: String, budgetLimitMinor: Long?, budgetType: String) -> Unit,
@@ -84,7 +86,8 @@ fun TransactionEntryScreen(
         description: String,
         paymentMethod: String,
         dateEpochMillis: Long,
-        allowanceRecordId: Long?
+        allowanceRecordId: Long?,
+        accountId: Long?
     ) -> Unit
 ) {
     val context = LocalContext.current
@@ -96,6 +99,8 @@ fun TransactionEntryScreen(
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var allowanceMenuExpanded by remember { mutableStateOf(false) }
     var selectedAllowanceId by remember { mutableStateOf<Long?>(null) }
+    var selectedAccountId by remember { mutableStateOf<Long?>(null) }
+    var accountMenuExpanded by remember { mutableStateOf(false) }
     var createCategoryDialog by remember { mutableStateOf(false) }
     var newCategoryName by remember { mutableStateOf("") }
     var createBudgetNow by remember { mutableStateOf(false) }
@@ -457,6 +462,29 @@ fun TransactionEntryScreen(
                         )
                     }
                 }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Account (optional)", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedButton(onClick = { accountMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(accounts.firstOrNull { it.id == selectedAccountId && !it.archived }?.name ?: "Not assigned to an account")
+                    }
+                    DropdownMenu(expanded = accountMenuExpanded, onDismissRequest = { accountMenuExpanded = false }) {
+                        DropdownMenuItem(text = { Text("Not assigned") }, onClick = {
+                            selectedAccountId = null
+                            accountMenuExpanded = false
+                        })
+                        accounts.filter { !it.archived }.forEach { account ->
+                            DropdownMenuItem(text = { Text(account.name) }, onClick = {
+                                selectedAccountId = account.id
+                                accountMenuExpanded = false
+                            })
+                        }
+                    }
+                    Text("Choose where this money came from or went. Account balances update from transactions recorded after the account opening date.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
@@ -526,7 +554,8 @@ fun TransactionEntryScreen(
                     description,
                     paymentMethod,
                     dateEpochMillis,
-                    selectedAllowanceId
+                    selectedAllowanceId,
+                    selectedAccountId
                 )
             },
             enabled = !isSaving,
