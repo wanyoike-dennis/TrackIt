@@ -23,7 +23,8 @@ data class FinancialRecordEntry(
     val entryType: String,
     val amountMinor: Long,
     val note: String = "",
-    val createdAtEpochMillis: Long = System.currentTimeMillis()
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
+    val accountId: Long? = null
 ) {
     companion object {
         const val CONTRIBUTION = "CONTRIBUTION"
