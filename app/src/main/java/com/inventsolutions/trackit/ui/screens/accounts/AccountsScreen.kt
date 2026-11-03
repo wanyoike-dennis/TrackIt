@@ -73,10 +73,10 @@ fun AccountsScreen(
     val active = accounts.filter { !it.archived }
     val balances = accounts.associate { account ->
         val transactionMovement = transactions.filter {
-            it.accountId == account.id && it.dateEpochMillis >= account.openingDateEpochMillis
+            it.accountId == account.id && it.createdAtEpochMillis >= account.openingDateEpochMillis
         }.sumOf { if (it.type == MoneyTransaction.INCOME) it.amountMinor else -it.amountMinor }
         val transferMovement = transfers.filter {
-            it.dateEpochMillis >= account.openingDateEpochMillis &&
+            it.createdAtEpochMillis >= account.openingDateEpochMillis &&
                 (it.fromAccountId == account.id || it.toAccountId == account.id)
         }.sumOf { if (it.toAccountId == account.id) it.amountMinor else -it.amountMinor }
         account.id to (account.openingBalanceMinor + transactionMovement + transferMovement)
