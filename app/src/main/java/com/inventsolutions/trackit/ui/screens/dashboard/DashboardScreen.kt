@@ -80,6 +80,7 @@ import com.inventsolutions.trackit.ui.screens.transactions.TransactionHistoryScr
 import com.inventsolutions.trackit.ui.screens.reports.ReportScreen
 import com.inventsolutions.trackit.ui.screens.finances.FinancialPlansScreen
 import com.inventsolutions.trackit.ui.screens.profile.ProfileScreen
+import com.inventsolutions.trackit.ui.screens.profile.AppearanceScreen
 import com.inventsolutions.trackit.ui.screens.profile.PersonalInformationScreen
 import com.inventsolutions.trackit.ui.screens.profile.BackupRestoreScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
@@ -116,7 +117,7 @@ private fun todayStartForReminder(source: Calendar): Long =
     }.timeInMillis
 
 @Composable
-fun DashboardScreen(viewModel: TransactionViewModel) {
+fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeModeChanged: (String) -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -350,7 +351,7 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (entryType == null && selectedTab != "Profile" && selectedTab != "PersonalInformation" && selectedTab != "Backup") {
+            if (entryType == null && selectedTab != "Profile" && selectedTab != "PersonalInformation" && selectedTab != "Backup" && selectedTab != "Appearance") {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -476,8 +477,15 @@ fun DashboardScreen(viewModel: TransactionViewModel) {
             } else if (selectedTab == "Profile") {
                 ProfileScreen(
                     onOpenPersonalInformation = { selectedTab = "PersonalInformation" },
+                    onOpenAppearance = { selectedTab = "Appearance" },
                     onOpenBackupRestore = { selectedTab = "Backup" },
                     onBack = { selectedTab = "Home" }
+                )
+            } else if (selectedTab == "Appearance") {
+                AppearanceScreen(
+                    selectedMode = themeMode,
+                    onModeSelected = onThemeModeChanged,
+                    onBack = { selectedTab = "Profile" }
                 )
             } else if (selectedTab == "PersonalInformation") {
                 PersonalInformationScreen(
