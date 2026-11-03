@@ -19,7 +19,8 @@ data class RecurringTransaction(
     val frequency: String,
     val nextRunEpochMillis: Long,
     val active: Boolean = true,
-    val createdAtEpochMillis: Long = System.currentTimeMillis()
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
+    val accountId: Long? = null
 ) {
     companion object {
         const val WEEKLY = "WEEKLY"
