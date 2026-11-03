@@ -630,7 +630,44 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun addFinancialProgress(record: FinancialRecord, amountMinor: Long, note: String = "") {
+    private fun accountBalanceMinor(accountId: Long): Long? {
+        val state = _uiState.value
+        val account = state.accounts.firstOrNull { it.id == accountId } ?: return null
+        val transactionMovement = state.transactions.filter {
+            it.accountId == accountId && it.createdAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf { if (it.type == MoneyTransaction.INCOME) it.amountMinor else -it.amountMinor }
+        val transferMovement = state.accountTransfers.filter {
+            it.createdAtEpochMillis >= account.openingDateEpochMillis &&
+                (it.fromAccountId == accountId || it.toAccountId == accountId)
+        }.sumOf { if (it.toAccountId == accountId) it.amountMinor else -it.amountMinor }
+        val entryMovement = state.financialEntries.filter {
+            it.accountId == accountId && it.createdAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf {
+            when (it.entryType) {
+                FinancialRecordEntry.CONTRIBUTION, FinancialRecordEntry.REPAYMENT -> -it.amountMinor
+                FinancialRecordEntry.WITHDRAWAL, FinancialRecordEntry.COLLECTION -> it.amountMinor
+                else -> 0L
+            }
+        }
+        return account.openingBalanceMinor + transactionMovement + transferMovement + entryMovement
+    }
+
+    private fun validateAccountMovement(accountId: Long?, amountMinor: Long, isOutgoing: Boolean): Boolean {
+        if (accountId == null) return true
+        val account = _uiState.value.accounts.firstOrNull { it.id == accountId && !it.archived }
+        if (account == null) {
+            _uiState.update { it.copy(errorMessage = "Choose an active account or leave the movement unassigned.") }
+            return false
+        }
+        val balance = accountBalanceMinor(accountId) ?: 0L
+        if (isOutgoing && amountMinor > balance) {
+            _uiState.update { it.copy(errorMessage = "This amount is more than the available balance in ${account.name}.") }
+            return false
+        }
+        return true
+    }
+
+    fun addFinancialProgress(record: FinancialRecord, amountMinor: Long, note: String = "", accountId: Long? = null) {
         if (amountMinor <= 0L) {
             _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
             return
@@ -648,6 +685,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             FinancialRecord.SAVINGS_GOAL -> FinancialRecordEntry.CONTRIBUTION
             else -> FinancialRecordEntry.SPENDING
         }
+        if (!validateAccountMovement(accountId, amountMinor, entryType == FinancialRecordEntry.CONTRIBUTION || entryType == FinancialRecordEntry.REPAYMENT)) return
         viewModelScope.launch {
             try {
                 financialRecordDao.saveProgress(
@@ -656,7 +694,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                         financialRecordId = record.id,
                         entryType = entryType,
                         amountMinor = amountMinor,
-                        note = note.trim()
+                        note = note.trim(),
+                        accountId = accountId
                     )
                 )
                 _uiState.update { it.copy(errorMessage = null) }
@@ -666,7 +705,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun withdrawSavings(record: FinancialRecord, amountMinor: Long, note: String = "") {
+    fun withdrawSavings(record: FinancialRecord, amountMinor: Long, note: String = "", accountId: Long? = null) {
         if (record.type != FinancialRecord.SAVINGS_GOAL || amountMinor <= 0L) {
             _uiState.update { it.copy(errorMessage = "Enter a valid withdrawal amount.") }
             return
@@ -675,6 +714,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             _uiState.update { it.copy(errorMessage = "You cannot withdraw more than the amount saved.") }
             return
         }
+        if (!validateAccountMovement(accountId, amountMinor, false)) return
         viewModelScope.launch {
             try {
                 financialRecordDao.saveProgress(
@@ -683,7 +723,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                         financialRecordId = record.id,
                         entryType = FinancialRecordEntry.WITHDRAWAL,
                         amountMinor = amountMinor,
-                        note = note.trim()
+                        note = note.trim(),
+                        accountId = accountId
                     )
                 )
                 _uiState.update { it.copy(errorMessage = null) }
