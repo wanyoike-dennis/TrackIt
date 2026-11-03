@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialAccount
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import java.text.SimpleDateFormat
@@ -64,11 +65,12 @@ fun FinancialPlansScreen(
     records: List<FinancialRecord>,
     entries: List<FinancialRecordEntry>,
     transactions: List<MoneyTransaction>,
+    accounts: List<FinancialAccount>,
     errorMessage: String?,
     onBackToHome: () -> Unit,
     onAdd: (type: String, title: String, targetMinor: Long, dueDateEpochMillis: Long?, notes: String, savingsCategory: String, contributionMethod: String, plannedContributionMinor: Long) -> Unit,
-    onAddProgress: (FinancialRecord, Long, String) -> Unit,
-    onWithdraw: (FinancialRecord, Long, String) -> Unit,
+    onAddProgress: (FinancialRecord, Long, String, Long?) -> Unit,
+    onWithdraw: (FinancialRecord, Long, String, Long?) -> Unit,
     onEdit: (FinancialRecord) -> Unit,
     onDelete: (Long) -> Unit,
     onClearError: () -> Unit
@@ -500,6 +502,7 @@ fun FinancialPlansScreen(
         var amount by remember(record.id) { mutableStateOf("") }
         var note by remember(record.id) { mutableStateOf("") }
         var validationError by remember(record.id) { mutableStateOf<String?>(null) }
+        var selectedAccountId by remember(record.id) { mutableStateOf<Long?>(null) }
         AlertDialog(
             onDismissRequest = { withdrawalRecord = null },
             title = { Text("Withdraw from savings", fontWeight = FontWeight.Bold) },
@@ -511,6 +514,7 @@ fun FinancialPlansScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
                         label = { Text("Withdrawal amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    AccountMovementSelector(accounts, selectedAccountId) { selectedAccountId = it }
                     OutlinedTextField(value = note, onValueChange = { note = it },
                         label = { Text("Reason (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
                     if (validationError != null) Text(validationError!!, color = MaterialTheme.colorScheme.error)
@@ -526,7 +530,7 @@ fun FinancialPlansScreen(
                         minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
                         minor > record.currentMinor -> validationError = "You cannot withdraw more than the amount saved."
                         else -> {
-                            onWithdraw(record, minor, note)
+                            onWithdraw(record, minor, note, selectedAccountId)
                             withdrawalRecord = null
                         }
                     }
@@ -540,6 +544,7 @@ fun FinancialPlansScreen(
         var amount by remember(record.id) { mutableStateOf("") }
         var note by remember(record.id) { mutableStateOf("") }
         var validationError by remember(record.id) { mutableStateOf<String?>(null) }
+        var selectedAccountId by remember(record.id) { mutableStateOf<Long?>(null) }
         val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
         val isDebt = record.type == FinancialRecord.DEBT_I_OWE || record.type == FinancialRecord.DEBT_OWED_TO_ME
         AlertDialog(
@@ -564,6 +569,7 @@ fun FinancialPlansScreen(
                     )
                     OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
                         label = { Text("Amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    AccountMovementSelector(accounts, selectedAccountId) { selectedAccountId = it }
                     OutlinedTextField(value = note, onValueChange = { note = it },
                         label = { Text("Note (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
                     if (validationError != null) {
@@ -582,7 +588,7 @@ fun FinancialPlansScreen(
                         minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
                         isDebt && minor > remaining -> validationError = "This is more than the outstanding debt."
                         else -> {
-                            onAddProgress(record, minor, note)
+                            onAddProgress(record, minor, note, selectedAccountId)
                             progressRecord = null
                         }
                     }
@@ -789,6 +795,27 @@ fun FinancialPlansScreen(
             },
             dismissButton = { TextButton(onClick = { deleteRecord = null }) { Text("Keep it") } }
         )
+    }
+}
+
+
+@Composable
+private fun AccountMovementSelector(
+    accounts: List<FinancialAccount>,
+    selectedAccountId: Long?,
+    onSelect: (Long?) -> Unit
+) {
+    if (accounts.none { !it.archived }) return
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Account (optional)", style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = selectedAccountId == null, onClick = { onSelect(null) }, label = { Text("Unassigned") })
+            accounts.filter { !it.archived }.forEach { account ->
+                FilterChip(selected = selectedAccountId == account.id, onClick = { onSelect(account.id) },
+                    label = { Text(account.name) })
+            }
+        }
     }
 }
 
