@@ -15,7 +15,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("financialRecordId"), Index("createdAtEpochMillis")]
+    indices = [Index("financialRecordId"), Index("createdAtEpochMillis"), Index("accountId")]
 )
 data class FinancialRecordEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
