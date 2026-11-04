@@ -1508,150 +1508,40 @@ private fun TrackItNavigationIcon(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.foundation.Canvas(modifier) {
-        val stroke = size.minDimension * 0.085f
-        val w = size.width
-        val h = size.height
-        val x = w / 2f
-        val y = h / 2f
-        val cap = androidx.compose.ui.graphics.StrokeCap.Round
-        val join = androidx.compose.ui.graphics.StrokeJoin.Round
-        when (destination) {
-            "Home" -> {
-                val roof = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(w * 0.15f, h * 0.47f)
-                    lineTo(x, h * 0.15f)
-                    lineTo(w * 0.85f, h * 0.47f)
-                }
-                drawPath(roof, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = cap, join = join))
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.25f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.5f, h * 0.43f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawLine(color, androidx.compose.ui.geometry.Offset(x, h * 0.64f), androidx.compose.ui.geometry.Offset(x, h * 0.86f), strokeWidth = stroke, cap = cap)
-            }
-            "Activity" -> {
-                // Transaction history: a simple clock with clear hands.
-                drawCircle(
-                    color = color,
-                    radius = size.minDimension * 0.34f,
-                    center = androidx.compose.ui.geometry.Offset(x, y),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
-                )
-                drawLine(
-                    color,
-                    androidx.compose.ui.geometry.Offset(x, h * 0.29f),
-                    androidx.compose.ui.geometry.Offset(x, y),
-                    strokeWidth = stroke,
-                    cap = cap
-                )
-                drawLine(
-                    color,
-                    androidx.compose.ui.geometry.Offset(x, y),
-                    androidx.compose.ui.geometry.Offset(w * 0.68f, h * 0.61f),
-                    strokeWidth = stroke,
-                    cap = cap
-                )
-            }
-            "Budgets" -> {
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.14f), androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.72f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                listOf(0.37f, 0.52f, 0.67f).forEach { lineY ->
-                    drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.32f, h * lineY), androidx.compose.ui.geometry.Offset(w * 0.68f, h * lineY), strokeWidth = stroke, cap = cap)
-                }
-            }
-            "Reports" -> {
-                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.17f, h * 0.84f), androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.84f), strokeWidth = stroke, cap = cap)
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.22f, h * 0.53f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.31f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.44f, h * 0.34f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.5f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.66f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.14f, h * 0.67f), androidx.compose.ui.geometry.CornerRadius(stroke), style = androidx.compose.ui.graphics.drawscope.Fill)
-            }
-
-            "Accounts" -> {
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawLine(color, androidx.compose.ui.geometry.Offset(w * 0.18f, h * 0.43f), androidx.compose.ui.geometry.Offset(w * 0.82f, h * 0.43f), strokeWidth = stroke, cap = cap)
-                drawCircle(color, radius = stroke * 0.8f, center = androidx.compose.ui.geometry.Offset(w * 0.68f, h * 0.64f))
-            }
-            "Money" -> {
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.25f), androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.59f), androidx.compose.ui.geometry.CornerRadius(stroke * 2f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(w * 0.55f, h * 0.43f), androidx.compose.ui.geometry.Size(w * 0.33f, h * 0.23f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawCircle(color, radius = stroke * 0.9f, center = androidx.compose.ui.geometry.Offset(w * 0.67f, h * 0.545f))
-            }
-        }
+    val iconRes = when (destination) {
+        "Home" -> R.drawable.ic_lucide_house
+        "Activity" -> R.drawable.ic_lucide_clock
+        "Budgets" -> R.drawable.ic_lucide_receipt
+        "Reports" -> R.drawable.ic_lucide_chart
+        "Accounts", "Money" -> R.drawable.ic_lucide_wallet
+        else -> R.drawable.ic_lucide_wallet
     }
+    androidx.compose.material3.Icon(
+        painter = androidx.compose.ui.res.painterResource(iconRes),
+        contentDescription = null,
+        tint = color,
+        modifier = modifier
+    )
 }
 
 @Composable
 private fun DashboardGlyph(name: String, color: Color, modifier: Modifier = Modifier) {
-    androidx.compose.foundation.Canvas(modifier) {
-        val stroke = size.minDimension * 0.075f
-        val left = size.width * 0.15f
-        val right = size.width * 0.85f
-        val top = size.height * 0.30f
-        val bottom = size.height * 0.78f
-        val midX = size.width / 2f
-        val midY = size.height / 2f
-        val cap = androidx.compose.ui.graphics.StrokeCap.Round
-        val join = androidx.compose.ui.graphics.StrokeJoin.Round
-
-        when (name) {
-            "income" -> {
-                // Simple upward arrow over a baseline: money coming in.
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom),
-                    androidx.compose.ui.geometry.Offset(midX, top), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.27f, size.height * 0.39f),
-                    strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.73f, size.height * 0.39f),
-                    strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.20f, bottom),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.80f, bottom),
-                    strokeWidth = stroke, cap = cap)
-            }
-            "expense" -> {
-                // Simple downward arrow ending at a baseline: money going out.
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, top),
-                    androidx.compose.ui.geometry.Offset(midX, bottom), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.27f, size.height * 0.61f),
-                    strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, bottom),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.73f, size.height * 0.61f),
-                    strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.20f, top),
-                    androidx.compose.ui.geometry.Offset(size.width * 0.80f, top),
-                    strokeWidth = stroke, cap = cap)
-            }
-            "budget" -> {
-                drawRoundRect(color, androidx.compose.ui.geometry.Offset(left, top - size.height * 0.10f), androidx.compose.ui.geometry.Size(right - left, bottom - top + size.height * 0.20f), androidx.compose.ui.geometry.CornerRadius(stroke * 1.8f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                listOf(0.36f, 0.5f, 0.64f).forEach { y ->
-                    drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.32f, size.height * y), androidx.compose.ui.geometry.Offset(size.width * 0.68f, size.height * y), strokeWidth = stroke, cap = cap)
-                }
-            }
-            "savings" -> {
-                // My Money: a wallet with a visible coin, not a generic plus sign.
-                drawRoundRect(
-                    color,
-                    androidx.compose.ui.geometry.Offset(size.width * 0.12f, size.height * 0.28f),
-                    androidx.compose.ui.geometry.Size(size.width * 0.76f, size.height * 0.53f),
-                    androidx.compose.ui.geometry.CornerRadius(stroke * 2.2f),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
-                )
-                drawRoundRect(
-                    color,
-                    androidx.compose.ui.geometry.Offset(size.width * 0.54f, size.height * 0.43f),
-                    androidx.compose.ui.geometry.Size(size.width * 0.34f, size.height * 0.20f),
-                    androidx.compose.ui.geometry.CornerRadius(stroke * 1.5f),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
-                )
-                drawCircle(color, radius = stroke * 0.85f,
-                    center = androidx.compose.ui.geometry.Offset(size.width * 0.68f, size.height * 0.53f))
-            }
-            else -> {
-                drawCircle(color, radius = size.minDimension * 0.34f, center = androidx.compose.ui.geometry.Offset(midX, midY), style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke))
-                drawLine(color, androidx.compose.ui.geometry.Offset(midX, size.height * 0.29f), androidx.compose.ui.geometry.Offset(midX, size.height * 0.71f), strokeWidth = stroke, cap = cap)
-                drawLine(color, androidx.compose.ui.geometry.Offset(size.width * 0.29f, midY), androidx.compose.ui.geometry.Offset(size.width * 0.71f, midY), strokeWidth = stroke, cap = cap)
-            }
-        }
+    val iconRes = when (name) {
+        "income", "↗" -> R.drawable.ic_lucide_arrow_up_right
+        "expense", "↘" -> R.drawable.ic_lucide_arrow_down_right
+        "↙" -> R.drawable.ic_lucide_arrow_down_left
+        "budget" -> R.drawable.ic_lucide_receipt
+        "savings" -> R.drawable.ic_lucide_wallet
+        else -> R.drawable.ic_lucide_chart
     }
+    androidx.compose.material3.Icon(
+        painter = androidx.compose.ui.res.painterResource(iconRes),
+        contentDescription = null,
+        tint = color,
+        modifier = modifier
+    )
 }
+
 @Composable
 private fun MiniBudget(
     title: String, spent: String, budget: String, progress: Float,
