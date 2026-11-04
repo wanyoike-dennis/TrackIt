@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.dashboard
 
+import com.inventsolutions.trackit.R
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
