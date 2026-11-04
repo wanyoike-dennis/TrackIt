@@ -912,6 +912,40 @@ private fun HeroMetric(modifier: Modifier = Modifier, label: String, value: Stri
 }
 
 @Composable
+private fun EmptyFinanceRecordsCard(
+    title: String,
+    message: String,
+    actionLabel: String,
+    symbol: String,
+    onAction: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                Modifier.size(62.dp).clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(symbol, fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(message, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = onAction, modifier = Modifier.fillMaxWidth()) { Text(actionLabel) }
+        }
+    }
+}
+
+@Composable
 private fun DebtGroupHeading(title: String, subtitle: String, count: Int) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1198,35 +1232,3 @@ private fun FinancialRecordCard(
             OutlinedButton(
                 onClick = onHistory,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(vertical = 10.dp)
-            ) { Text("View activity history") }
-
-            if (record.type == FinancialRecord.SAVINGS_GOAL && record.currentMinor > 0L) {
-                OutlinedButton(
-                    onClick = onWithdraw,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(vertical = 10.dp)
-                ) { Text("Withdraw savings") }
-            }
-
-            if (!isAllowance) {
-                Button(
-                    onClick = onProgress,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isDebt || remaining > 0L,
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(vertical = 12.dp)
-                ) {
-                    Text(when (record.type) {
-                        FinancialRecord.DEBT_OWED_TO_ME -> if (remaining == 0L) "Debt collected" else "Record collection"
-                        FinancialRecord.DEBT_I_OWE -> if (remaining == 0L) "Debt settled" else "Record repayment"
-                        FinancialRecord.SAVINGS_GOAL -> if (remaining == 0L) "Add more savings" else "Add contribution"
-                        else -> "Record spending"
-                    })
-                }
-            }
-        }
-    }
-}
