@@ -238,9 +238,9 @@ fun FinancialPlansScreen(
 
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FinanceTab("Debts", "↔", section == FinanceSection.DEBTS, Modifier.weight(1f)) { section = FinanceSection.DEBTS }
-                FinanceTab("Savings", "✦", section == FinanceSection.SAVINGS, Modifier.weight(1f)) { section = FinanceSection.SAVINGS }
-                FinanceTab("Allowance", "◷", section == FinanceSection.ALLOWANCE, Modifier.weight(1f)) { section = FinanceSection.ALLOWANCE }
+                FinanceTab("Debts", R.drawable.ic_lucide_repeat, section == FinanceSection.DEBTS, Modifier.weight(1f)) { section = FinanceSection.DEBTS }
+                FinanceTab("Savings", R.drawable.ic_lucide_wallet, section == FinanceSection.SAVINGS, Modifier.weight(1f)) { section = FinanceSection.SAVINGS }
+                FinanceTab("Allowance", R.drawable.ic_lucide_receipt, section == FinanceSection.ALLOWANCE, Modifier.weight(1f)) { section = FinanceSection.ALLOWANCE }
             }
         }
 
@@ -905,7 +905,7 @@ private fun AccountMovementSelector(
 }
 
 @Composable
-private fun FinanceTab(label: String, symbol: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun FinanceTab(label: String, iconRes: Int, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Card(
         modifier = modifier,
         onClick = onClick,
@@ -920,8 +920,9 @@ private fun FinanceTab(label: String, symbol: String, selected: Boolean, modifie
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Text(symbol, fontSize = 21.sp,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
+            TrackItIcon(iconRes, null, size = 21.dp, tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
+            /* Text(symbol, fontSize = 21.sp,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary) */
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
                 color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
         }
