@@ -218,6 +218,10 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
         .sortedByDescending { it.currentMinor }
     val savingsTargetTotal = savingsGoals.sumOf { it.targetMinor }
     val savingsContributions = savingsGoals.sumOf { it.currentMinor }
+    val flexibleSavingsBalance = uiState.financialRecords
+        .filter { it.type == FinancialRecord.SAVINGS_ACCOUNT }
+        .sumOf { it.currentMinor }
+    val totalSavingsBalance = savingsContributions + flexibleSavingsBalance
     val savingsGoalCount = savingsGoals.size
     val debtsIOwe = uiState.financialRecords
         .filter { it.type == FinancialRecord.DEBT_I_OWE }
@@ -256,7 +260,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
         account.openingBalanceMinor + transactionMovement + transferMovement + financialMovement
     }
     val availableBalance = if (uiState.accounts.any { !it.archived }) accountBalancesTotal
-        else allIncome - allRecordedExpenses - savingsContributions - debtRepaymentsRecorded + debtCollectionsRecorded
+        else allIncome - allRecordedExpenses - totalSavingsBalance - debtRepaymentsRecorded + debtCollectionsRecorded
     val todayStart = remember {
         (now.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, 0)
