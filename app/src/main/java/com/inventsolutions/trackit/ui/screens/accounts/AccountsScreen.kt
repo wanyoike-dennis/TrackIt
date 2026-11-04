@@ -1,6 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.accounts
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -137,25 +138,67 @@ fun AccountsScreen(
                     }
                 }
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("TOTAL ACROSS ACTIVE ACCOUNTS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold)
+                    Text(accountKes(active.sumOf { balances[it.id] ?: it.openingBalanceMinor }),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary)
+                    Text("${active.size} active ${if (active.size == 1) "account" else "accounts"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Text("Your accounts", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(accounts, key = { it.id }) { account ->
+                    var menuExpanded by remember(account.id) { mutableStateOf(false) }
                     Card(onClick = { selectedAccount = account },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(start = 15.dp, top = 13.dp, end = 8.dp, bottom = 13.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text(account.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text(if (account.archived) "Archived" else account.typeLabel(),
+                                Text(
+                                    if (account.archived) "Archived · ${account.typeLabel()}" else account.typeLabel(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Column(horizontalAlignment = androidx.compose.ui.Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(accountKes(balances[account.id] ?: account.openingBalanceMinor),
+                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                                    color = if (account.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
+                                Text("Balance", style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text(accountKes(balances[account.id] ?: account.openingBalanceMinor),
-                                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary)
-                            Text("Opening balance: ${accountKes(account.openingBalanceMinor)}",
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Row {
-                                TextButton(onClick = { editingAccount = account }) { Text("Edit") }
-                                if (!account.archived) TextButton(onClick = { onArchive(account) }) { Text("Archive") }
-                                TextButton(onClick = { selectedAccount = account }) { Text("Activity") }
+                            Box {
+                                TextButton(onClick = { menuExpanded = true }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+                                    Text("⋮", style = MaterialTheme.typography.titleLarge)
+                                }
+                                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                    DropdownMenuItem(text = { Text("View activity") }, onClick = {
+                                        selectedAccount = account
+                                        menuExpanded = false
+                                    })
+                                    DropdownMenuItem(text = { Text("Edit account") }, onClick = {
+                                        editingAccount = account
+                                        menuExpanded = false
+                                    })
+                                    if (!account.archived) {
+                                        DropdownMenuItem(text = { Text("Archive account") }, onClick = {
+                                            onArchive(account)
+                                            menuExpanded = false
+                                        })
+                                    }
+                                }
                             }
                         }
                     }
