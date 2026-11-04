@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.profile
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,7 +44,7 @@ fun BackupRestoreScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
-                Text("‹", style = MaterialTheme.typography.headlineMedium)
+                TrackItIcon(R.drawable.ic_lucide_arrow_left, "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Column(Modifier.weight(1f)) {
                 Text("Backup & Restore", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -65,7 +67,7 @@ fun BackupRestoreScreen(
         ) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("↓", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    TrackItIcon(R.drawable.ic_lucide_download, "Export backup", tint = MaterialTheme.colorScheme.primary, size = 28.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("Export backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(
@@ -76,7 +78,7 @@ fun BackupRestoreScreen(
                     }
                 }
                 Button(onClick = onExportBackup, modifier = Modifier.fillMaxWidth()) {
-                    Text("Export backup")
+                    TrackItIcon(R.drawable.ic_lucide_download, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Export backup")
                 }
             }
         }
@@ -89,7 +91,7 @@ fun BackupRestoreScreen(
         ) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("↑", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    TrackItIcon(R.drawable.ic_lucide_upload, "Restore backup", tint = MaterialTheme.colorScheme.primary, size = 28.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("Restore backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(
@@ -102,7 +104,7 @@ fun BackupRestoreScreen(
                 OutlinedButton(
                     onClick = { showRestoreConfirmation = true },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Choose backup file") }
+                ) { TrackItIcon(R.drawable.ic_lucide_upload, null); Text("Choose backup file") }
             }
         }
 
