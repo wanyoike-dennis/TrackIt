@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.profile
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,7 +48,7 @@ fun PersonalInformationScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(Modifier.fillMaxWidth()) {
-            TextButton(onClick = onBack) { Text("‹  Back") }
+            TextButton(onClick = onBack) { TrackItIcon(R.drawable.ic_lucide_arrow_left, null); Text("Back") }
         }
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("Personal information", style = MaterialTheme.typography.headlineSmall,
@@ -111,7 +113,7 @@ fun PersonalInformationScreen(onBack: () -> Unit) {
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Save changes")
+            TrackItIcon(R.drawable.ic_lucide_user, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Save changes")
         }
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
             Text("Cancel")
