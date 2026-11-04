@@ -405,7 +405,7 @@ fun FinancialPlansScreen(
     }
 
     if (showCreate) {
-        var title by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "Emergency fund" else "") }
+        var title by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "My savings" else "") }
         var amount by remember(section) { mutableStateOf("") }
         var dueDate by remember(section) { mutableStateOf("") }
         var notes by remember(section) { mutableStateOf("") }
@@ -1120,6 +1120,7 @@ private fun FinancialRecordCard(
                             FinancialRecord.DEBT_OWED_TO_ME -> "MONEY OWED TO YOU"
                             FinancialRecord.DEBT_I_OWE -> "YOUR DEBT TO REPAY"
                             FinancialRecord.SAVINGS_GOAL -> record.savingsCategory.uppercase()
+                            FinancialRecord.SAVINGS_ACCOUNT -> "FLEXIBLE SAVINGS"
                             else -> "ALLOWANCE"
                         },
                         style = MaterialTheme.typography.labelSmall, letterSpacing = 0.8.sp,
@@ -1140,7 +1141,7 @@ private fun FinancialRecordCard(
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
                         when (record.type) {
-                            FinancialRecord.SAVINGS_GOAL -> "SAVED SO FAR"
+                            FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT -> "SAVED SO FAR"
                             FinancialRecord.DEBT_OWED_TO_ME -> "COLLECTED"
                             FinancialRecord.DEBT_I_OWE -> "REPAID"
                             else -> "SPENT"
@@ -1179,6 +1180,7 @@ private fun FinancialRecordCard(
                         isDebt -> "${financeKes(remaining)} left to repay"
                         record.type == FinancialRecord.SAVINGS_GOAL && remaining == 0L -> "Goal reached — well done!"
                         record.type == FinancialRecord.SAVINGS_GOAL -> "${financeKes(remaining)} left to reach goal"
+                        record.type == FinancialRecord.SAVINGS_ACCOUNT -> "Flexible savings · no target"
                         else -> "${financeKes(remaining)} available"
                     },
                     modifier = Modifier.weight(1f),
@@ -1253,6 +1255,7 @@ private fun FinancialRecordCard(
                         FinancialRecord.DEBT_OWED_TO_ME -> if (remaining == 0L) "Debt collected" else "Record collection"
                         FinancialRecord.DEBT_I_OWE -> if (remaining == 0L) "Debt settled" else "Record repayment"
                         FinancialRecord.SAVINGS_GOAL -> if (remaining == 0L) "Add more savings" else "Add contribution"
+                        FinancialRecord.SAVINGS_ACCOUNT -> "Add deposit"
                         else -> "Record spending"
                     })
                 }
