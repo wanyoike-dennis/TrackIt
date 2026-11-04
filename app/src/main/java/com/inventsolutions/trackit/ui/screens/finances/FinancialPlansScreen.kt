@@ -109,7 +109,7 @@ fun FinancialPlansScreen(
     }
     val savedTotal = (savings + savingsAccounts).sumOf { it.currentMinor }
     val savingsTarget = savings.sumOf { it.targetMinor }
-    val savingsProgress = if (savingsTarget > 0L) (savedTotal.toFloat() / savingsTarget).coerceIn(0f, 1f) else 0f
+    val savingsProgress = if (savingsTarget > 0L) (savings.sumOf { it.currentMinor }.toFloat() / savingsTarget).coerceIn(0f, 1f) else 0f
     val owedToMe = debtsOwedToMe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
     val iOwe = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
     val allowanceLeft = allowances.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
