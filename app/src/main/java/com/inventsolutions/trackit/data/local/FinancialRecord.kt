@@ -41,6 +41,7 @@ data class FinancialRecord(
         const val DEBT_OWED_TO_ME = "DEBT_OWED_TO_ME"
         const val DEBT_I_OWE = "DEBT_I_OWE"
         const val SAVINGS_GOAL = "SAVINGS_GOAL"
+        const val SAVINGS_ACCOUNT = "SAVINGS_ACCOUNT"
         const val ALLOWANCE = "ALLOWANCE"
     }
 }

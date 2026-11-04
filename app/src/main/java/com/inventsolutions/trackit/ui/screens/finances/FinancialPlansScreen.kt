@@ -406,7 +406,7 @@ fun FinancialPlansScreen(
 
     if (showCreate) {
         var title by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "Emergency fund" else "") }
-        var amount by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "60000" else "") }
+        var amount by remember(section) { mutableStateOf("") }
         var dueDate by remember(section) { mutableStateOf("") }
         var notes by remember(section) { mutableStateOf("") }
         var debtType by remember { mutableStateOf(FinancialRecord.DEBT_I_OWE) }
