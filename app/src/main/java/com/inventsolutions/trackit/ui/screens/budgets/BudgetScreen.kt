@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.budgets
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -76,7 +78,7 @@ fun BudgetScreen(
                     Text("Budgets", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Text(monthLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedButton(onClick = onBackToHome) { Text("Home") }
+                OutlinedButton(onClick = onBackToHome) { TrackItIcon(R.drawable.ic_lucide_house, null); Text("Home") }
             }
         }
         item {
@@ -125,7 +127,7 @@ fun BudgetScreen(
                     ) {
                         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("⚠", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleLarge)
-                            Text("Budget alert", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { TrackItIcon(R.drawable.ic_lucide_alert_triangle, null, tint = MaterialTheme.colorScheme.error); Text("Budget alert", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer) }
                         }
                         budgetAlerts.forEach { alert ->
                             Text("• $alert", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
@@ -237,7 +239,7 @@ fun BudgetScreen(
                                     amount = (budget.limitMinor / 100.0).toString()
                                     budgetType = budget.budgetType
                                     validation = null
-                                }) { Text("Edit limit") }
+                                }) { TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit limit") }
                                 OutlinedButton(onClick = {
                                     if (editingBudgetId == budget.id) {
                                         editingBudgetId = null
@@ -246,7 +248,7 @@ fun BudgetScreen(
                                         budgetType = MonthlyBudget.ONE_TIME
                                     }
                                     onDeleteBudget(budget.id)
-                                }) { Text("Delete") }
+                                }) { TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete") }
                             }
                         }
                     }
