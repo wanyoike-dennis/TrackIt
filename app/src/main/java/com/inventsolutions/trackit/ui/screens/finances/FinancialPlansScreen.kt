@@ -921,8 +921,6 @@ private fun FinanceTab(label: String, iconRes: Int, selected: Boolean, modifier:
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             TrackItIcon(iconRes, null, size = 21.dp, tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
-            /* Text(symbol, fontSize = 21.sp,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary) */
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
                 color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
         }
