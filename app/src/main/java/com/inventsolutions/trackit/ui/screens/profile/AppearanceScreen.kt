@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.profile
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +35,7 @@ fun AppearanceScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
-                Text("‹", style = MaterialTheme.typography.headlineMedium)
+                TrackItIcon(R.drawable.ic_lucide_arrow_left, "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Column(Modifier.weight(1f)) {
                 Text("Appearance", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
