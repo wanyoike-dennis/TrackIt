@@ -1102,19 +1102,20 @@ private fun FinancialRecordCard(
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-                Box(
-                    Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(accent.copy(alpha = 0.13f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        when (record.type) {
-                            FinancialRecord.DEBT_OWED_TO_ME -> "↙"
-                            FinancialRecord.DEBT_I_OWE -> "↗"
-                            FinancialRecord.SAVINGS_GOAL -> "✦"
-                            else -> "◷"
-                        },
-                        color = accent, fontSize = 25.sp
-                    )
+                if (record.type !in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT)) {
+                    Box(
+                        Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(accent.copy(alpha = 0.13f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            when (record.type) {
+                                FinancialRecord.DEBT_OWED_TO_ME -> "↙"
+                                FinancialRecord.DEBT_I_OWE -> "↗"
+                                else -> "◷"
+                            },
+                            color = accent, fontSize = 25.sp
+                        )
+                    }
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -1130,12 +1131,14 @@ private fun FinancialRecordCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    TextButton(onClick = onEdit, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                        TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit")
-                    }
-                    TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                        TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (record.type !in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT)) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        TextButton(onClick = onEdit, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                            TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit")
+                        }
+                        TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                            TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
