@@ -1232,3 +1232,35 @@ private fun FinancialRecordCard(
             OutlinedButton(
                 onClick = onHistory,
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(vertical = 10.dp)
+            ) { Text("View activity history") }
+
+            if (record.type == FinancialRecord.SAVINGS_GOAL && record.currentMinor > 0L) {
+                OutlinedButton(
+                    onClick = onWithdraw,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) { Text("Withdraw savings") }
+            }
+
+            if (!isAllowance) {
+                Button(
+                    onClick = onProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isDebt || remaining > 0L,
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Text(when (record.type) {
+                        FinancialRecord.DEBT_OWED_TO_ME -> if (remaining == 0L) "Debt collected" else "Record collection"
+                        FinancialRecord.DEBT_I_OWE -> if (remaining == 0L) "Debt settled" else "Record repayment"
+                        FinancialRecord.SAVINGS_GOAL -> if (remaining == 0L) "Add more savings" else "Add contribution"
+                        else -> "Record spending"
+                    })
+                }
+            }
+        }
+    }
+}
