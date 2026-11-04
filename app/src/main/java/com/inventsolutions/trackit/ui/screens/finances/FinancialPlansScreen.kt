@@ -1,6 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.finances
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -211,14 +212,14 @@ fun FinancialPlansScreen(
                                 label = "Owed to you",
                                 value = financeKes(owedToMe),
                                 hint = "${debtsOwedToMe.size} ${if (debtsOwedToMe.size == 1) "debt" else "debts"} to collect",
-                                symbol = "↙"
+                                incoming = true
                             )
                             HeroMetric(
                                 modifier = Modifier.weight(1f),
                                 label = "You owe",
                                 value = financeKes(iOwe),
                                 hint = "${debtsIOwe.size} ${if (debtsIOwe.size == 1) "debt" else "debts"} to repay",
-                                symbol = "↗"
+                                incoming = false
                             )
                         }
                     }
@@ -925,21 +926,57 @@ private fun FinanceTab(label: String, symbol: String, selected: Boolean, modifie
 }
 
 @Composable
-private fun HeroMetric(modifier: Modifier = Modifier, label: String, value: String, hint: String, symbol: String) {
+private fun HeroMetric(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    hint: String,
+    incoming: Boolean
+) {
+    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     Column(
-        modifier.background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
+        modifier.background(contentColor.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(symbol, fontSize = 15.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(contentColor.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.size(17.dp)) {
+                    val color = contentColor
+                    val strokeWidth = 2.dp.toPx()
+                    val start = if (incoming) {
+                        androidx.compose.ui.geometry.Offset(size.width * 0.72f, size.height * 0.28f)
+                    } else {
+                        androidx.compose.ui.geometry.Offset(size.width * 0.28f, size.height * 0.72f)
+                    }
+                    val end = if (incoming) {
+                        androidx.compose.ui.geometry.Offset(size.width * 0.28f, size.height * 0.72f)
+                    } else {
+                        androidx.compose.ui.geometry.Offset(size.width * 0.72f, size.height * 0.28f)
+                    }
+                    drawLine(color, start, end, strokeWidth, cap = StrokeCap.Round)
+                    val head = size.width * 0.22f
+                    if (incoming) {
+                        drawLine(color, end, androidx.compose.ui.geometry.Offset(end.x, end.y - head), strokeWidth, cap = StrokeCap.Round)
+                        drawLine(color, end, androidx.compose.ui.geometry.Offset(end.x + head, end.y), strokeWidth, cap = StrokeCap.Round)
+                    } else {
+                        drawLine(color, end, androidx.compose.ui.geometry.Offset(end.x - head, end.y), strokeWidth, cap = StrokeCap.Round)
+                        drawLine(color, end, androidx.compose.ui.geometry.Offset(end.x, end.y + head), strokeWidth, cap = StrokeCap.Round)
+                    }
+                }
+            }
             Text(label, style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                color = contentColor.copy(alpha = 0.8f))
         }
         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer)
+            color = contentColor)
         Text(hint, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f))
+            color = contentColor.copy(alpha = 0.72f))
     }
 }
 
