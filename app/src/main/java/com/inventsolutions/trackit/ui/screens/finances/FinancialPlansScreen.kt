@@ -848,7 +848,7 @@ fun FinancialPlansScreen(
             title = { Text("Delete this plan?") },
             text = { Text("“${record.title}” and its saved progress will be removed from this device.") },
             confirmButton = {
-                Button(onClick = { onDelete(record.id); deleteRecord = null }) { Text("Delete plan") }
+                Button(onClick = { onDelete(record.id); deleteRecord = null }) { TrackItIcon(R.drawable.ic_lucide_trash, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Delete plan") }
             },
             dismissButton = { TextButton(onClick = { deleteRecord = null }) { Text("Keep it") } }
         )
@@ -1043,9 +1043,9 @@ private fun DebtRecordRow(
                             onClick = { menuExpanded = false; onProgress() })
                         DropdownMenuItem(text = { Text("View activity") },
                             onClick = { menuExpanded = false; onHistory() })
-                        DropdownMenuItem(text = { Text("Edit debt") },
+                        DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit debt") } },
                             onClick = { menuExpanded = false; onEdit() })
-                        DropdownMenuItem(text = { Text("Delete debt") },
+                        DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete debt") } },
                             onClick = { menuExpanded = false; onDelete() })
                     }
                 }
@@ -1132,10 +1132,10 @@ private fun FinancialRecordCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     TextButton(onClick = onEdit, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                        Text("Edit")
+                        TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit")
                     }
                     TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                        Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
