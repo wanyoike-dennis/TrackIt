@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.profile
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -54,7 +56,7 @@ fun ProfileScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
-                Text("‹", style = MaterialTheme.typography.headlineMedium)
+                TrackItIcon(R.drawable.ic_lucide_arrow_left, "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Column(Modifier.weight(1f)) {
                 Text("Profile", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -89,8 +91,8 @@ fun ProfileScreen(
                         Text(email.ifBlank { "Add your email address" }, style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("Edit  ›", style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) { TrackItIcon(R.drawable.ic_lucide_edit, null, tint = MaterialTheme.colorScheme.primary, size = 16.dp); Text("Edit", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold) }
                 }
                 if (phone.isNotBlank() || location.isNotBlank()) {
                     androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -114,13 +116,13 @@ fun ProfileScreen(
         ProfileOption(
             title = "Personal information",
             description = "Update your name, email, phone and location",
-            icon = { Text("●", color = MaterialTheme.colorScheme.primary) },
+            icon = { TrackItIcon(R.drawable.ic_lucide_user, null, tint = MaterialTheme.colorScheme.primary, size = 22.dp) },
             onClick = onOpenPersonalInformation
         )
         ProfileOption(
             title = "Appearance",
             description = "Theme and display preferences",
-            icon = { Text("◐", color = MaterialTheme.colorScheme.primary) },
+            icon = { TrackItIcon(R.drawable.ic_lucide_settings, null, tint = MaterialTheme.colorScheme.primary, size = 22.dp) },
             onClick = onOpenAppearance
         )
 
