@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.transactions
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -111,12 +113,12 @@ fun TransactionHistoryScreen(
                 Text("Search, review, edit or remove a record.", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            TextButton(onClick = onBack) { Text("Home") }
+            TextButton(onClick = onBack) { TrackItIcon(R.drawable.ic_lucide_house, null); Text("Home") }
         }
 
         OutlinedTextField(
             value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text("Search transactions") }, placeholder = { Text("Category, description, payment method") },
+            label = { Text("Search transactions") }, leadingIcon = { TrackItIcon(R.drawable.ic_lucide_search, null) }, placeholder = { Text("Category, description, payment method") },
             singleLine = true
         )
 
@@ -216,11 +218,11 @@ fun TransactionHistoryScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { editingTransaction = transaction; selectedTransaction = null }) { Text("Edit") }
+                TextButton(onClick = { editingTransaction = transaction; selectedTransaction = null }) { TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit") }
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { deleteCandidate = transaction; selectedTransaction = null }) { Text("Delete") }
+                    TextButton(onClick = { deleteCandidate = transaction; selectedTransaction = null }) { TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete") }
                     TextButton(onClick = { selectedTransaction = null }) { Text("Close") }
                 }
             }
@@ -265,7 +267,7 @@ fun TransactionHistoryScreen(
                     }
                 }) { Text("Save changes") }
             },
-            dismissButton = { TextButton(onClick = { editingTransaction = null }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { editingTransaction = null }) { TrackItIcon(R.drawable.ic_lucide_arrow_left, null); Text("Cancel") } }
         )
     }
 
