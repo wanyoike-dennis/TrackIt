@@ -92,10 +92,11 @@ fun FinancialPlansScreen(
     val debtsOwedToMe = records.filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
     val debtsIOwe = records.filter { it.type == FinancialRecord.DEBT_I_OWE }
     val savings = records.filter { it.type == FinancialRecord.SAVINGS_GOAL }
+    val savingsAccounts = records.filter { it.type == FinancialRecord.SAVINGS_ACCOUNT }
     val allowances = records.filter { it.type == FinancialRecord.ALLOWANCE }
     val visibleRecords = when (section) {
         FinanceSection.DEBTS -> (debtsOwedToMe + debtsIOwe).sortedByDescending { it.createdAtEpochMillis }
-        FinanceSection.SAVINGS -> savings
+        FinanceSection.SAVINGS -> savings + savingsAccounts
         FinanceSection.ALLOWANCE -> allowances
     }
     val filteredDebts = visibleRecords.filter { record ->
@@ -106,7 +107,7 @@ fun FinancialPlansScreen(
         }
         matchesFilter && record.title.contains(debtSearch.trim(), ignoreCase = true)
     }
-    val savedTotal = savings.sumOf { it.currentMinor }
+    val savedTotal = (savings + savingsAccounts).sumOf { it.currentMinor }
     val savingsTarget = savings.sumOf { it.targetMinor }
     val savingsProgress = if (savingsTarget > 0L) (savedTotal.toFloat() / savingsTarget).coerceIn(0f, 1f) else 0f
     val owedToMe = debtsOwedToMe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
@@ -167,7 +168,7 @@ fun FinancialPlansScreen(
                             Text(
                                 when (section) {
                                     FinanceSection.DEBTS -> "Still to repay · excludes money owed to you"
-                                    FinanceSection.SAVINGS -> "Saved across ${savings.size} ${if (savings.size == 1) "goal" else "goals"}"
+                                    FinanceSection.SAVINGS -> "Across ${savings.size + savingsAccounts.size} savings spaces"
                                     FinanceSection.ALLOWANCE -> "Spent across ${allowances.size} ${if (allowances.size == 1) "allowance" else "allowances"}"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
@@ -247,7 +248,7 @@ fun FinancialPlansScreen(
                     Text(
                         when (section) {
                             FinanceSection.DEBTS -> "Debt tracker"
-                            FinanceSection.SAVINGS -> "Your goals"
+                            FinanceSection.SAVINGS -> "Your savings"
                             FinanceSection.ALLOWANCE -> "Spending limits"
                         },
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold
@@ -255,7 +256,7 @@ fun FinancialPlansScreen(
                     Text(
                         when (section) {
                             FinanceSection.DEBTS -> "Know what is coming in and what must go out."
-                            FinanceSection.SAVINGS -> "Make every contribution move you closer."
+                            FinanceSection.SAVINGS -> "Save freely or work towards a specific goal."
                             FinanceSection.ALLOWANCE -> "A limit, not extra money. Record each purchase here or as an expense—never both."
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -265,7 +266,7 @@ fun FinancialPlansScreen(
                     Text(
                         when (section) {
                             FinanceSection.DEBTS -> "+ Debt"
-                            FinanceSection.SAVINGS -> "+ Goal"
+                            FinanceSection.SAVINGS -> "+ Savings"
                             FinanceSection.ALLOWANCE -> "+ Allowance"
                         }
                     )
@@ -365,12 +366,12 @@ fun FinancialPlansScreen(
                                 fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                         Text(
-                            if (section == FinanceSection.SAVINGS) "Your next goal starts here" else "Plan before you spend",
+                            if (section == FinanceSection.SAVINGS) "Start saving your way" else "Plan before you spend",
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
                         )
                         Text(
                             if (section == FinanceSection.SAVINGS)
-                                "Set a target for an emergency fund, a new phone, rent, or anything you are working towards."
+                                "Create flexible savings for money you want to set aside, or a goal with a target amount."
                             else "Set a spending limit, then record actual purchases in Add Expense. You can link each expense to an allowance so the remaining balance stays accurate.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -417,7 +418,7 @@ fun FinancialPlansScreen(
             onDismissRequest = { showCreate = false },
             title = { Text(when (section) {
                 FinanceSection.DEBTS -> "Add debt details"
-                FinanceSection.SAVINGS -> "Set your savings goal"
+                FinanceSection.SAVINGS -> "Create a savings space"
                 FinanceSection.ALLOWANCE -> "Set a spending limit"
             }, fontWeight = FontWeight.Bold) },
             text = {
@@ -437,13 +438,13 @@ fun FinancialPlansScreen(
                     OutlinedTextField(value = title, onValueChange = { title = it; validationError = null },
                         label = { Text(when (section) {
                             FinanceSection.DEBTS -> "Person / debt description"
-                            FinanceSection.SAVINGS -> "What are you saving for?"
+                            FinanceSection.SAVINGS -> "Name your savings"
                             FinanceSection.ALLOWANCE -> "What is this allowance for?"
                         }) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
                         label = { Text(when (section) {
                             FinanceSection.DEBTS -> "Original debt (KSh)"
-                            FinanceSection.SAVINGS -> "Savings target (KSh)"
+                            FinanceSection.SAVINGS -> "Target amount (KSh) — blank for flexible savings"
                             FinanceSection.ALLOWANCE -> "Spending limit (KSh)"
                         }) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     if (section == FinanceSection.SAVINGS) {
@@ -520,10 +521,10 @@ fun FinancialPlansScreen(
                     } else 0L
                     when {
                         title.isBlank() -> validationError = "Add a name or description first."
-                        minor == null || minor <= 0L -> validationError = "Enter an amount greater than zero."
+                        section != FinanceSection.SAVINGS && (minor == null || minor <= 0L) -> validationError = "Enter an amount greater than zero."
                         dueDate.isNotBlank() && parsedDate == null && section != FinanceSection.ALLOWANCE ->
                             validationError = "Use a valid date in YYYY-MM-DD format."
-                        section == FinanceSection.SAVINGS && savingsCategory.isBlank() ->
+                        section == FinanceSection.SAVINGS && minor != null && minor > 0L && savingsCategory.isBlank() ->
                             validationError = "Enter a savings category."
                         section == FinanceSection.SAVINGS &&
                             (contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY ||
@@ -533,18 +534,18 @@ fun FinancialPlansScreen(
                         else -> {
                             val type = when (section) {
                                 FinanceSection.DEBTS -> debtType
-                                FinanceSection.SAVINGS -> FinancialRecord.SAVINGS_GOAL
+                                FinanceSection.SAVINGS -> if (minor == null || minor <= 0L) FinancialRecord.SAVINGS_ACCOUNT else FinancialRecord.SAVINGS_GOAL
                                 FinanceSection.ALLOWANCE -> FinancialRecord.ALLOWANCE
                             }
                             onAdd(
-                                type, title, minor, parsedDate, notes,
+                                type, title, if (type == FinancialRecord.SAVINGS_ACCOUNT) 0L else (minor ?: 0L), parsedDate, notes,
                                 savingsCategory.trim(), contributionMethod,
                                 parsedContribution ?: 0L
                             )
                             showCreate = false
                         }
                     }
-                }) { Text("Create plan") }
+                }) { Text(if (section == FinanceSection.SAVINGS) "Create savings" else "Create plan") }
             },
             dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } }
         )
@@ -604,7 +605,7 @@ fun FinancialPlansScreen(
             title = { Text(when (record.type) {
                 FinancialRecord.DEBT_OWED_TO_ME -> "Record a collection"
                 FinancialRecord.DEBT_I_OWE -> "Record a repayment"
-                FinancialRecord.SAVINGS_GOAL -> "Add to your savings"
+                FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT -> "Add to your savings"
                 else -> "Record allowance spending"
             }, fontWeight = FontWeight.Bold) },
             text = {
@@ -615,6 +616,7 @@ fun FinancialPlansScreen(
                             FinancialRecord.DEBT_OWED_TO_ME -> "${financeKes(remaining)} still to collect"
                             FinancialRecord.DEBT_I_OWE -> "${financeKes(remaining)} still to repay"
                             FinancialRecord.SAVINGS_GOAL -> "${financeKes(record.currentMinor)} saved of ${financeKes(record.targetMinor)}"
+                            FinancialRecord.SAVINGS_ACCOUNT -> "${financeKes(record.currentMinor)} available to save"
                             else -> "${financeKes(remaining)} remaining in this allowance"
                         },
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1151,6 +1153,7 @@ private fun FinancialRecordCard(
                     Text(
                         when {
                             record.type == FinancialRecord.SAVINGS_GOAL -> "GOAL"
+                            record.type == FinancialRecord.SAVINGS_ACCOUNT -> "NO TARGET"
                             isDebt -> "ORIGINAL"
                             else -> "LIMIT"
                         },
@@ -1229,7 +1232,7 @@ private fun FinancialRecordCard(
                 contentPadding = PaddingValues(vertical = 10.dp)
             ) { Text("View activity history") }
 
-            if (record.type == FinancialRecord.SAVINGS_GOAL && record.currentMinor > 0L) {
+            if (record.type in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT) && record.currentMinor > 0L) {
                 OutlinedButton(
                     onClick = onWithdraw,
                     modifier = Modifier.fillMaxWidth(),

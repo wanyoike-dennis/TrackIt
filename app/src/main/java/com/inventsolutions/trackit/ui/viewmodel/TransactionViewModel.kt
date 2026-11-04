@@ -572,8 +572,9 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 FinancialRecord.DEBT_OWED_TO_ME,
                 FinancialRecord.DEBT_I_OWE,
                 FinancialRecord.SAVINGS_GOAL,
+                FinancialRecord.SAVINGS_ACCOUNT,
                 FinancialRecord.ALLOWANCE
-            ) || title.isBlank() || targetMinor <= 0L || invalidSavingsPlan
+            ) || title.isBlank() || (type == FinancialRecord.SAVINGS_ACCOUNT && targetMinor != 0L) || (type != FinancialRecord.SAVINGS_ACCOUNT && targetMinor <= 0L) || invalidSavingsPlan
         ) {
             _uiState.update {
                 it.copy(errorMessage = if (invalidSavingsPlan) {
@@ -619,7 +620,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                     FinancialRecord.CONTRIBUTION_MONTHLY
                 ) && record.plannedContributionMinor <= 0L)
             )
-        if (record.title.isBlank() || record.targetMinor <= 0L || record.currentMinor < 0L || invalidSavingsPlan) {
+        if (record.title.isBlank() || (record.type == FinancialRecord.SAVINGS_ACCOUNT && record.targetMinor != 0L) || (record.type != FinancialRecord.SAVINGS_ACCOUNT && record.targetMinor <= 0L) || record.currentMinor < 0L || invalidSavingsPlan) {
             _uiState.update { it.copy(errorMessage = "Enter a title and a valid amount greater than zero.") }
             return
         }
@@ -685,7 +686,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         val entryType = when (record.type) {
             FinancialRecord.DEBT_I_OWE -> FinancialRecordEntry.REPAYMENT
             FinancialRecord.DEBT_OWED_TO_ME -> FinancialRecordEntry.COLLECTION
-            FinancialRecord.SAVINGS_GOAL -> FinancialRecordEntry.CONTRIBUTION
+            FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT -> FinancialRecordEntry.CONTRIBUTION
             else -> FinancialRecordEntry.SPENDING
         }
         if (!validateAccountMovement(accountId, amountMinor, entryType == FinancialRecordEntry.CONTRIBUTION || entryType == FinancialRecordEntry.REPAYMENT)) return
@@ -709,7 +710,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun withdrawSavings(record: FinancialRecord, amountMinor: Long, note: String = "", accountId: Long? = null) {
-        if (record.type != FinancialRecord.SAVINGS_GOAL || amountMinor <= 0L) {
+        if (record.type !in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT) || amountMinor <= 0L) {
             _uiState.update { it.copy(errorMessage = "Enter a valid withdrawal amount.") }
             return
         }
