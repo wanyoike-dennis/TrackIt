@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.accounts
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,14 +122,15 @@ fun AccountsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = { if (detailAccount != null) selectedAccount = null else onBack() }) {
+                TrackItIcon(R.drawable.ic_lucide_arrow_left, null)
                 Text(if (detailAccount != null) "Back" else "Close")
             }
         }
 
         if (detailAccount == null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { showAdd = true }) { Text("Add account") }
-                OutlinedButton(onClick = { showTransfer = true }, enabled = active.size >= 2) { Text("Transfer") }
+                Button(onClick = { showAdd = true }) { TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Add account") }
+                OutlinedButton(onClick = { showTransfer = true }, enabled = active.size >= 2) { TrackItIcon(R.drawable.ic_lucide_repeat, null); Text("Transfer") }
             }
             if (active.isEmpty()) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
@@ -215,7 +218,7 @@ fun AccountsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Opened ${accountDate(detailAccount.openingDateEpochMillis)}",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { editingAccount = detailAccount }) { Text("Edit account details") }
+                    TextButton(onClick = { editingAccount = detailAccount }) { TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit account details") }
                 }
             }
             val accountTransactions = transactions.filter { it.accountId == detailAccount.id }
