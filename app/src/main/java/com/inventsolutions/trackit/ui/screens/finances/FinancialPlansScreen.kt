@@ -275,7 +275,44 @@ fun FinancialPlansScreen(
             }
         }
 
-        if (visibleRecords.isEmpty()) {
+        if (section == FinanceSection.DEBTS) {
+            if (debtsIOwe.isEmpty() && debtsOwedToMe.isEmpty()) {
+                item {
+                    EmptyFinanceRecordsCard(
+                        title = "Start with a clear picture",
+                        message = "Add money you owe or money someone needs to pay you. Track each repayment or collection.",
+                        actionLabel = "Add your first debt",
+                        symbol = "↔",
+                        onAction = { showCreate = true }
+                    )
+                }
+            } else {
+                if (debtsIOwe.isNotEmpty()) {
+                    item { DebtGroupHeading("I OWE", "Money you still need to repay", debtsIOwe.size) }
+                    items(debtsIOwe, key = { "owe-${it.id}" }) { record ->
+                        DebtRecordCard(
+                            record = record,
+                            onProgress = { progressRecord = record },
+                            onEdit = { editRecord = record },
+                            onHistory = { historyRecord = record },
+                            onDelete = { deleteRecord = record }
+                        )
+                    }
+                }
+                if (debtsOwedToMe.isNotEmpty()) {
+                    item { DebtGroupHeading("OWED TO ME", "Money you are waiting to collect", debtsOwedToMe.size) }
+                    items(debtsOwedToMe, key = { "owed-${it.id}" }) { record ->
+                        DebtRecordCard(
+                            record = record,
+                            onProgress = { progressRecord = record },
+                            onEdit = { editRecord = record },
+                            onHistory = { historyRecord = record },
+                            onDelete = { deleteRecord = record }
+                        )
+                    }
+                }
+            }
+        } else if (visibleRecords.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -293,40 +330,22 @@ fun FinancialPlansScreen(
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                when (section) {
-                                    FinanceSection.DEBTS -> "↔"
-                                    FinanceSection.SAVINGS -> "✦"
-                                    FinanceSection.ALLOWANCE -> "◷"
-                                },
-                                fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            Text(if (section == FinanceSection.SAVINGS) "✦" else "◷",
+                                fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                         Text(
-                            when (section) {
-                                FinanceSection.DEBTS -> "Start with a clear picture"
-                                FinanceSection.SAVINGS -> "Your next goal starts here"
-                                FinanceSection.ALLOWANCE -> "Plan before you spend"
-                            },
+                            if (section == FinanceSection.SAVINGS) "Your next goal starts here" else "Plan before you spend",
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
                         )
                         Text(
-                            when (section) {
-                                FinanceSection.DEBTS -> "Add money you owe or money someone needs to pay you. Track each repayment or collection."
-                                FinanceSection.SAVINGS -> "Set a target for an emergency fund, a new phone, rent, or anything you are working towards."
-                                FinanceSection.ALLOWANCE -> "Set a spending limit, then record actual purchases in Add Expense. You can link each expense to an allowance so the remaining balance stays accurate."
-                            },
+                            if (section == FinanceSection.SAVINGS)
+                                "Set a target for an emergency fund, a new phone, rent, or anything you are working towards."
+                            else "Set a spending limit, then record actual purchases in Add Expense. You can link each expense to an allowance so the remaining balance stays accurate.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Button(onClick = { showCreate = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                when (section) {
-                                    FinanceSection.DEBTS -> "Add your first debt"
-                                    FinanceSection.SAVINGS -> "Create your first goal"
-                                    FinanceSection.ALLOWANCE -> "Set your first allowance"
-                                }
-                            )
+                            Text(if (section == FinanceSection.SAVINGS) "Create your first goal" else "Set your first allowance")
                         }
                     }
                 }
@@ -889,6 +908,135 @@ private fun HeroMetric(modifier: Modifier = Modifier, label: String, value: Stri
             color = MaterialTheme.colorScheme.onPrimaryContainer)
         Text(hint, style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f))
+    }
+}
+
+@Composable
+private fun DebtGroupHeading(title: String, subtitle: String, count: Int) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(count.toString(), style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun DebtRecordCard(
+    record: FinancialRecord,
+    onProgress: () -> Unit,
+    onEdit: () -> Unit,
+    onHistory: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember(record.id) { mutableStateOf(false) }
+    val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
+    val progress = if (record.targetMinor > 0L)
+        (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
+    val isOwedToMe = record.type == FinancialRecord.DEBT_OWED_TO_ME
+    val accent = if (isOwedToMe) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+    val isSettled = remaining == 0L
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(accent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(if (isOwedToMe) "↙" else "↗", color = accent, fontSize = 23.sp)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(if (isOwedToMe) "OWED TO YOU" else "YOU OWE",
+                        style = MaterialTheme.typography.labelSmall, color = accent,
+                        fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
+                }
+                Box {
+                    TextButton(onClick = { menuExpanded = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+                        Text("⋮", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(text = { Text("View activity") }, onClick = { menuExpanded = false; onHistory() })
+                        DropdownMenuItem(text = { Text("Edit debt") }, onClick = { menuExpanded = false; onEdit() })
+                        DropdownMenuItem(text = { Text("Delete debt") }, onClick = { menuExpanded = false; onDelete() })
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(if (isOwedToMe) "REMAINING TO COLLECT" else "REMAINING TO REPAY",
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp)
+                Text(financeKes(remaining), style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold, color = if (isSettled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+            }
+
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
+                color = accent,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(if (isOwedToMe) "Collected" else "Repaid",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(financeKes(record.currentMinor), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Original debt", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(financeKes(record.targetMinor), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            if (record.dueDateEpochMillis != null) {
+                val dueDateText = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+                    .format(Date(record.dueDateEpochMillis))
+                val todayStart = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                val overdue = record.dueDateEpochMillis < todayStart && !isSettled
+                Text(
+                    if (overdue) "Overdue · $dueDateText" else "Due · $dueDateText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (overdue) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+
+            if (record.notes.isNotBlank()) {
+                Text(record.notes, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+            }
+
+            Button(
+                onClick = onProgress,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSettled,
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(vertical = 11.dp)
+            ) {
+                Text(when {
+                    isSettled -> "Fully settled"
+                    isOwedToMe -> "Record collection"
+                    else -> "Record repayment"
+                })
+            }
+        }
     }
 }
 
