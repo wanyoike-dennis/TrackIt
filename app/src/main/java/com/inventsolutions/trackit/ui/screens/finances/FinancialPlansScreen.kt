@@ -22,7 +22,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -805,15 +806,43 @@ private fun AccountMovementSelector(
     selectedAccountId: Long?,
     onSelect: (Long?) -> Unit
 ) {
-    if (accounts.none { !it.archived }) return
+    var expanded by remember { mutableStateOf(false) }
+    val activeAccounts = accounts.filter { !it.archived }
+    val selectedLabel = activeAccounts.firstOrNull { it.id == selectedAccountId }?.name ?: "Unassigned"
+
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Account (optional)", style = MaterialTheme.typography.labelMedium,
+        Text("Pay from account", style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = selectedAccountId == null, onClick = { onSelect(null) }, label = { Text("Unassigned") })
-            accounts.filter { !it.archived }.forEach { account ->
-                FilterChip(selected = selectedAccountId == account.id, onClick = { onSelect(account.id) },
-                    label = { Text(account.name) })
+        Box {
+            OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Text(selectedLabel, modifier = Modifier.weight(1f))
+                Text("⌄", style = MaterialTheme.typography.titleMedium)
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Unassigned") },
+                    onClick = {
+                        onSelect(null)
+                        expanded = false
+                    }
+                )
+                activeAccounts.forEach { account ->
+                    DropdownMenuItem(
+                        text = { Text(account.name) },
+                        onClick = {
+                            onSelect(account.id)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }
