@@ -174,19 +174,17 @@ fun FinancialPlansScreen(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
                         }
-                        Box(
-                            Modifier.size(58.dp).clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.09f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                when (section) {
-                                    FinanceSection.DEBTS -> "↔"
-                                    FinanceSection.SAVINGS -> "✦"
-                                    FinanceSection.ALLOWANCE -> "◷"
-                                },
-                                fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                        if (section != FinanceSection.DEBTS) {
+                            Box(
+                                Modifier.size(58.dp).clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.09f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    if (section == FinanceSection.SAVINGS) "✦" else "◷",
+                                    fontSize = 30.sp, color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     }
                     if (section == FinanceSection.SAVINGS) {
