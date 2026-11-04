@@ -826,7 +826,7 @@ private fun AccountMovementSelector(
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.width(280.dp)
             ) {
                 DropdownMenuItem(
                     text = { Text("Unassigned") },
