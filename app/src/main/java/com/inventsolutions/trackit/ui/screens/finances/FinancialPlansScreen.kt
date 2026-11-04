@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.finances
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -130,7 +132,7 @@ fun FinancialPlansScreen(
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 OutlinedButton(onClick = onBackToHome, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)) {
-                    Text("Home")
+                    TrackItIcon(R.drawable.ic_lucide_house, null); Text("Home")
                 }
             }
         }
@@ -262,7 +264,7 @@ fun FinancialPlansScreen(
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Button(onClick = { showCreate = true }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
+                Button(onClick = { showCreate = true }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary);
                     Text(
                         when (section) {
                             FinanceSection.DEBTS -> "+ Debt"
@@ -294,6 +296,7 @@ fun FinancialPlansScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     label = { Text("Search debts") },
+            leadingIcon = { TrackItIcon(R.drawable.ic_lucide_search, null) },
                     placeholder = { Text("Search by name or title") }
                 )
             }
