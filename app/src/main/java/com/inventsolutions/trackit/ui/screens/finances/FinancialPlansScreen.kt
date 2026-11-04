@@ -2,6 +2,7 @@ package com.inventsolutions.trackit.ui.screens.finances
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,6 +85,8 @@ fun FinancialPlansScreen(
     var deleteRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var editRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var historyRecord by remember { mutableStateOf<FinancialRecord?>(null) }
+    var debtFilter by remember { mutableStateOf("All") }
+    var debtSearch by remember { mutableStateOf("") }
 
     val debtsOwedToMe = records.filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
     val debtsIOwe = records.filter { it.type == FinancialRecord.DEBT_I_OWE }
@@ -93,6 +96,14 @@ fun FinancialPlansScreen(
         FinanceSection.DEBTS -> (debtsOwedToMe + debtsIOwe).sortedByDescending { it.createdAtEpochMillis }
         FinanceSection.SAVINGS -> savings
         FinanceSection.ALLOWANCE -> allowances
+    }
+    val filteredDebts = visibleRecords.filter { record ->
+        val matchesFilter = when (debtFilter) {
+            "I owe" -> record.type == FinancialRecord.DEBT_I_OWE
+            "Owed to me" -> record.type == FinancialRecord.DEBT_OWED_TO_ME
+            else -> true
+        }
+        matchesFilter && record.title.contains(debtSearch.trim(), ignoreCase = true)
     }
     val savedTotal = savings.sumOf { it.currentMinor }
     val savingsTarget = savings.sumOf { it.targetMinor }
@@ -199,14 +210,14 @@ fun FinancialPlansScreen(
                                 modifier = Modifier.weight(1f),
                                 label = "Owed to you",
                                 value = financeKes(owedToMe),
-                                hint = "To collect",
+                                hint = "${debtsOwedToMe.size} ${if (debtsOwedToMe.size == 1) "debt" else "debts"} to collect",
                                 symbol = "↙"
                             )
                             HeroMetric(
                                 modifier = Modifier.weight(1f),
                                 label = "You owe",
                                 value = financeKes(iOwe),
-                                hint = "To repay",
+                                hint = "${debtsIOwe.size} ${if (debtsIOwe.size == 1) "debt" else "debts"} to repay",
                                 symbol = "↗"
                             )
                         }
@@ -276,6 +287,31 @@ fun FinancialPlansScreen(
         }
 
         if (section == FinanceSection.DEBTS) {
+            item {
+                OutlinedTextField(
+                    value = debtSearch,
+                    onValueChange = { debtSearch = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Search debts") },
+                    placeholder = { Text("Search by name or title") }
+                )
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("All", "I owe", "Owed to me").forEach { filter ->
+                        FilterChip(
+                            selected = debtFilter == filter,
+                            onClick = { debtFilter = filter },
+                            label = { Text(filter) }
+                        )
+                    }
+                }
+            }
             if (debtsIOwe.isEmpty() && debtsOwedToMe.isEmpty()) {
                 item {
                     EmptyFinanceRecordsCard(
@@ -286,30 +322,26 @@ fun FinancialPlansScreen(
                         onAction = { showCreate = true }
                     )
                 }
-            } else {
-                if (debtsIOwe.isNotEmpty()) {
-                    item { DebtGroupHeading("I OWE", "Money you still need to repay", debtsIOwe.size) }
-                    items(debtsIOwe, key = { "owe-${it.id}" }) { record ->
-                        DebtRecordCard(
-                            record = record,
-                            onProgress = { progressRecord = record },
-                            onEdit = { editRecord = record },
-                            onHistory = { historyRecord = record },
-                            onDelete = { deleteRecord = record }
-                        )
-                    }
+            } else if (filteredDebts.isEmpty()) {
+                item {
+                    Text(
+                        if (debtSearch.isNotBlank()) "No debts match your search."
+                        else "There are no debts in this filter.",
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
-                if (debtsOwedToMe.isNotEmpty()) {
-                    item { DebtGroupHeading("OWED TO ME", "Money you are waiting to collect", debtsOwedToMe.size) }
-                    items(debtsOwedToMe, key = { "owed-${it.id}" }) { record ->
-                        DebtRecordCard(
-                            record = record,
-                            onProgress = { progressRecord = record },
-                            onEdit = { editRecord = record },
-                            onHistory = { historyRecord = record },
-                            onDelete = { deleteRecord = record }
-                        )
-                    }
+            } else {
+                items(filteredDebts, key = { "debt-${it.id}" }) { record ->
+                    DebtRecordRow(
+                        record = record,
+                        onOpen = { historyRecord = record },
+                        onProgress = { progressRecord = record },
+                        onEdit = { editRecord = record },
+                        onHistory = { historyRecord = record },
+                        onDelete = { deleteRecord = record }
+                    )
                 }
             }
         } else if (visibleRecords.isEmpty()) {
@@ -946,22 +978,9 @@ private fun EmptyFinanceRecordsCard(
 }
 
 @Composable
-private fun DebtGroupHeading(title: String, subtitle: String, count: Int) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text(count.toString(), style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun DebtRecordCard(
+private fun DebtRecordRow(
     record: FinancialRecord,
+    onOpen: () -> Unit,
     onProgress: () -> Unit,
     onEdit: () -> Unit,
     onHistory: () -> Unit,
@@ -976,99 +995,70 @@ private fun DebtRecordCard(
     val isSettled = remaining == 0L
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(accent.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(if (isOwedToMe) "↙" else "↗", color = accent, fontSize = 23.sp)
-                }
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(if (isOwedToMe) "OWED TO YOU" else "YOU OWE",
-                        style = MaterialTheme.typography.labelSmall, color = accent,
-                        fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
+                    Text(record.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1)
+                    Text(
+                        if (isOwedToMe) "OWED TO YOU" else "YOU OWE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = accent,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.6.sp
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(financeKes(remaining), style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold)
+                    Text(if (isSettled) "Settled" else "Remaining",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Box {
                     TextButton(onClick = { menuExpanded = true },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
-                        Text("⋮", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        contentPadding = PaddingValues(horizontal = 5.dp, vertical = 2.dp)) {
+                        Text("⋮", style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text("View activity") }, onClick = { menuExpanded = false; onHistory() })
-                        DropdownMenuItem(text = { Text("Edit debt") }, onClick = { menuExpanded = false; onEdit() })
-                        DropdownMenuItem(text = { Text("Delete debt") }, onClick = { menuExpanded = false; onDelete() })
+                        DropdownMenuItem(text = { Text(if (isOwedToMe) "Record collection" else "Record repayment") },
+                            enabled = !isSettled,
+                            onClick = { menuExpanded = false; onProgress() })
+                        DropdownMenuItem(text = { Text("View activity") },
+                            onClick = { menuExpanded = false; onHistory() })
+                        DropdownMenuItem(text = { Text("Edit debt") },
+                            onClick = { menuExpanded = false; onEdit() })
+                        DropdownMenuItem(text = { Text("Delete debt") },
+                            onClick = { menuExpanded = false; onDelete() })
                     }
                 }
             }
-
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(if (isOwedToMe) "REMAINING TO COLLECT" else "REMAINING TO REPAY",
-                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp)
-                Text(financeKes(remaining), style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold, color = if (isSettled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-            }
-
             LinearProgressIndicator(
                 progress = { progress },
-                modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
+                modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
                 color = accent,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
-
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(if (isOwedToMe) "Collected" else "Repaid",
-                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(financeKes(record.currentMinor), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                }
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Original debt", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(financeKes(record.targetMinor), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                }
-            }
-
-            if (record.dueDateEpochMillis != null) {
-                val dueDateText = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
-                    .format(Date(record.dueDateEpochMillis))
-                val todayStart = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                }.timeInMillis
-                val overdue = record.dueDateEpochMillis < todayStart && !isSettled
                 Text(
-                    if (overdue) "Overdue · $dueDateText" else "Due · $dueDateText",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (overdue) FontWeight.SemiBold else FontWeight.Normal
+                    "${if (isOwedToMe) "Collected" else "Repaid"} ${financeKes(record.currentMinor)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-
-            if (record.notes.isNotBlank()) {
-                Text(record.notes, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-            }
-
-            Button(
-                onClick = onProgress,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isSettled,
-                shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(vertical = 11.dp)
-            ) {
-                Text(when {
-                    isSettled -> "Fully settled"
-                    isOwedToMe -> "Record collection"
-                    else -> "Record repayment"
-                })
+                Text(
+                    "${(progress * 100).toInt()}% · Original ${financeKes(record.targetMinor)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
