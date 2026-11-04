@@ -219,12 +219,16 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
     val savingsTargetTotal = savingsGoals.sumOf { it.targetMinor }
     val savingsContributions = savingsGoals.sumOf { it.currentMinor }
     val savingsGoalCount = savingsGoals.size
-    val debtRepayments = uiState.financialRecords
+    val debtsIOwe = uiState.financialRecords
         .filter { it.type == FinancialRecord.DEBT_I_OWE }
-        .sumOf { it.currentMinor }
-    val debtCollections = uiState.financialRecords
+    val debtsOwedToMe = uiState.financialRecords
         .filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
-        .sumOf { it.currentMinor }
+    // currentMinor tracks amounts already repaid/collected; dashboard debt cards
+    // must show the outstanding balance, consistent with the Money screen.
+    val debtRepaymentsRecorded = debtsIOwe.sumOf { it.currentMinor }
+    val debtCollectionsRecorded = debtsOwedToMe.sumOf { it.currentMinor }
+    val debtOutstandingToRepay = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
+    val debtOutstandingToCollect = debtsOwedToMe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
     val reminderWindowEnd = todayStartForReminder(now) + 7L * 24L * 60L * 60L * 1000L
     val upcomingCommitments = uiState.financialRecords
         .filter { record ->
@@ -252,7 +256,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
         account.openingBalanceMinor + transactionMovement + transferMovement + financialMovement
     }
     val availableBalance = if (uiState.accounts.any { !it.archived }) accountBalancesTotal
-        else allIncome - allRecordedExpenses - savingsContributions - debtRepayments + debtCollections
+        else allIncome - allRecordedExpenses - savingsContributions - debtRepaymentsRecorded + debtCollectionsRecorded
     val todayStart = remember {
         (now.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -846,7 +850,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 DashboardMetricCard(
                                     title = "You owe",
-                                    value = formatKes(debtRepayments),
+                                    value = formatKes(debtOutstandingToRepay),
                                     detail = "Outstanding debts",
                                     symbol = "↗",
                                     accent = TrackItExpense,
@@ -854,7 +858,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                                 )
                                 DashboardMetricCard(
                                     title = "Owed to you",
-                                    value = formatKes(debtCollections),
+                                    value = formatKes(debtOutstandingToCollect),
                                     detail = "Money to collect",
                                     symbol = "↙",
                                     accent = TrackItEmerald,
