@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.transactions
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import android.app.DatePickerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -263,7 +265,7 @@ fun TransactionEntryScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            OutlinedButton(onClick = onBack) { Text("Cancel") }
+            OutlinedButton(onClick = onBack) { TrackItIcon(R.drawable.ic_lucide_arrow_left, null); Text("Cancel") }
         }
 
         Card(
@@ -568,7 +570,7 @@ fun TransactionEntryScreen(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
-                Text("Save " + if (isIncome) "income" else "expense")
+                TrackItIcon(if (isIncome) R.drawable.ic_lucide_arrow_up_right else R.drawable.ic_lucide_arrow_down_right, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Save " + if (isIncome) "income" else "expense")
             }
         }
         Text("Your transaction is saved on this device and works offline.",
