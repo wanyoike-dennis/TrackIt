@@ -1,5 +1,7 @@
 package com.inventsolutions.trackit.ui.screens.reports
 
+import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.ui.components.TrackItIcon
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -220,7 +222,7 @@ fun ReportScreen(
                     Text("Understand where your money goes.", style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedButton(onClick = onBackToHome) { Text("Home") }
+                OutlinedButton(onClick = onBackToHome) { TrackItIcon(R.drawable.ic_lucide_house, null); Text("Home") }
             }
         }
         item {
@@ -248,7 +250,7 @@ fun ReportScreen(
                 },
                 modifier = Modifier.padding(top = 8.dp)
             ) {
-                Text("Export report (CSV)")
+                TrackItIcon(R.drawable.ic_lucide_download, null); Text("Export report (CSV)")
             }
         }
         item {
@@ -377,7 +379,7 @@ fun ReportScreen(
                             Text("Recurring transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text("Automatically record regular income or expenses when the app is opened.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        OutlinedButton(onClick = { recurringError = null; showRecurringDialog = true }) { Text("Add") }
+                        OutlinedButton(onClick = { recurringError = null; showRecurringDialog = true }) { TrackItIcon(R.drawable.ic_lucide_plus, null); Text("Add") }
                     }
                     if (recurringTransactions.isEmpty()) {
                         Text("No recurring transactions set up yet.", style = MaterialTheme.typography.bodyMedium)
@@ -402,7 +404,7 @@ fun ReportScreen(
                                     TextButton(onClick = { onSetRecurringTransactionActive(item, !item.active) }) {
                                         Text(if (item.active) "Pause" else "Resume")
                                     }
-                                    TextButton(onClick = { onDeleteRecurringTransaction(item.id) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                                    TextButton(onClick = { onDeleteRecurringTransaction(item.id) }) { TrackItIcon(R.drawable.ic_lucide_trash, null, tint = MaterialTheme.colorScheme.error); Text("Delete", color = MaterialTheme.colorScheme.error) }
                                 }
                             }
                         }
