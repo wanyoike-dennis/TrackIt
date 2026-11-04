@@ -1515,7 +1515,8 @@ private fun TrackItNavigationIcon(
         "Activity" -> R.drawable.ic_lucide_clock
         "Budgets" -> R.drawable.ic_lucide_receipt
         "Reports" -> R.drawable.ic_lucide_chart
-        "Accounts", "Money" -> R.drawable.ic_lucide_wallet
+        "Accounts" -> R.drawable.ic_lucide_landmark
+        "Money" -> R.drawable.ic_lucide_wallet
         else -> R.drawable.ic_lucide_wallet
     }
     androidx.compose.material3.Icon(
