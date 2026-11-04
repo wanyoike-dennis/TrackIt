@@ -239,8 +239,8 @@ fun FinancialPlansScreen(
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FinanceTab("Debts", R.drawable.ic_lucide_repeat, section == FinanceSection.DEBTS, Modifier.weight(1f)) { section = FinanceSection.DEBTS }
-                FinanceTab("Savings", R.drawable.ic_lucide_wallet, section == FinanceSection.SAVINGS, Modifier.weight(1f)) { section = FinanceSection.SAVINGS }
-                FinanceTab("Allowance", R.drawable.ic_lucide_receipt, section == FinanceSection.ALLOWANCE, Modifier.weight(1f)) { section = FinanceSection.ALLOWANCE }
+                FinanceTab("Savings", R.drawable.ic_lucide_piggy_bank, section == FinanceSection.SAVINGS, Modifier.weight(1f)) { section = FinanceSection.SAVINGS }
+                FinanceTab("Allowance", R.drawable.ic_lucide_dollar_sign, section == FinanceSection.ALLOWANCE, Modifier.weight(1f)) { section = FinanceSection.ALLOWANCE }
             }
         }
 
