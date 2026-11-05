@@ -31,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -282,8 +283,12 @@ fun TransactionHistoryScreen(
     }
 
     datePickerTarget?.let { target ->
-        val initialDate = if (target == ActivityDatePickerTarget.START) customStartDate else customEndDate
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
+        key(target) {
+            val initialDate = if (target == ActivityDatePickerTarget.START) customStartDate else customEndDate
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = initialDate,
+                minDate = if (target == ActivityDatePickerTarget.END) customStartDate else null
+            )
         DatePickerDialog(
             onDismissRequest = { datePickerTarget = null },
             confirmButton = {
@@ -307,14 +312,15 @@ fun TransactionHistoryScreen(
                 }) { Text(if (target == ActivityDatePickerTarget.START) "Next" else "Apply") }
             },
             dismissButton = { TextButton(onClick = { datePickerTarget = null }) { Text("Cancel") } }
-        ) {
-            Column {
+            ) {
+                Column {
                 Text(
                     if (target == ActivityDatePickerTarget.START) "Choose start date" else "Choose end date",
                     modifier = Modifier.padding(start = 24.dp, top = 16.dp),
                     style = MaterialTheme.typography.titleMedium
                 )
                 DatePicker(state = datePickerState)
+                }
             }
         }
     }
