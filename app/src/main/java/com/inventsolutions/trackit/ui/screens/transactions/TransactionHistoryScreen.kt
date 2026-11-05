@@ -130,6 +130,7 @@ fun TransactionHistoryScreen(
         }
         financialEntries.forEach { entry ->
             val record = financialRecords.firstOrNull { it.id == entry.financialRecordId } ?: return@forEach
+            if (record.type == FinancialRecord.CLIENT_RECEIVABLE) return@forEach
             val kind = when {
                 record.type in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT) && entry.entryType in setOf(FinancialRecordEntry.CONTRIBUTION, FinancialRecordEntry.WITHDRAWAL) -> ActivityKind.SAVINGS
                 record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME) && entry.entryType in setOf(FinancialRecordEntry.REPAYMENT, FinancialRecordEntry.COLLECTION) -> ActivityKind.DEBT
