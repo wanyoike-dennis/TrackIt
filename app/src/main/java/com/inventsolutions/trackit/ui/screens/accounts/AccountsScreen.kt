@@ -2,8 +2,6 @@ package com.inventsolutions.trackit.ui.screens.accounts
 
 import com.inventsolutions.trackit.R
 import com.inventsolutions.trackit.ui.components.TrackItIcon
-import com.inventsolutions.trackit.ui.theme.TrackItNavy
-import com.inventsolutions.trackit.ui.theme.TrackItEmeraldLight
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
