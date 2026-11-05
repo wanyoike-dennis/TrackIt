@@ -222,7 +222,6 @@ fun ReportScreen(
                     Text("Understand where your money goes.", style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedButton(onClick = onBackToHome) { Text("Home") }
             }
         }
         item {
