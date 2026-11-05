@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 private const val PROFILE_PREFS = "trackit_personal_profile"
 
 @Composable
-fun PersonalInformationScreen(onBack: () -> Unit) {
+fun PersonalInformationScreen(onBack: () -> Unit, isInitialSetup: Boolean = false) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE) }
     var fullName by remember { mutableStateOf(preferences.getString("full_name", "").orEmpty()) }
@@ -47,13 +47,15 @@ fun PersonalInformationScreen(onBack: () -> Unit) {
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(Modifier.fillMaxWidth()) {
-            TextButton(onClick = onBack) { TrackItIcon(R.drawable.ic_lucide_arrow_left, null); Text("Back") }
+        if (!isInitialSetup) {
+            Row(Modifier.fillMaxWidth()) {
+                TextButton(onClick = onBack) { TrackItIcon(R.drawable.ic_lucide_arrow_left, null); Text("Back") }
+            }
         }
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("Personal information", style = MaterialTheme.typography.headlineSmall,
+            Text(if (isInitialSetup) "Let’s set up your profile" else "Personal information", style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold)
-            Text("Add the details you want TrackIt to display with your profile.",
+            Text(if (isInitialSetup) "Tell us a little about yourself before you start using TrackIt." else "Add the details you want TrackIt to display with your profile.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -113,10 +115,12 @@ fun PersonalInformationScreen(onBack: () -> Unit) {
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            TrackItIcon(R.drawable.ic_lucide_user, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Save changes")
+            TrackItIcon(R.drawable.ic_lucide_user, null, tint = MaterialTheme.colorScheme.onPrimary); Text(if (isInitialSetup) "Save and continue" else "Save changes")
         }
-        TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Cancel")
+        if (!isInitialSetup) {
+            TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                Text("Cancel")
+            }
         }
     }
 }
