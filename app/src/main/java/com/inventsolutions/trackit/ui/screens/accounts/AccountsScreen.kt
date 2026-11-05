@@ -4,6 +4,8 @@ import com.inventsolutions.trackit.R
 import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,12 +31,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.AccountTransfer
 import com.inventsolutions.trackit.data.local.FinancialAccount
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.ui.theme.TrackItEmeraldLight
+import com.inventsolutions.trackit.ui.theme.TrackItNavy
+import com.inventsolutions.trackit.ui.theme.TrackItNavyElevated
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -71,6 +78,139 @@ private fun FinancialRecordEntry.label(): String = when (entryType) {
     FinancialRecordEntry.REPAYMENT -> "Debt repayment"
     FinancialRecordEntry.COLLECTION -> "Debt collection"
     else -> "Financial movement"
+}
+
+
+@Composable
+private fun AccountTypeIcon(type: String, archived: Boolean) {
+    val icon = when (type) {
+        FinancialAccount.MPESA, FinancialAccount.CASH -> R.drawable.ic_lucide_wallet
+        FinancialAccount.BANK -> R.drawable.ic_lucide_landmark
+        else -> R.drawable.ic_lucide_receipt
+    }
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Box(Modifier.padding(11.dp), contentAlignment = Alignment.Center) {
+            TrackItIcon(
+                icon,
+                null,
+                tint = if (archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                size = 24.dp
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountListCard(
+    account: FinancialAccount,
+    balance: Long,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onArchive: () -> Unit
+) {
+    var menuExpanded by remember(account.id) { mutableStateOf(false) }
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 14.dp, top = 14.dp, end = 8.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AccountTypeIcon(account.type, account.archived)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    account.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (account.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    if (account.archived) "${account.typeLabel()} · Archived" else account.typeLabel(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    accountKes(balance),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (account.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+                )
+                Text("Current balance", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Box {
+                TextButton(
+                    onClick = { menuExpanded = true },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("⋮", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(text = { Text("View activity") }, onClick = { menuExpanded = false; onClick() })
+                    DropdownMenuItem(text = { Text("Edit account") }, onClick = { menuExpanded = false; onEdit() })
+                    if (!account.archived) {
+                        DropdownMenuItem(text = { Text("Archive account") }, onClick = { menuExpanded = false; onArchive() })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountActivityCard(
+    title: String,
+    detail: String,
+    time: Long,
+    amount: Long,
+    incoming: Boolean
+) {
+    val transfer = title.startsWith("Transfer")
+    val icon = when {
+        transfer -> R.drawable.ic_lucide_repeat
+        incoming -> R.drawable.ic_lucide_arrow_down_left
+        else -> R.drawable.ic_lucide_arrow_up_right
+    }
+    val movementColor = if (incoming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Card(
+                shape = CircleShape,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Box(Modifier.padding(10.dp), contentAlignment = Alignment.Center) {
+                    TrackItIcon(icon, null, tint = movementColor, size = 21.dp)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold)
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(accountDate(time), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                (if (incoming) "+ " else "− ") + accountKes(amount),
+                fontWeight = FontWeight.Bold,
+                color = movementColor,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
 }
 
 @Composable
@@ -117,111 +257,209 @@ fun AccountsScreen(
         if (detailAccount != null) selectedAccount = null else onBack()
     }
 
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(Modifier.weight(1f)) {
-                Text(if (detailAccount == null) "Accounts" else detailAccount.name,
-                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(if (detailAccount == null) "Track the money you hold in different places."
-                    else "Account balance and recent activity.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+    val archived = accounts.filter { it.archived }
+
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                if (detailAccount == null) "Accounts" else detailAccount.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                if (detailAccount == null) "See where your money is held."
+                else "Account balance and recent activity.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
 
         if (detailAccount == null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { showAdd = true }) { TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Add account") }
-                OutlinedButton(onClick = { showTransfer = true }, enabled = active.size >= 2) { TrackItIcon(R.drawable.ic_lucide_repeat, null); Text("Transfer") }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = TrackItNavy)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "TOTAL BALANCE",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.72f)
+                        )
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = TrackItNavyElevated)
+                        ) {
+                            Box(Modifier.padding(11.dp), contentAlignment = Alignment.Center) {
+                                TrackItIcon(R.drawable.ic_lucide_wallet, null, tint = TrackItEmeraldLight, size = 26.dp)
+                            }
+                        }
+                    }
+                    Text(
+                        accountKes(active.sumOf { balances[it.id] ?: it.openingBalanceMinor }),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        "${active.size} active ${if (active.size == 1) "account" else "accounts"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.72f)
+                    )
+                }
             }
-            if (active.isEmpty()) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = { showAdd = true },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary, size = 20.dp)
+                    Text("Add account")
+                }
+                OutlinedButton(
+                    onClick = { showTransfer = true },
+                    modifier = Modifier.weight(1f),
+                    enabled = active.size >= 2,
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    TrackItIcon(R.drawable.ic_lucide_repeat, null, size = 20.dp)
+                    Text("Transfer")
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Your accounts", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "${accounts.size} total",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (accounts.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TrackItIcon(R.drawable.ic_lucide_wallet, null, tint = MaterialTheme.colorScheme.primary, size = 34.dp)
                         Text("No accounts yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Add M-Pesa, cash or a bank account and enter the balance you currently have in it.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "Add M-Pesa, cash or a bank account to start tracking where your money is held.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
-            }
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("TOTAL ACROSS ACTIVE ACCOUNTS",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold)
-                    Text(accountKes(active.sumOf { balances[it.id] ?: it.openingBalanceMinor }),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary)
-                    Text("${active.size} active ${if (active.size == 1) "account" else "accounts"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Text("Your accounts", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(accounts, key = { it.id }) { account ->
-                    var menuExpanded by remember(account.id) { mutableStateOf(false) }
-                    Card(onClick = { selectedAccount = account },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(start = 15.dp, top = 13.dp, end = 8.dp, bottom = 13.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(account.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    if (account.archived) "Archived · ${account.typeLabel()}" else account.typeLabel(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Column(horizontalAlignment = androidx.compose.ui.Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(accountKes(balances[account.id] ?: account.openingBalanceMinor),
-                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                                    color = if (account.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
-                                Text("Balance", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Box {
-                                TextButton(onClick = { menuExpanded = true }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
-                                    Text("⋮", style = MaterialTheme.typography.titleLarge)
-                                }
-                                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                                    DropdownMenuItem(text = { Text("View activity") }, onClick = {
-                                        selectedAccount = account
-                                        menuExpanded = false
-                                    })
-                                    DropdownMenuItem(text = { Text("Edit account") }, onClick = {
-                                        editingAccount = account
-                                        menuExpanded = false
-                                    })
-                                    if (!account.archived) {
-                                        DropdownMenuItem(text = { Text("Archive account") }, onClick = {
-                                            onArchive(account)
-                                            menuExpanded = false
-                                        })
-                                    }
-                                }
-                            }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (active.isNotEmpty()) {
+                        item {
+                            Text(
+                                "ACTIVE ACCOUNTS",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        items(active, key = { it.id }) { account ->
+                            AccountListCard(
+                                account = account,
+                                balance = balances[account.id] ?: account.openingBalanceMinor,
+                                onClick = { selectedAccount = account },
+                                onEdit = { editingAccount = account },
+                                onArchive = { onArchive(account) }
+                            )
+                        }
+                    }
+                    if (archived.isNotEmpty()) {
+                        item {
+                            Text(
+                                "ARCHIVED",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        items(archived, key = { it.id }) { account ->
+                            AccountListCard(
+                                account = account,
+                                balance = balances[account.id] ?: account.openingBalanceMinor,
+                                onClick = { selectedAccount = account },
+                                onEdit = { editingAccount = account },
+                                onArchive = { onArchive(account) }
+                            )
                         }
                     }
                 }
             }
         } else {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text("Available balance", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(accountKes(balances[detailAccount.id] ?: detailAccount.openingBalanceMinor),
-                        style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary)
-                    Text("${detailAccount.typeLabel()} • Opening balance ${accountKes(detailAccount.openingBalanceMinor)}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Opened ${accountDate(detailAccount.openingDateEpochMillis)}",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { editingAccount = detailAccount }) { TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit account details") }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = TrackItNavy)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("AVAILABLE BALANCE", style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.72f))
+                    Text(
+                        accountKes(balances[detailAccount.id] ?: detailAccount.openingBalanceMinor),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AccountTypeIcon(detailAccount.type, detailAccount.archived)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(detailAccount.typeLabel(), color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Opening balance · ${accountKes(detailAccount.openingBalanceMinor)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.72f)
+                            )
+                        }
+                    }
+                    Text(
+                        "Opened ${accountDate(detailAccount.openingDateEpochMillis)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.72f)
+                    )
+                    TextButton(onClick = { editingAccount = detailAccount }) {
+                        TrackItIcon(R.drawable.ic_lucide_edit, null, tint = TrackItEmeraldLight, size = 20.dp)
+                        Text("Edit account details", color = Color.White)
+                    }
                 }
             }
+
             val accountTransactions = transactions.filter { it.accountId == detailAccount.id }
             val accountTransfers = transfers.filter {
                 it.fromAccountId == detailAccount.id || it.toAccountId == detailAccount.id
@@ -232,7 +470,7 @@ fun AccountsScreen(
                 accountTransactions.forEach {
                     val income = it.type == MoneyTransaction.INCOME
                     add(ActivityRow(it.dateEpochMillis, it.description.ifBlank { it.category },
-                        if (income) "Income • ${it.category}" else "Expense • ${it.category}",
+                        if (income) "Income · ${it.category}" else "Expense · ${it.category}",
                         it.amountMinor, income))
                 }
                 accountTransfers.forEach {
@@ -241,7 +479,7 @@ fun AccountsScreen(
                         account.id == if (incoming) it.fromAccountId else it.toAccountId
                     }?.name ?: "Other account"
                     add(ActivityRow(it.dateEpochMillis, if (incoming) "Transfer received" else "Transfer sent",
-                        other + if (it.note.isBlank()) "" else " • ${it.note}",
+                        other + if (it.note.isBlank()) "" else " · ${it.note}",
                         it.amountMinor, incoming))
                 }
                 accountEntries.forEach {
@@ -251,27 +489,38 @@ fun AccountsScreen(
                         it.amountMinor, incoming))
                 }
             }.sortedByDescending { it.time }
-            Text("Account activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            if (activity.isEmpty()) {
-                Text("No activity has been recorded for this account yet.",
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Recent activity", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("${activity.size} entries", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (activity.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("No activity yet", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Income, expenses and transfers recorded against this account will appear here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
                     items(activity) { item ->
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                            Row(Modifier.fillMaxWidth().padding(13.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(item.title, fontWeight = FontWeight.SemiBold)
-                                    Text(item.detail, style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(accountDate(item.time), style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Text((if (item.incoming) "+ " else "− ") + accountKes(item.amount),
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (item.incoming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                            }
-                        }
+                        AccountActivityCard(item.title, item.detail, item.time, item.amount, item.incoming)
                     }
                 }
             }
