@@ -115,7 +115,9 @@ fun TransactionHistoryScreen(
                 FinancialRecordEntry.COLLECTION -> "Debt collection"
                 else -> "Financial update"
             }
-            add(ActivityEvent("entry-${entry.id}", kind, entry.note.ifBlank { action }, record.title, entry.amountMinor, entry.createdAtEpochMillis, positive = entry.entryType == FinancialRecordEntry.WITHDRAWAL || entry.entryType == FinancialRecordEntry.COLLECTION))
+            val accountLabel = entry.accountId?.let { accountNames[it] }
+            val detail = listOf(record.title, accountLabel).filterNotNull().joinToString(" · ")
+            add(ActivityEvent("entry-${entry.id}", kind, entry.note.ifBlank { action }, detail, entry.amountMinor, entry.createdAtEpochMillis, positive = entry.entryType == FinancialRecordEntry.WITHDRAWAL || entry.entryType == FinancialRecordEntry.COLLECTION))
         }
     }.sortedByDescending { it.dateMillis }
     val filtered = allEvents.filter { event ->
