@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
@@ -16,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.inventsolutions.trackit.notifications.BudgetNotifications
 import com.inventsolutions.trackit.ui.screens.dashboard.DashboardScreen
+import com.inventsolutions.trackit.ui.screens.profile.PersonalInformationScreen
 import com.inventsolutions.trackit.ui.theme.TrackItTheme
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
@@ -38,17 +40,29 @@ class MainActivity : ComponentActivity() {
                 "dark" -> true
                 else -> isSystemInDarkTheme()
             }
+            val profilePreferences = getSharedPreferences("trackit_personal_profile", MODE_PRIVATE)
+            var profileSetupRequired by remember {
+                mutableStateOf(profilePreferences.getString("full_name", "").orEmpty().isBlank())
+            }
+            BackHandler(enabled = profileSetupRequired) { }
             TrackItTheme(darkTheme = darkTheme) {
-                DashboardScreen(
-                    viewModel = transactionViewModel,
-                    themeMode = themeMode,
-                    onThemeModeChanged = { mode ->
-                        if (mode == "system" || mode == "light" || mode == "dark") {
-                            appearancePreferences.edit().putString("theme_mode", mode).apply()
-                            themeMode = mode
+                if (profileSetupRequired) {
+                    PersonalInformationScreen(
+                        isInitialSetup = true,
+                        onBack = { profileSetupRequired = false }
+                    )
+                } else {
+                    DashboardScreen(
+                        viewModel = transactionViewModel,
+                        themeMode = themeMode,
+                        onThemeModeChanged = { mode ->
+                            if (mode == "system" || mode == "light" || mode == "dark") {
+                                appearancePreferences.edit().putString("theme_mode", mode).apply()
+                                themeMode = mode
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }
