@@ -570,6 +570,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             )
         if (type !in setOf(
                 FinancialRecord.DEBT_OWED_TO_ME,
+                FinancialRecord.CLIENT_RECEIVABLE,
                 FinancialRecord.DEBT_I_OWE,
                 FinancialRecord.SAVINGS_GOAL,
                 FinancialRecord.SAVINGS_ACCOUNT,
@@ -676,8 +677,9 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
             return
         }
+        val isClientReceivable = record.type == FinancialRecord.CLIENT_RECEIVABLE
         val isDebt = record.type == FinancialRecord.DEBT_I_OWE ||
-            record.type == FinancialRecord.DEBT_OWED_TO_ME
+            record.type == FinancialRecord.DEBT_OWED_TO_ME || isClientReceivable
         val outstanding = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
         if (isDebt && amountMinor > outstanding) {
             _uiState.update { it.copy(errorMessage = "That amount is more than the outstanding debt.") }
@@ -692,16 +694,34 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         if (!validateAccountMovement(accountId, amountMinor, entryType == FinancialRecordEntry.CONTRIBUTION || entryType == FinancialRecordEntry.REPAYMENT)) return
         viewModelScope.launch {
             try {
-                financialRecordDao.saveProgress(
-                    record.copy(currentMinor = record.currentMinor + amountMinor),
-                    FinancialRecordEntry(
-                        financialRecordId = record.id,
-                        entryType = entryType,
-                        amountMinor = amountMinor,
-                        note = note.trim(),
-                        accountId = accountId
+                database.withTransaction {
+                    if (isClientReceivable) {
+                        // A client payment is real cash income. Store it once as a
+                        // transaction; keep the receivable entry only as a linked
+                        // collection history item, without a second balance movement.
+                        transactionRepository.add(
+                            MoneyTransaction(
+                                type = MoneyTransaction.INCOME,
+                                amountMinor = amountMinor,
+                                category = "Client payment",
+                                description = record.title + if (note.isBlank()) "" else " — ${note.trim()}",
+                                paymentMethod = "Client payment",
+                                dateEpochMillis = System.currentTimeMillis(),
+                                accountId = accountId
+                            )
+                        )
+                    }
+                    financialRecordDao.saveProgress(
+                        record.copy(currentMinor = record.currentMinor + amountMinor),
+                        FinancialRecordEntry(
+                            financialRecordId = record.id,
+                            entryType = entryType,
+                            amountMinor = amountMinor,
+                            note = note.trim(),
+                            accountId = if (isClientReceivable) null else accountId
+                        )
                     )
-                )
+                }
                 _uiState.update { it.copy(errorMessage = null) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(errorMessage = "Couldn't save this update. Please try again.") }
