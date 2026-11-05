@@ -636,32 +636,126 @@ fun AccountsScreen(
         val difference = parsedBalance?.minus(currentBalance)
         AlertDialog(
             onDismissRequest = { showReconcile = false },
-            title = { Text("Reconcile " + detailAccount.name) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Box(Modifier.padding(11.dp), contentAlignment = Alignment.Center) {
+                            TrackItIcon(
+                                R.drawable.ic_lucide_repeat,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                size = 23.dp
+                            )
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Reconcile balance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(detailAccount.name, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Compare the balance shown by your bank, M-Pesa or cash count with TrackIt's recorded balance.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("TrackIt balance", style = MaterialTheme.typography.labelMedium)
-                    Text(accountKes(currentBalance), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(actualBalance, { actualBalance = it }, label = { Text("Actual balance (KSh)") }, singleLine = true)
-                    OutlinedTextField(note, { note = it }, label = { Text("Note / reason (optional)") }, singleLine = true)
-                    if (difference != null) Text(
-                        if (difference == 0L) "The balances match. No adjustment is needed."
-                        else "Adjustment to record: " + (if (difference > 0) "+" else "−") + accountKes(kotlin.math.abs(difference)),
-                        color = if (difference == 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
-                        fontWeight = FontWeight.SemiBold
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        "Compare TrackIt with the balance shown by your bank, M-Pesa or cash count.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text("Saving records a separate adjustment. Existing transactions are not edited or deleted.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text("TRACKIT BALANCE", style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(accountKes(currentBalance), style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("STATEMENT / ACTUAL BALANCE", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedTextField(
+                            value = actualBalance,
+                            onValueChange = { actualBalance = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Enter amount in KSh") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                    }
+                    if (difference != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(
+                                    if (difference == 0L) "BALANCES MATCH" else "DIFFERENCE",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    if (difference == 0L) "No adjustment needed"
+                                    else (if (difference > 0L) "+ " else "− ") + accountKes(kotlin.math.abs(difference)),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    if (difference == 0L) "Your recorded and actual balances are aligned."
+                                    else if (difference > 0L) "TrackIt will increase this account balance by the difference."
+                                    else "TrackIt will reduce this account balance by the difference.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("NOTE (OPTIONAL)", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedTextField(
+                            value = note,
+                            onValueChange = { note = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("e.g. Bank statement checked") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                    }
+                    Text(
+                        "This records a separate adjustment. Your existing transactions are not changed.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             },
             confirmButton = {
-                TextButton(enabled = parsedBalance != null && parsedBalance >= 0L, onClick = {
-                    parsedBalance?.let { onReconcile(detailAccount.id, it, note) }
-                    showReconcile = false
-                }) { Text("Save reconciliation") }
+                Button(
+                    enabled = parsedBalance != null && parsedBalance >= 0L,
+                    onClick = {
+                        parsedBalance?.let { onReconcile(detailAccount.id, it, note.trim()) }
+                        showReconcile = false
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Confirm reconciliation") }
             },
-            dismissButton = { TextButton(onClick = { showReconcile = false }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = { showReconcile = false }) { Text("Cancel") }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
@@ -670,41 +764,131 @@ fun AccountsScreen(
         var name by remember(account.id) { mutableStateOf(account.name) }
         var type by remember(account.id) { mutableStateOf(account.type) }
         var typeExpanded by remember { mutableStateOf(false) }
+        val selectedTypeLabel = when (type) {
+            FinancialAccount.MPESA -> "M-Pesa"
+            FinancialAccount.BANK -> "Bank"
+            FinancialAccount.CASH -> "Cash"
+            else -> "Other"
+        }
         AlertDialog(
             onDismissRequest = { editingAccount = null },
-            title = { Text("Edit account") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(name, { name = it }, label = { Text("Account name") }, singleLine = true)
-                    OutlinedButton(onClick = { typeExpanded = true }) { Text(when (type) {
-                        FinancialAccount.MPESA -> "M-Pesa"
-                        FinancialAccount.BANK -> "Bank"
-                        FinancialAccount.CASH -> "Cash"
-                        else -> "Other"
-                    }) }
-                    DropdownMenu(typeExpanded, { typeExpanded = false }) {
-                        listOf(FinancialAccount.MPESA, FinancialAccount.CASH, FinancialAccount.BANK, FinancialAccount.OTHER).forEach { item ->
-                            DropdownMenuItem(text = { Text(when (item) {
-                                FinancialAccount.MPESA -> "M-Pesa"
-                                FinancialAccount.BANK -> "Bank"
-                                FinancialAccount.CASH -> "Cash"
-                                else -> "Other"
-                            }) }, onClick = { type = item; typeExpanded = false })
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Box(Modifier.padding(11.dp), contentAlignment = Alignment.Center) {
+                            TrackItIcon(
+                                R.drawable.ic_lucide_edit,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                size = 23.dp
+                            )
                         }
                     }
-                    Text("The opening balance and opening date are kept unchanged so existing account history remains accurate.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Edit account", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Update how this account is identified", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("ACCOUNT NAME", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("e.g. Main M-Pesa") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("ACCOUNT TYPE", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box {
+                            OutlinedButton(
+                                onClick = { typeExpanded = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text(selectedTypeLabel, modifier = Modifier.weight(1f))
+                                TrackItIcon(R.drawable.ic_lucide_chevron_down, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, size = 18.dp)
+                            }
+                            DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
+                                listOf(
+                                    FinancialAccount.MPESA,
+                                    FinancialAccount.BANK,
+                                    FinancialAccount.CASH,
+                                    FinancialAccount.OTHER
+                                ).forEach { item ->
+                                    val label = when (item) {
+                                        FinancialAccount.MPESA -> "M-Pesa"
+                                        FinancialAccount.BANK -> "Bank"
+                                        FinancialAccount.CASH -> "Cash"
+                                        else -> "Other"
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = { type = item; typeExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text("ACCOUNT RECORDS", style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "Opening balance: " + accountKes(account.openingBalanceMinor),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                "Opened " + accountDate(account.openingDateEpochMillis),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Your opening balance and date stay unchanged, so existing history remains accurate.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    if (name.isNotBlank()) {
-                        onUpdateAccount(account.copy(name = name.trim(), type = type))
-                        editingAccount = null
-                    }
-                }) { Text("Save changes") }
+                Button(
+                    enabled = name.isNotBlank(),
+                    onClick = {
+                        if (name.isNotBlank()) {
+                            onUpdateAccount(account.copy(name = name.trim(), type = type))
+                            editingAccount = null
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Save changes") }
             },
-            dismissButton = { TextButton(onClick = { editingAccount = null }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = { editingAccount = null }) { Text("Cancel") }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
