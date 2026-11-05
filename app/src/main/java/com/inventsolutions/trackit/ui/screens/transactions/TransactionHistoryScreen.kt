@@ -5,6 +5,7 @@ import com.inventsolutions.trackit.ui.components.TrackItIcon
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,8 +23,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
@@ -92,6 +96,41 @@ private fun historyKes(amountMinor: Long): String {
         minimumFractionDigits = if (absolute % 100L == 0L) 0 else 2
     }
     return "KSh " + formatter.format(absolute / 100.0)
+}
+
+
+@Composable
+private fun ActivityFilterDropdown(
+    modifier: Modifier = Modifier,
+    selectedLabel: String,
+    options: List<Pair<String, String>>,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(selectedLabel, modifier = Modifier.weight(1f), maxLines = 1)
+            Text("▾")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { (label, value) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        expanded = false
+                        onSelected(value)
+                    }
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -201,24 +240,53 @@ fun TransactionHistoryScreen(
             singleLine = true
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            listOf(TransactionTypeFilter.ALL to "All", TransactionTypeFilter.INCOME to "Income", TransactionTypeFilter.EXPENSE to "Expenses").forEach { (filter, label) ->
-                FilterChip(selected = typeFilter == filter, onClick = { typeFilter = filter }, label = { Text(label) })
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            listOf(TransactionTypeFilter.TRANSFERS to "Transfers", TransactionTypeFilter.SAVINGS to "Savings", TransactionTypeFilter.DEBT to "Debt").forEach { (filter, label) ->
-                FilterChip(selected = typeFilter == filter, onClick = { typeFilter = filter }, label = { Text(label) })
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = periodFilter == TransactionPeriodFilter.ALL_TIME,
-                onClick = { periodFilter = TransactionPeriodFilter.ALL_TIME }, label = { Text("All time") })
-            FilterChip(selected = periodFilter == TransactionPeriodFilter.THIS_MONTH,
-                onClick = { periodFilter = TransactionPeriodFilter.THIS_MONTH }, label = { Text("This month") })
-            FilterChip(selected = periodFilter == TransactionPeriodFilter.CUSTOM,
-                onClick = { dateRangeError = null; datePickerTarget = ActivityDatePickerTarget.START },
-                label = { Text(if (periodFilter == TransactionPeriodFilter.CUSTOM && customStartDate != null && customEndDate != null) "Custom dates" else "Date range") })
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ActivityFilterDropdown(
+                modifier = Modifier.weight(1f),
+                selectedLabel = when (typeFilter) {
+                    TransactionTypeFilter.ALL -> "All activity"
+                    TransactionTypeFilter.INCOME -> "Income"
+                    TransactionTypeFilter.EXPENSE -> "Expenses"
+                    TransactionTypeFilter.TRANSFERS -> "Transfers"
+                    TransactionTypeFilter.SAVINGS -> "Savings"
+                    TransactionTypeFilter.DEBT -> "Debt"
+                },
+                options = listOf(
+                    "All activity" to TransactionTypeFilter.ALL,
+                    "Income" to TransactionTypeFilter.INCOME,
+                    "Expenses" to TransactionTypeFilter.EXPENSE,
+                    "Transfers" to TransactionTypeFilter.TRANSFERS,
+                    "Savings" to TransactionTypeFilter.SAVINGS,
+                    "Debt" to TransactionTypeFilter.DEBT
+                ).map { it.first to it.second.name },
+                onSelected = { selected -> typeFilter = TransactionTypeFilter.valueOf(selected) }
+            )
+            ActivityFilterDropdown(
+                modifier = Modifier.weight(1f),
+                selectedLabel = when (periodFilter) {
+                    TransactionPeriodFilter.ALL_TIME -> "All time"
+                    TransactionPeriodFilter.THIS_MONTH -> "This month"
+                    TransactionPeriodFilter.CUSTOM -> "Custom dates"
+                },
+                options = listOf(
+                    "All time" to TransactionPeriodFilter.ALL_TIME.name,
+                    "This month" to TransactionPeriodFilter.THIS_MONTH.name,
+                    "Custom range" to TransactionPeriodFilter.CUSTOM.name
+                ),
+                onSelected = { selected ->
+                    when (TransactionPeriodFilter.valueOf(selected)) {
+                        TransactionPeriodFilter.ALL_TIME -> periodFilter = TransactionPeriodFilter.ALL_TIME
+                        TransactionPeriodFilter.THIS_MONTH -> periodFilter = TransactionPeriodFilter.THIS_MONTH
+                        TransactionPeriodFilter.CUSTOM -> {
+                            dateRangeError = null
+                            datePickerTarget = ActivityDatePickerTarget.START
+                        }
+                    }
+                }
+            )
         }
         if (periodFilter == TransactionPeriodFilter.CUSTOM && customStartDate != null && customEndDate != null) {
             Text(
