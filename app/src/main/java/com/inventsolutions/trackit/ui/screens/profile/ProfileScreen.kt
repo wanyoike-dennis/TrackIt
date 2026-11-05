@@ -91,7 +91,7 @@ fun ProfileScreen(
                         Text(email.ifBlank { "Add your email address" }, style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) { TrackItIcon(R.drawable.ic_lucide_edit, null, tint = MaterialTheme.colorScheme.primary, size = 16.dp); Text("Edit", style = MaterialTheme.typography.labelLarge,
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) { TrackItIcon(R.drawable.ic_lucide_edit, null, tint = MaterialTheme.colorScheme.primary, size = 22.dp); Text("Edit", style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold) }
                 }
                 if (phone.isNotBlank() || location.isNotBlank()) {
