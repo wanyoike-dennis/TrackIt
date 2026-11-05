@@ -37,6 +37,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialRecordEntry
+import com.inventsolutions.trackit.data.local.AccountTransfer
+import com.inventsolutions.trackit.data.local.FinancialAccount
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DateFormat
@@ -46,7 +50,9 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
-private enum class TransactionTypeFilter { ALL, INCOME, EXPENSE }
+private enum class TransactionTypeFilter { ALL, INCOME, EXPENSE, TRANSFERS, SAVINGS, DEBT }
+private enum class ActivityKind { INCOME, EXPENSE, TRANSFER, SAVINGS, DEBT }
+private data class ActivityEvent(val key: String, val kind: ActivityKind, val title: String, val subtitle: String, val amountMinor: Long, val dateMillis: Long, val transaction: MoneyTransaction? = null)
 private enum class TransactionPeriodFilter { ALL_TIME, THIS_MONTH }
 
 private fun parseHistoryAmount(value: String): Long? = runCatching {
@@ -68,6 +74,10 @@ private fun historyKes(amountMinor: Long): String {
 @Composable
 fun TransactionHistoryScreen(
     transactions: List<MoneyTransaction>,
+    financialRecords: List<FinancialRecord>,
+    financialEntries: List<FinancialRecordEntry>,
+    accountTransfers: List<AccountTransfer>,
+    accounts: List<FinancialAccount>,
     errorMessage: String?,
     onBack: () -> Unit,
     onUpdate: (MoneyTransaction) -> Unit,
@@ -81,27 +91,61 @@ fun TransactionHistoryScreen(
     var deleteCandidate by remember { mutableStateOf<MoneyTransaction?>(null) }
 
     val now = Calendar.getInstance()
-    val currentMonthKey = "%04d-%02d".format(Locale.US, now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1)
-    val filtered = transactions.filter { transaction ->
+    val monthKeyNow = "%04d-%02d".format(Locale.US, now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1)
+    val accountNames = accounts.associate { it.id to it.name }
+    val allEvents = buildList {
+        transactions.forEach { tx ->
+            val kind = if (tx.type == MoneyTransaction.INCOME) ActivityKind.INCOME else ActivityKind.EXPENSE
+            add(ActivityEvent("tx-${tx.id}", kind, tx.description.ifBlank { tx.category },
+                listOf(tx.category, tx.paymentMethod).filter { it.isNotBlank() }.joinToString(" · "), tx.amountMinor, tx.dateEpochMillis, tx))
+        }
+        accountTransfers.forEach { transfer ->
+            val from = accountNames[transfer.fromAccountId] ?: "Account"
+            val to = accountNames[transfer.toAccountId] ?: "Account"
+            add(ActivityEvent("transfer-${transfer.id}", ActivityKind.TRANSFER, transfer.note.ifBlank { "Account transfer" },
+                "$from → $to", transfer.amountMinor, transfer.dateEpochMillis))
+        }
+        financialEntries.forEach { entry ->
+            val record = financialRecords.firstOrNull { it.id == entry.financialRecordId } ?: return@forEach
+            val kind = when {
+                record.type in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT) && entry.entryType in setOf(FinancialRecordEntry.CONTRIBUTION, FinancialRecordEntry.WITHDRAWAL) -> ActivityKind.SAVINGS
+                record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME) && entry.entryType in setOf(FinancialRecordEntry.REPAYMENT, FinancialRecordEntry.COLLECTION) -> ActivityKind.DEBT
+                else -> null
+            } ?: return@forEach
+            val action = when (entry.entryType) {
+                FinancialRecordEntry.CONTRIBUTION -> "Savings contribution"
+                FinancialRecordEntry.WITHDRAWAL -> "Savings withdrawal"
+                FinancialRecordEntry.REPAYMENT -> "Debt repayment"
+                FinancialRecordEntry.COLLECTION -> "Debt collection"
+                else -> "Financial update"
+            }
+            add(ActivityEvent("entry-${entry.id}", kind, entry.note.ifBlank { action }, record.title, entry.amountMinor, entry.createdAtEpochMillis))
+        }
+    }.sortedByDescending { it.dateMillis }
+    val filtered = allEvents.filter { event ->
         val matchesType = when (typeFilter) {
             TransactionTypeFilter.ALL -> true
-            TransactionTypeFilter.INCOME -> transaction.type == MoneyTransaction.INCOME
-            TransactionTypeFilter.EXPENSE -> transaction.type == MoneyTransaction.EXPENSE
+            TransactionTypeFilter.INCOME -> event.kind == ActivityKind.INCOME
+            TransactionTypeFilter.EXPENSE -> event.kind == ActivityKind.EXPENSE
+            TransactionTypeFilter.TRANSFERS -> event.kind == ActivityKind.TRANSFER
+            TransactionTypeFilter.SAVINGS -> event.kind == ActivityKind.SAVINGS
+            TransactionTypeFilter.DEBT -> event.kind == ActivityKind.DEBT
         }
-        val transactionDate = Calendar.getInstance().apply { timeInMillis = transaction.dateEpochMillis }
-        val transactionMonthKey = "%04d-%02d".format(
-            Locale.US, transactionDate.get(Calendar.YEAR), transactionDate.get(Calendar.MONTH) + 1
-        )
-        val matchesPeriod = periodFilter == TransactionPeriodFilter.ALL_TIME || transactionMonthKey == currentMonthKey
+        val date = Calendar.getInstance().apply { timeInMillis = event.dateMillis }
+        val monthKey = "%04d-%02d".format(Locale.US, date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1)
+        val matchesPeriod = periodFilter == TransactionPeriodFilter.ALL_TIME || monthKey == monthKeyNow
         val query = search.trim()
-        val matchesSearch = query.isBlank() ||
-            transaction.category.contains(query, ignoreCase = true) ||
-            transaction.description.contains(query, ignoreCase = true) ||
-            transaction.paymentMethod.contains(query, ignoreCase = true)
+        val matchesSearch = query.isBlank() || event.title.contains(query, true) || event.subtitle.contains(query, true) ||
+            event.transaction?.category?.contains(query, true) == true || event.transaction?.paymentMethod?.contains(query, true) == true
         matchesType && matchesPeriod && matchesSearch
     }
-    val filteredIncome = filtered.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor }
-    val filteredExpenses = filtered.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor }
+    val filteredIncome = filtered.filter { it.kind == ActivityKind.INCOME }.sumOf { it.amountMinor }
+    val filteredExpenses = filtered.filter { it.kind == ActivityKind.EXPENSE }.sumOf { it.amountMinor }
+    val filteredNet = filteredIncome - filteredExpenses
+    var selectedTransaction by remember { mutableStateOf<MoneyTransaction?>(null) }
+    var selectedEvent by remember { mutableStateOf<ActivityEvent?>(null) }
+    var editingTransaction by remember { mutableStateOf<MoneyTransaction?>(null) }
+    var deleteCandidate by remember { mutableStateOf<MoneyTransaction?>(null) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp),
@@ -109,25 +153,27 @@ fun TransactionHistoryScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Transaction history", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Search, review, edit or remove a record.", style = MaterialTheme.typography.bodyMedium,
+                Text("Activity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Your complete money movement timeline.", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         OutlinedTextField(
             value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text("Search transactions") }, leadingIcon = { TrackItIcon(R.drawable.ic_lucide_search, null) }, placeholder = { Text("Category, description, payment method") },
+            label = { Text("Search transactions") }, leadingIcon = { TrackItIcon(R.drawable.ic_lucide_search, null) }, placeholder = { Text("Description, category, account or record") },
             singleLine = true
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = typeFilter == TransactionTypeFilter.ALL,
-                onClick = { typeFilter = TransactionTypeFilter.ALL }, label = { Text("All") })
-            FilterChip(selected = typeFilter == TransactionTypeFilter.INCOME,
-                onClick = { typeFilter = TransactionTypeFilter.INCOME }, label = { Text("Income") })
-            FilterChip(selected = typeFilter == TransactionTypeFilter.EXPENSE,
-                onClick = { typeFilter = TransactionTypeFilter.EXPENSE }, label = { Text("Expenses") })
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            listOf(TransactionTypeFilter.ALL to "All", TransactionTypeFilter.INCOME to "Income", TransactionTypeFilter.EXPENSE to "Expenses").forEach { (filter, label) ->
+                FilterChip(selected = typeFilter == filter, onClick = { typeFilter = filter }, label = { Text(label) })
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            listOf(TransactionTypeFilter.TRANSFERS to "Transfers", TransactionTypeFilter.SAVINGS to "Savings", TransactionTypeFilter.DEBT to "Debt").forEach { (filter, label) ->
+                FilterChip(selected = typeFilter == filter, onClick = { typeFilter = filter }, label = { Text(label) })
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = periodFilter == TransactionPeriodFilter.ALL_TIME,
@@ -142,14 +188,19 @@ fun TransactionHistoryScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             shape = RoundedCornerShape(18.dp)
         ) {
-            Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f)) {
                     Text("Income", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(historyKes(filteredIncome), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(historyKes(filteredIncome), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 }
                 Column(Modifier.weight(1f)) {
                     Text("Expenses", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(historyKes(filteredExpenses), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+                    Text(historyKes(filteredExpenses), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Net", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text((if (filteredNet >= 0) "+ " else "− ") + historyKes(filteredNet), style = MaterialTheme.typography.titleSmall,
+                        color = if (filteredNet >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -159,42 +210,35 @@ fun TransactionHistoryScreen(
         }
 
         if (filtered.isEmpty()) {
-            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant) {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                 Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("No transactions found", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        if (transactions.isEmpty()) "Your saved income and expenses will appear here."
-                        else "Try changing the search or filters.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text("No activity found", style = MaterialTheme.typography.titleMedium)
+                    Text(if (allEvents.isEmpty()) "Your income, expenses, transfers, savings and debt updates will appear here." else "Try changing the search or filters.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(filtered, key = { it.id }) { transaction ->
-                    val isIncome = transaction.type == MoneyTransaction.INCOME
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { selectedTransaction = transaction },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(transaction.description.ifBlank { transaction.category },
-                                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Text("${transaction.category} · ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(transaction.dateEpochMillis))}",
-                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(transaction.paymentMethod, style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text((if (isIncome) "+ " else "− ") + historyKes(transaction.amountMinor),
-                                    color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                filtered.groupBy { DateFormat.getDateInstance(DateFormat.FULL).format(Date(it.dateMillis)) }.forEach { (dateLabel, events) ->
+                    item(key = "date-$dateLabel") {
+                        Text(dateLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 2.dp))
+                    }
+                    items(events, key = { it.key }) { event ->
+                        val positive = event.kind == ActivityKind.INCOME || (event.kind == ActivityKind.SAVINGS && event.title.contains("withdrawal", true)) || (event.kind == ActivityKind.DEBT && event.title.contains("collection", true))
+                        val amount = if (event.kind == ActivityKind.TRANSFER) historyKes(event.amountMinor) else (if (positive) "+ " else "− ") + historyKes(event.amountMinor)
+                        Card(modifier = Modifier.fillMaxWidth().clickable { if (event.transaction != null) selectedTransaction = event.transaction else selectedEvent = event },
+                            shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(event.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                    Text(event.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(when (event.kind) { ActivityKind.INCOME -> "Income"; ActivityKind.EXPENSE -> "Expense"; ActivityKind.TRANSFER -> "Transfer"; ActivityKind.SAVINGS -> "Savings"; ActivityKind.DEBT -> "Debt" },
+                                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(amount, color = if (positive) MaterialTheme.colorScheme.primary else if (event.kind == ActivityKind.TRANSFER) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                Text("View details", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -203,6 +247,17 @@ fun TransactionHistoryScreen(
         }
     }
 
+    selectedEvent?.let { event ->
+        AlertDialog(onDismissRequest = { selectedEvent = null },
+            title = { Text(when (event.kind) { ActivityKind.TRANSFER -> "Transfer details"; ActivityKind.SAVINGS -> "Savings details"; ActivityKind.DEBT -> "Debt details"; else -> "Activity details" }) },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(event.title, style = MaterialTheme.typography.titleMedium)
+                Text("Amount: ${historyKes(event.amountMinor)}")
+                Text("Details: ${event.subtitle}")
+                Text("Date: ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(event.dateMillis))}")
+            } },
+            confirmButton = { TextButton(onClick = { selectedEvent = null }) { Text("Close") } })
+    }
     selectedTransaction?.let { transaction ->
         AlertDialog(
             onDismissRequest = { selectedTransaction = null },
