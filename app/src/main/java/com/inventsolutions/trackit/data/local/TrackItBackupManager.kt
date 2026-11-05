@@ -103,10 +103,11 @@ object TrackItBackupManager {
         require(data.keys().asSequence().all { it in tables }) { "The backup contains an unknown table." }
         if (formatVersion >= 2) {
             require(tables.all { data.optJSONArray(it) != null }) { "The backup is missing one or more financial data tables." }
-            require(root.optJSONObject("profile") != null) { "The backup is missing profile information." }
-            require(root.optJSONObject("settings")?.optJSONObject("appearance") != null) {
-                "The backup is missing app configuration."
-            }
+            val profile = root.optJSONObject("profile") ?: error("The backup is missing profile information.")
+            val appearance = root.optJSONObject("settings")?.optJSONObject("appearance")
+                ?: error("The backup is missing app configuration.")
+            validatePreferences(profile, profileKeys)
+            validatePreferences(appearance, appearanceKeys, mapOf("theme_mode" to setOf("system", "light", "dark")))
         }
 
         val sqlDb = database.openHelper.writableDatabase
@@ -172,6 +173,23 @@ object TrackItBackupManager {
             }
         }
         return restoredRows
+    }
+
+    private fun validatePreferences(
+        values: JSONObject,
+        allowedKeys: List<String>,
+        allowedValues: Map<String, Set<String>> = emptyMap()
+    ) {
+        val keys = values.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            require(key in allowedKeys) { "Backup contains an unsupported app preference." }
+            val value = values.opt(key)
+            require(value is String) { "Backup contains an invalid app preference value." }
+            allowedValues[key]?.let { permitted ->
+                require(value in permitted) { "Backup contains an unsupported appearance setting." }
+            }
+        }
     }
 
     private fun readPreferences(context: Context, preferenceName: String, allowedKeys: List<String>): JSONObject {
