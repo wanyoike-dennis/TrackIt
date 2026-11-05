@@ -113,7 +113,7 @@ fun TransactionHistoryScreen(
                 Text("Search, review, edit or remove a record.", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            TextButton(onClick = onBack) { TrackItIcon(R.drawable.ic_lucide_house, null); Text("Home") }
+            TextButton(onClick = onBack) { Text("Home") }
         }
 
         OutlinedTextField(
