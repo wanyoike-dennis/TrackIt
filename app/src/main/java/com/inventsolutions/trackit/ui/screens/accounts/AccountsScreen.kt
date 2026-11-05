@@ -468,7 +468,7 @@ fun AccountsScreen(
                         Text("Edit account details", color = Color.White)
                     }
                     TextButton(onClick = { showReconcile = true }, enabled = !detailAccount.archived) {
-                        TrackItIcon(R.drawable.ic_lucide_scale, null, tint = TrackItEmeraldLight, size = 20.dp)
+                        TrackItIcon(R.drawable.ic_lucide_repeat, null, tint = TrackItEmeraldLight, size = 20.dp)
                         Text("Reconcile account", color = Color.White)
                     }
                 }
@@ -480,6 +480,7 @@ fun AccountsScreen(
             }
             val accountEntries = financialEntries.filter { it.accountId == detailAccount.id }
             val accountReconciliations = reconciliations.filter { it.accountId == detailAccount.id }
+            val latestReconciliation = accountReconciliations.maxByOrNull { it.reconciledAtEpochMillis }
             data class ActivityRow(val time: Long, val title: String, val detail: String, val amount: Long,
                 val incoming: Boolean, val kind: String, val balanceAfter: Long = 0L)
             val activity = buildList {
@@ -523,6 +524,32 @@ fun AccountsScreen(
             val visibleActivity = activityWithBalances.filter { item ->
                 (activityType == "All activity" || item.kind == activityType) && item.time >= cutoff &&
                     (activitySearch.isBlank() || item.title.contains(activitySearch, true) || item.detail.contains(activitySearch, true))
+            }
+
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("RECONCILIATION", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        latestReconciliation?.let { "Last checked " + accountDate(it.reconciledAtEpochMillis) }
+                            ?: "Not reconciled yet",
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
+                    )
+                    latestReconciliation?.let {
+                        Text(
+                            if (it.adjustmentMinor == 0L) "Balances matched"
+                            else "Adjustment recorded: " + (if (it.adjustmentMinor > 0) "+" else "−") +
+                                accountKes(kotlin.math.abs(it.adjustmentMinor)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             Row(
