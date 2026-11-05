@@ -262,12 +262,17 @@ fun FinancialPlansScreen(
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Button(onClick = { showCreate = true }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary);
+                Button(
+                    onClick = { showCreate = true },
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(7.dp))
                     Text(
                         when (section) {
-                            FinanceSection.DEBTS -> "+ Debt"
-                            FinanceSection.SAVINGS -> "+ Savings"
-                            FinanceSection.ALLOWANCE -> "+ Allowance"
+                            FinanceSection.DEBTS -> "Debt"
+                            FinanceSection.SAVINGS -> "Savings"
+                            FinanceSection.ALLOWANCE -> "Allowance"
                         }
                     )
                 }
@@ -1137,34 +1142,19 @@ private fun SavingsRecordCard(
                     modifier = Modifier.size(58.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isGoal) {
-                        CircularProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.fillMaxSize(),
-                            strokeWidth = 5.dp,
-                            color = accent,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                        Text(
-                            "${(progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = accent
-                        )
-                    } else {
-                        Box(
-                            Modifier.fillMaxSize().clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            TrackItIcon(
-                                R.drawable.ic_lucide_piggy_bank,
-                                null,
-                                size = 28.dp,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
+                    CircularProgressIndicator(
+                        progress = { if (isGoal) progress else 0f },
+                        modifier = Modifier.fillMaxSize(),
+                        strokeWidth = 5.dp,
+                        color = if (isGoal) accent else MaterialTheme.colorScheme.outlineVariant,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Text(
+                        if (isGoal) "${(progress * 100).toInt()}%" else "—",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isGoal) accent else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 Column(
                     Modifier.weight(1f),
