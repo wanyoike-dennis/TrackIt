@@ -91,7 +91,7 @@ fun FinancialPlansScreen(
     var debtFilter by remember { mutableStateOf("All") }
     var debtSearch by remember { mutableStateOf("") }
 
-    val debtsOwedToMe = records.filter { it.type == FinancialRecord.DEBT_OWED_TO_ME }
+    val debtsOwedToMe = records.filter { it.type in setOf(FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE) }
     val debtsIOwe = records.filter { it.type == FinancialRecord.DEBT_I_OWE }
     val savings = records.filter { it.type == FinancialRecord.SAVINGS_GOAL }
     val savingsAccounts = records.filter { it.type == FinancialRecord.SAVINGS_ACCOUNT }
@@ -104,7 +104,7 @@ fun FinancialPlansScreen(
     val filteredDebts = visibleRecords.filter { record ->
         val matchesFilter = when (debtFilter) {
             "I owe" -> record.type == FinancialRecord.DEBT_I_OWE
-            "Owed to me" -> record.type == FinancialRecord.DEBT_OWED_TO_ME
+            "Owed to me" -> record.type in setOf(FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE)
             else -> true
         }
         matchesFilter && record.title.contains(debtSearch.trim(), ignoreCase = true)
@@ -410,6 +410,7 @@ fun FinancialPlansScreen(
         var dueDate by remember(section) { mutableStateOf("") }
         var notes by remember(section) { mutableStateOf("") }
         var debtType by remember { mutableStateOf(FinancialRecord.DEBT_I_OWE) }
+        var hustleName by remember(section) { mutableStateOf("") }
         var savingsCategory by remember(section) { mutableStateOf(FinancialRecord.SAVINGS_EMERGENCY) }
         var contributionMethod by remember(section) { mutableStateOf(FinancialRecord.CONTRIBUTION_MONTHLY) }
         var plannedContribution by remember(section) { mutableStateOf(if (section == FinanceSection.SAVINGS) "2000" else "") }
@@ -433,6 +434,9 @@ fun FinancialPlansScreen(
                             FilterChip(selected = debtType == FinancialRecord.DEBT_OWED_TO_ME,
                                 onClick = { debtType = FinancialRecord.DEBT_OWED_TO_ME },
                                 label = { Text("Owed to me") })
+                            FilterChip(selected = debtType == FinancialRecord.CLIENT_RECEIVABLE,
+                                onClick = { debtType = FinancialRecord.CLIENT_RECEIVABLE },
+                                label = { Text("Unpaid work") })
                         }
                     }
                     OutlinedTextField(value = title, onValueChange = { title = it; validationError = null },
@@ -441,6 +445,21 @@ fun FinancialPlansScreen(
                             FinanceSection.SAVINGS -> "Name your savings"
                             FinanceSection.ALLOWANCE -> "What is this allowance for?"
                         }) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (section == FinanceSection.DEBTS && debtType == FinancialRecord.CLIENT_RECEIVABLE) {
+                        OutlinedTextField(
+                            value = hustleName,
+                            onValueChange = { hustleName = it },
+                            label = { Text("Hustle name (optional)") },
+                            placeholder = { Text("e.g. Graphic design, repairs, tutoring") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            "This records money a client owes you. It will not increase your available balance until you record a payment.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     OutlinedTextField(value = amount, onValueChange = { amount = it; validationError = null },
                         label = { Text(when (section) {
                             FinanceSection.DEBTS -> "Original debt (KSh)"
@@ -538,7 +557,8 @@ fun FinancialPlansScreen(
                                 FinanceSection.ALLOWANCE -> FinancialRecord.ALLOWANCE
                             }
                             onAdd(
-                                type, title, if (type == FinancialRecord.SAVINGS_ACCOUNT) 0L else (minor ?: 0L), parsedDate, notes,
+                                type, title, if (type == FinancialRecord.SAVINGS_ACCOUNT) 0L else (minor ?: 0L), parsedDate,
+                                if (type == FinancialRecord.CLIENT_RECEIVABLE && hustleName.isNotBlank()) "Hustle: ${hustleName.trim()}\\n${notes.trim()}" else notes,
                                 savingsCategory.trim(), contributionMethod,
                                 parsedContribution ?: 0L
                             )
@@ -603,7 +623,7 @@ fun FinancialPlansScreen(
         AlertDialog(
             onDismissRequest = { progressRecord = null },
             title = { Text(when (record.type) {
-                FinancialRecord.DEBT_OWED_TO_ME -> "Record a collection"
+                FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE -> "Record collection"
                 FinancialRecord.DEBT_I_OWE -> "Record a repayment"
                 FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT -> "Add to your savings"
                 else -> "Record allowance spending"
@@ -994,7 +1014,8 @@ private fun DebtRecordRow(
     val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
     val progress = if (record.targetMinor > 0L)
         (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
-    val isOwedToMe = record.type == FinancialRecord.DEBT_OWED_TO_ME
+    val isOwedToMe = record.type in setOf(FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE)
+    val isClientReceivable = record.type == FinancialRecord.CLIENT_RECEIVABLE
     val accent = if (isOwedToMe) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
     val isSettled = remaining == 0L
 
@@ -1013,7 +1034,7 @@ private fun DebtRecordRow(
                     Text(record.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
                         maxLines = 1)
                     Text(
-                        if (isOwedToMe) "OWED TO YOU" else "YOU OWE",
+                        when { isClientReceivable -> "UNPAID CLIENT WORK"; isOwedToMe -> "OWED TO YOU"; else -> "YOU OWE" },
                         style = MaterialTheme.typography.labelSmall,
                         color = accent,
                         fontWeight = FontWeight.Bold,
@@ -1117,7 +1138,7 @@ private fun FinancialRecordCard(
                     Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         when (record.type) {
-                            FinancialRecord.DEBT_OWED_TO_ME -> "MONEY OWED TO YOU"
+                            FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE -> if (record.type == FinancialRecord.CLIENT_RECEIVABLE) "UNPAID CLIENT WORK" else "MONEY OWED TO YOU"
                             FinancialRecord.DEBT_I_OWE -> "YOUR DEBT TO REPAY"
                             FinancialRecord.SAVINGS_GOAL -> record.savingsCategory.uppercase()
                             FinancialRecord.SAVINGS_ACCOUNT -> "FLEXIBLE SAVINGS"
@@ -1144,7 +1165,7 @@ private fun FinancialRecordCard(
                     Text(
                         when (record.type) {
                             FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT -> "SAVED SO FAR"
-                            FinancialRecord.DEBT_OWED_TO_ME -> "COLLECTED"
+                            FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE -> "COLLECTED"
                             FinancialRecord.DEBT_I_OWE -> "REPAID"
                             else -> "SPENT"
                         },
@@ -1254,7 +1275,7 @@ private fun FinancialRecordCard(
                     contentPadding = PaddingValues(vertical = 12.dp)
                 ) {
                     Text(when (record.type) {
-                        FinancialRecord.DEBT_OWED_TO_ME -> if (remaining == 0L) "Debt collected" else "Record collection"
+                        FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE -> if (remaining == 0L) "Fully collected" else "Record collection"
                         FinancialRecord.DEBT_I_OWE -> if (remaining == 0L) "Debt settled" else "Record repayment"
                         FinancialRecord.SAVINGS_GOAL -> if (remaining == 0L) "Add more savings" else "Add contribution"
                         FinancialRecord.SAVINGS_ACCOUNT -> "Add deposit"
