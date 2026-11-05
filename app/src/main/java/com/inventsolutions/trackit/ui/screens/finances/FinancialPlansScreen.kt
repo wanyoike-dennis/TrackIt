@@ -132,7 +132,7 @@ fun FinancialPlansScreen(
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 OutlinedButton(onClick = onBackToHome, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)) {
-                    TrackItIcon(R.drawable.ic_lucide_house, null); Text("Home")
+                    Text("Home")
                 }
             }
         }
