@@ -1302,7 +1302,7 @@ private fun SavingsRecordCard(
                     shape = RoundedCornerShape(13.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 9.dp)
                 ) {
-                    TrackItIcon(R.drawable.ic_lucide_history, null, size = 18.dp)
+                    TrackItIcon(R.drawable.ic_lucide_clock, null, size = 18.dp)
                     Spacer(Modifier.width(6.dp))
                     Text("History")
                 }
