@@ -73,6 +73,7 @@ private fun transactionCsv(
     }
     val planTitles = financialRecords.associate { it.id to it.title }
     financialEntries.sortedBy { it.createdAtEpochMillis }.forEach { entry ->
+        if (financialRecords.firstOrNull { it.id == entry.financialRecordId }?.type == FinancialRecord.CLIENT_RECEIVABLE) return@forEach
         val date = dateFormat.format(Date(entry.createdAtEpochMillis))
         val amount = "%.2f".format(Locale.US, entry.amountMinor / 100.0)
         rows += listOf(
