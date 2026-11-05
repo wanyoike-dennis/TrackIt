@@ -71,7 +71,7 @@ fun BackupRestoreScreen(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("Export backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Save transactions, budgets, categories, savings, debts and financial-plan history as a JSON file.",
+                            "Save all financial records, your personal profile and supported app settings in a portable TrackIt backup (.trackit).",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -95,7 +95,7 @@ fun BackupRestoreScreen(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("Restore backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Import records from a previously exported TrackIt JSON backup.",
+                            "Restore your financial records, profile information and supported app settings from a TrackIt backup.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -122,7 +122,7 @@ fun BackupRestoreScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Keep your backup private", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Backup files can contain sensitive financial information. Store them somewhere secure.",
+                        "Backups include private financial and personal information. The file is not encrypted, so keep it in a secure location and share it only with people you trust.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
