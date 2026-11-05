@@ -2,6 +2,7 @@ package com.inventsolutions.trackit.ui.screens.accounts
 
 import com.inventsolutions.trackit.R
 import com.inventsolutions.trackit.ui.components.TrackItIcon
+import com.inventsolutions.trackit.ui.theme.TrackItBackgroundDark
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
@@ -435,7 +436,19 @@ fun AccountsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = if (MaterialTheme.colorScheme.background == TrackItBackgroundDark) {
+                        Color(0xFF2B3B52)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (MaterialTheme.colorScheme.background == TrackItBackgroundDark) {
+                        Color(0xFF53657D)
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    }
                 )
             ) {
                 Column(
@@ -508,70 +521,64 @@ fun AccountsScreen(
                 }
             }
 
-            Row(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant
+                )
             ) {
-                Card(
-                    onClick = { editingAccount = detailAccount },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    TextButton(
+                        onClick = { editingAccount = detailAccount },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 8.dp,
+                            vertical = 14.dp
+                        )
                     ) {
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                        ) {
-                            Box(Modifier.padding(12.dp), contentAlignment = Alignment.Center) {
-                                TrackItIcon(
-                                    R.drawable.ic_lucide_edit,
-                                    null,
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    size = 23.dp
-                                )
-                            }
-                        }
+                        TrackItIcon(
+                            R.drawable.ic_lucide_edit,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            size = 20.dp
+                        )
+                        androidx.compose.foundation.layout.Spacer(Modifier.padding(start = 7.dp))
                         Text(
                             "Edit account",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
-                Card(
-                    onClick = { showReconcile = true },
-                    modifier = Modifier.weight(1f),
-                    enabled = !detailAccount.archived,
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    androidx.compose.material3.VerticalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    TextButton(
+                        onClick = { showReconcile = true },
+                        modifier = Modifier.weight(1f),
+                        enabled = !detailAccount.archived,
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 8.dp,
+                            vertical = 14.dp
+                        )
                     ) {
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                        ) {
-                            Box(Modifier.padding(12.dp), contentAlignment = Alignment.Center) {
-                                TrackItIcon(
-                                    R.drawable.ic_lucide_repeat,
-                                    null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    size = 23.dp
-                                )
-                            }
-                        }
+                        TrackItIcon(
+                            R.drawable.ic_lucide_repeat,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            size = 20.dp
+                        )
+                        androidx.compose.foundation.layout.Spacer(Modifier.padding(start = 7.dp))
                         Text(
-                            "Reconcile account",
+                            "Reconcile",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
