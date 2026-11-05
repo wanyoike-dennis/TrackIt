@@ -474,12 +474,19 @@ fun AccountsScreen(
                 }
             }
 
-            val accountTransactions = transactions.filter { it.accountId == detailAccount.id }
-            val accountTransfers = transfers.filter {
-                it.fromAccountId == detailAccount.id || it.toAccountId == detailAccount.id
+            val accountTransactions = transactions.filter {
+                it.accountId == detailAccount.id && it.createdAtEpochMillis >= detailAccount.openingDateEpochMillis
             }
-            val accountEntries = financialEntries.filter { it.accountId == detailAccount.id }
-            val accountReconciliations = reconciliations.filter { it.accountId == detailAccount.id }
+            val accountTransfers = transfers.filter {
+                (it.fromAccountId == detailAccount.id || it.toAccountId == detailAccount.id) &&
+                    it.createdAtEpochMillis >= detailAccount.openingDateEpochMillis
+            }
+            val accountEntries = financialEntries.filter {
+                it.accountId == detailAccount.id && it.createdAtEpochMillis >= detailAccount.openingDateEpochMillis
+            }
+            val accountReconciliations = reconciliations.filter {
+                it.accountId == detailAccount.id && it.reconciledAtEpochMillis >= detailAccount.openingDateEpochMillis
+            }
             val latestReconciliation = accountReconciliations.maxByOrNull { it.reconciledAtEpochMillis }
             data class ActivityRow(val time: Long, val title: String, val detail: String, val amount: Long,
                 val incoming: Boolean, val kind: String, val balanceAfter: Long = 0L)
@@ -506,7 +513,8 @@ fun AccountsScreen(
                         it.amountMinor, incoming, "Savings & debt"))
                 }
                 accountReconciliations.forEach {
-                    add(ActivityRow(it.reconciledAtEpochMillis, "Balance adjustment",
+                    add(ActivityRow(it.reconciledAtEpochMillis,
+                        if (it.adjustmentMinor == 0L) "Reconciled · balances matched" else "Balance adjustment",
                         it.note.ifBlank { "Account reconciliation" }, kotlin.math.abs(it.adjustmentMinor),
                         it.adjustmentMinor >= 0L, "Adjustments"))
                 }
