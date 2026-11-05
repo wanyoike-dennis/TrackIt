@@ -161,6 +161,10 @@ object TrackItBackupManager {
             sqlDb.endTransaction()
         }
 
+        // The restore uses direct SQLite writes instead of Room DAOs. Explicitly
+        // refresh Room observers so active screens receive the restored data now.
+        database.invalidationTracker.refreshAsync()
+
         // Version 1 backups did not contain profile or app preferences.
         // Keep the current values when importing those older files.
         if (formatVersion >= 2) {
