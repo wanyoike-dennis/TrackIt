@@ -752,7 +752,7 @@ fun FinancialPlansScreen(
                         targetMinor == null || targetMinor <= 0L -> validationError = "Enter an amount greater than zero."
                         dueDate.isNotBlank() && parsedDate == null && record.type != FinancialRecord.ALLOWANCE ->
                             validationError = "Use a valid date in YYYY-MM-DD format."
-                        record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME) &&
+                        record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE) &&
                             targetMinor < record.currentMinor -> validationError = "The original amount cannot be less than what has already been recorded."
                         record.type == FinancialRecord.SAVINGS_GOAL && savingsCategory.isBlank() ->
                             validationError = "Enter a savings category."
@@ -1101,7 +1101,7 @@ private fun FinancialRecordCard(
     val progress = if (record.targetMinor > 0L) (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
     val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
     val isAllowance = record.type == FinancialRecord.ALLOWANCE
-    val isDebt = record.type == FinancialRecord.DEBT_OWED_TO_ME || record.type == FinancialRecord.DEBT_I_OWE
+    val isDebt = record.type in setOf(FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.DEBT_I_OWE, FinancialRecord.CLIENT_RECEIVABLE)
     val overAllowance = isAllowance && record.currentMinor > record.targetMinor
     val isComplete = remaining == 0L && !overAllowance
     val accent = when {
