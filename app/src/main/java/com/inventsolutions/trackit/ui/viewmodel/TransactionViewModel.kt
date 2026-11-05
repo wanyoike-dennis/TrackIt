@@ -41,6 +41,7 @@ data class TransactionUiState(
     val recurringTransactions: List<RecurringTransaction> = emptyList(),
     val accounts: List<FinancialAccount> = emptyList(),
     val accountTransfers: List<AccountTransfer> = emptyList(),
+    val accountReconciliations: List<AccountReconciliation> = emptyList(),
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
@@ -123,6 +124,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val recurringTransactionDao = database.recurringTransactionDao()
     private val financialAccountDao = database.financialAccountDao()
     private val accountTransferDao = database.accountTransferDao()
+    private val accountReconciliationDao = database.accountReconciliationDao()
     private val recurringProcessingMutex = Mutex()
     private val monthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
@@ -170,6 +172,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             accountTransferDao.observeAll().collect { transfers ->
                 _uiState.update { it.copy(accountTransfers = transfers) }
+            }
+        }
+        viewModelScope.launch {
+            accountReconciliationDao.observeAll().collect { reconciliations ->
+                _uiState.update { it.copy(accountReconciliations = reconciliations) }
             }
         }
         viewModelScope.launch {
@@ -654,7 +661,10 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 else -> 0L
             }
         }
-        return account.openingBalanceMinor + transactionMovement + transferMovement + entryMovement
+        val reconciliationMovement = state.accountReconciliations
+            .filter { it.accountId == accountId && it.reconciledAtEpochMillis >= account.openingDateEpochMillis }
+            .sumOf { it.adjustmentMinor }
+        return account.openingBalanceMinor + transactionMovement + transferMovement + entryMovement + reconciliationMovement
     }
 
     private fun validateAccountMovement(accountId: Long?, amountMinor: Long, isOutgoing: Boolean): Boolean {
@@ -852,6 +862,40 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 _uiState.update { it.copy(errorMessage = null) }
             }.onFailure {
                 _uiState.update { it.copy(errorMessage = "Couldn't record this transfer. Please try again.") }
+            }
+        }
+    }
+
+    fun reconcileFinancialAccount(accountId: Long, statementBalanceMinor: Long, note: String = "") {
+        val state = _uiState.value
+        val account = state.accounts.firstOrNull { it.id == accountId && !it.archived }
+        if (account == null) {
+            _uiState.update { it.copy(errorMessage = "Choose an active account to reconcile.") }
+            return
+        }
+        val systemBalance = accountBalanceMinor(accountId)
+        if (systemBalance == null) {
+            _uiState.update { it.copy(errorMessage = "Couldn't calculate this account balance. Please try again.") }
+            return
+        }
+        val adjustment = statementBalanceMinor - systemBalance
+        viewModelScope.launch {
+            runCatching {
+                database.withTransaction {
+                    accountReconciliationDao.insert(
+                        AccountReconciliation(
+                            accountId = accountId,
+                            statementBalanceMinor = statementBalanceMinor,
+                            systemBalanceMinor = systemBalance,
+                            adjustmentMinor = adjustment,
+                            note = note.trim()
+                        )
+                    )
+                }
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't save this reconciliation. Your account history was not changed.") }
             }
         }
     }
