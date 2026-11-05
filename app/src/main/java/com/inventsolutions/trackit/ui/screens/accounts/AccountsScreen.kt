@@ -471,7 +471,7 @@ fun AccountsScreen(
                                 TrackItIcon(
                                     R.drawable.ic_lucide_wallet,
                                     null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     size = 27.dp
                                 )
                             }
