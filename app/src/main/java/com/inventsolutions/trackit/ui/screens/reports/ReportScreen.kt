@@ -2,7 +2,6 @@ package com.inventsolutions.trackit.ui.screens.reports
 
 import com.inventsolutions.trackit.R
 import com.inventsolutions.trackit.ui.components.TrackItIcon
-import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,14 +16,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -149,18 +145,15 @@ fun ReportScreen(
     onDeleteRecurringTransaction: (Long) -> Unit
 ) {
     var selectedPeriod by remember { mutableStateOf(ReportPeriod.THIS_MONTH) }
-    var showRecurringDialog by remember { mutableStateOf(false) }
-    var recurringTitle by remember { mutableStateOf("") }
-    var recurringType by remember { mutableStateOf(MoneyTransaction.EXPENSE) }
-    var recurringAmount by remember { mutableStateOf("") }
-    var recurringCategory by remember { mutableStateOf("") }
-    var recurringDescription by remember { mutableStateOf("") }
-    var recurringPaymentMethod by remember { mutableStateOf("Cash") }
-    var recurringFrequency by remember { mutableStateOf(RecurringTransaction.MONTHLY) }
-    var recurringError by remember { mutableStateOf<String?>(null) }
-    var selectedRecurringAccountId by remember { mutableStateOf<Long?>(null) }
-    var recurringAccountMenuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    var pendingCsv by remember { mutableStateOf("") }
+    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(pendingCsv) }
+        }
+    }
     val nowMillis = System.currentTimeMillis()
     val range = rangeFor(selectedPeriod, transactions, financialEntries, nowMillis)
     val current = transactions.filter { it.dateEpochMillis >= range.start && it.dateEpochMillis < range.end }
@@ -170,9 +163,13 @@ fun ReportScreen(
     val income = current.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor }
     val expenses = current.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor } +
         currentEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
+    val currentCashEntries = currentEntries.filterNot {
+        it.entryType == FinancialRecordEntry.COLLECTION &&
+            financialRecords.firstOrNull { record -> record.id == it.financialRecordId }?.type == FinancialRecord.CLIENT_RECEIVABLE
+    }
     val net = income - expenses -
-        currentEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
-        currentEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION || it.entryType == FinancialRecordEntry.WITHDRAWAL }.sumOf { it.amountMinor }
+        currentCashEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
+        currentCashEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION || it.entryType == FinancialRecordEntry.WITHDRAWAL }.sumOf { it.amountMinor }
     val allowancePlans = financialRecords.filter { it.type == FinancialRecord.ALLOWANCE }
     val allowanceLimitTotal = allowancePlans.sumOf { it.targetMinor }
     val allowanceSpentTotal = allowancePlans.sumOf { it.currentMinor }
@@ -213,277 +210,127 @@ fun ReportScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Financial reports", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text("Understand where your money goes.", style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Reports", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("Financial performance at a glance.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                listOf(ReportPeriod.TODAY, ReportPeriod.THIS_WEEK, ReportPeriod.THIS_MONTH, ReportPeriod.ALL_TIME).forEach { period ->
-                    FilterChip(selected = selectedPeriod == period, onClick = { selectedPeriod = period }, label = {
-                        Text(when (period) {
-                            ReportPeriod.TODAY -> "Day"; ReportPeriod.THIS_WEEK -> "Week"
-                            ReportPeriod.THIS_MONTH -> "Month"; ReportPeriod.ALL_TIME -> "All"
-                        })
-                    })
-                }
-            }
-            Text(dateLabel, style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp))
-            OutlinedButton(
-                onClick = {
-                    val csv = transactionCsv(current, currentEntries, financialRecords)
-                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/csv"
-                        putExtra(Intent.EXTRA_SUBJECT, "TrackIt financial report - $periodLabel")
-                        putExtra(Intent.EXTRA_TEXT, csv)
-                    }
-                    context.startActivity(Intent.createChooser(sendIntent, "Export financial report"))
-                },
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                TrackItIcon(R.drawable.ic_lucide_download, null); Text("Export report (CSV)")
-            }
-        }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-            ) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("NET BALANCE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text(reportKes(net), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Income", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
-                            Text(reportKes(income), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text("Expenses", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
-                            Text(reportKes(expenses), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("REPORTING PERIOD", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        listOf(ReportPeriod.TODAY, ReportPeriod.THIS_WEEK, ReportPeriod.THIS_MONTH, ReportPeriod.ALL_TIME).forEach { period ->
+                            FilterChip(modifier = Modifier.weight(1f), selected = selectedPeriod == period,
+                                onClick = { selectedPeriod = period }, label = { Text(when(period) {
+                                    ReportPeriod.TODAY -> "Day"; ReportPeriod.THIS_WEEK -> "Week"
+                                    ReportPeriod.THIS_MONTH -> "Month"; ReportPeriod.ALL_TIME -> "All"
+                                }) })
                         }
                     }
+                    Text(dateLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Allowance plans · not extra expenses", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "Actual purchases are counted in Expenses above. Allowances are limits used to track those purchases, not separate spending.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (allowancePlans.isEmpty()) {
-                        Text("No allowance plans yet.", style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        AllowanceSummaryRow("Total allowance limits", allowanceLimitTotal)
-                        AllowanceSummaryRow("Used across allowances", allowanceSpentTotal)
-                        AllowanceSummaryRow("Remaining allowance", allowanceRemainingTotal)
+            Text("Financial overview", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("NET CASH MOVEMENT", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(reportKes(net), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Income less expenses, savings and debt outflows, plus collections and withdrawals.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column { Text("Income", color = MaterialTheme.colorScheme.onPrimaryContainer); Text(reportKes(income), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer) }
+                        Column { Text("Expenses", color = MaterialTheme.colorScheme.onPrimaryContainer); Text(reportKes(expenses), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer) }
                     }
                 }
             }
         }
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Compared with previous period", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(when (selectedPeriod) {
-                        ReportPeriod.TODAY -> "Compared with yesterday"
-                        ReportPeriod.THIS_WEEK -> "Compared with last week"
-                        ReportPeriod.THIS_MONTH -> "Compared with last month"
-                        ReportPeriod.ALL_TIME -> "Compared with the preceding period of equal length"
-                    }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ReportComparisonRow("Income", income, previousIncome)
-                    ReportComparisonRow("Expenses", expenses, previousExpenses)
-                    ReportComparisonRow("Net balance", net, previousNet)
-                }
-            }
-        }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Spending by category", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("$periodLabel expense breakdown", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            Text("Spending analysis", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Category breakdown · $periodLabel", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(reportKes(totalCategorySpend), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             }
         }
         if (categorySpending.isEmpty()) {
-            item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("No expenses for this period", style = MaterialTheme.typography.titleMedium)
-                        Text("Expenses saved on this device will appear here, even when you're offline.",
-                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
+            item { Text("No spending recorded for this period.", modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             items(categorySpending, key = { it.name }) { category ->
                 val share = if (totalCategorySpend > 0L) category.amount.toFloat() / totalCategorySpend else 0f
-                Card(
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(category.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            Text(reportKes(category.amount), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(category.name, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                            Text(reportKes(category.amount), fontWeight = FontWeight.SemiBold)
                         }
-                        LinearProgressIndicator(progress = { share.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(7.dp),
-                            color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
-                        Text("${(share * 100).toInt()}% of expenses", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        LinearProgressIndicator(progress = { share.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(8.dp))
+                        Text("${(share * 100).toInt()}% of spending", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         }
         item {
-            Text("Reports use transactions stored locally on this device. No internet connection is required.",
+            Text("Period comparison", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(when(selectedPeriod) {
+                        ReportPeriod.TODAY -> "Compared with yesterday"; ReportPeriod.THIS_WEEK -> "Compared with last week"
+                        ReportPeriod.THIS_MONTH -> "Compared with last month"; ReportPeriod.ALL_TIME -> "Compared with the preceding period"
+                    }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    ReportComparisonRow("Income", income, previousIncome)
+                    ReportComparisonRow("Expenses", expenses, previousExpenses)
+                    ReportComparisonRow("Net cash movement", net, previousNet)
+                }
+            }
+        }
+        if (allowancePlans.isNotEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Allowance overview", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Planning limits, not additional expenses.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AllowanceSummaryRow("Total limits", allowanceLimitTotal)
+                        AllowanceSummaryRow("Used", allowanceSpentTotal)
+                        AllowanceSummaryRow("Remaining", allowanceRemainingTotal)
+                    }
+                }
+            }
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Export report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Save the selected period as a CSV file.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedButton(onClick = {
+                        pendingCsv = transactionCsv(current, currentEntries, financialRecords)
+                        exportLauncher.launch("TrackIt_Report_${periodLabel.replace(" ", "_")}.csv")
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        TrackItIcon(R.drawable.ic_lucide_download, null); Text("Save CSV report")
+                    }
+                }
+            }
+        }
+        item {
+            Text("Reports use information stored on this device and work offline.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("Recurring transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("Automatically record regular income or expenses when the app is opened.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        OutlinedButton(onClick = { recurringError = null; showRecurringDialog = true }) { TrackItIcon(R.drawable.ic_lucide_plus, null); Text("Add") }
-                    }
-                    if (recurringTransactions.isEmpty()) {
-                        Text("No recurring transactions set up yet.", style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        recurringTransactions.forEach { item ->
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                    Text(
-                                        "${item.frequency.lowercase().replaceFirstChar { it.uppercase() }} · ${item.category} · ${reportKes(item.amountMinor)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        if (item.active) "Next: " + SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(item.nextRunEpochMillis)) else "Paused",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (item.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Column(horizontalAlignment = Alignment.End) {
-                                    TextButton(onClick = { onSetRecurringTransactionActive(item, !item.active) }) {
-                                        Text(if (item.active) "Pause" else "Resume")
-                                    }
-                                    TextButton(onClick = { onDeleteRecurringTransaction(item.id) }) { TrackItIcon(R.drawable.ic_lucide_trash, null, tint = MaterialTheme.colorScheme.error); Text("Delete", color = MaterialTheme.colorScheme.error) }
-                                }
-                            }
-                        }
-                    }
-                    Text("A missed schedule creates one catch-up entry, then advances to the next future date. Check the transaction history after opening the app.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-
-    }
-
-    if (showRecurringDialog) {
-        AlertDialog(
-            onDismissRequest = { showRecurringDialog = false },
-            title = { Text("New recurring transaction") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("First occurrence is recorded now. Later occurrences are created when you open TrackIt.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(value = recurringTitle, onValueChange = { recurringTitle = it }, label = { Text("Name (e.g. Rent)") }, singleLine = true)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = recurringType == MoneyTransaction.EXPENSE, onClick = { recurringType = MoneyTransaction.EXPENSE }, label = { Text("Expense") })
-                        FilterChip(selected = recurringType == MoneyTransaction.INCOME, onClick = { recurringType = MoneyTransaction.INCOME }, label = { Text("Income") })
-                    }
-                    OutlinedTextField(value = recurringAmount, onValueChange = { recurringAmount = it }, label = { Text("Amount (KES)") }, singleLine = true)
-                    OutlinedTextField(value = recurringCategory, onValueChange = { recurringCategory = it }, label = { Text("Category") }, singleLine = true)
-                    OutlinedTextField(value = recurringDescription, onValueChange = { recurringDescription = it }, label = { Text("Description (optional)") }, singleLine = true)
-                    OutlinedTextField(value = recurringPaymentMethod, onValueChange = { recurringPaymentMethod = it }, label = { Text("Payment method") }, singleLine = true)
-                    if (accounts.any { !it.archived }) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Account (optional)", style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            androidx.compose.foundation.layout.Box {
-                                OutlinedButton(onClick = { recurringAccountMenuExpanded = true }) {
-                                    Text(accounts.firstOrNull { it.id == selectedRecurringAccountId }?.name ?: "Unassigned")
-                                }
-                                DropdownMenu(expanded = recurringAccountMenuExpanded, onDismissRequest = { recurringAccountMenuExpanded = false }) {
-                                    DropdownMenuItem(text = { Text("Unassigned") }, onClick = {
-                                        selectedRecurringAccountId = null
-                                        recurringAccountMenuExpanded = false
-                                    })
-                                    accounts.filter { !it.archived }.forEach { account ->
-                                        DropdownMenuItem(text = { Text(account.name) }, onClick = {
-                                            selectedRecurringAccountId = account.id
-                                            recurringAccountMenuExpanded = false
-                                        })
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = recurringFrequency == RecurringTransaction.WEEKLY, onClick = { recurringFrequency = RecurringTransaction.WEEKLY }, label = { Text("Weekly") })
-                        FilterChip(selected = recurringFrequency == RecurringTransaction.MONTHLY, onClick = { recurringFrequency = RecurringTransaction.MONTHLY }, label = { Text("Monthly") })
-                    }
-                    if (recurringError != null) Text(recurringError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
-            },
-            confirmButton = {
-                OutlinedButton(onClick = {
-                    val amount = recurringAmount.trim().replace(",", "").toBigDecimalOrNull()
-                    val minor = runCatching { amount?.movePointRight(2)?.longValueExact() }.getOrNull()
-                    if (recurringTitle.isBlank() || minor == null || minor <= 0L || recurringCategory.isBlank() || recurringPaymentMethod.isBlank()) {
-                        recurringError = "Enter a name, valid amount, category and payment method."
-                    } else {
-                        onAddRecurringTransaction(
-                            recurringTitle, recurringType, minor, recurringCategory, recurringDescription,
-                            recurringPaymentMethod, recurringFrequency, System.currentTimeMillis(), selectedRecurringAccountId
-                        )
-                        showRecurringDialog = false
-                        recurringTitle = ""; recurringAmount = ""; recurringCategory = ""; recurringDescription = ""
-                        recurringPaymentMethod = "Cash"; selectedRecurringAccountId = null; recurringError = null
-                    }
-                }) { Text("Save schedule") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRecurringDialog = false }) { Text("Cancel") }
-            }
-        )
     }
 
 }
