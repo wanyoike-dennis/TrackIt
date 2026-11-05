@@ -334,9 +334,9 @@ fun TransactionHistoryScreen(
                             }
                         }
                     } else {
-                        datePickerTarget = null
+                        dateRangeError = if (selected == null) "Choose a date before continuing." else "Future dates are not allowed."
                     }
-                }) { Text(if (target == ActivityDatePickerTarget.START) "Next" else "Apply") }
+                }) { Text(if (target == ActivityDatePickerTarget.START) "Next" else "Apply range") }
             },
             dismissButton = { TextButton(onClick = { datePickerTarget = null }) { Text("Cancel") } }
             ) {
@@ -345,6 +345,14 @@ fun TransactionHistoryScreen(
                     if (target == ActivityDatePickerTarget.START) "Choose start date" else "Choose end date",
                     modifier = Modifier.padding(start = 24.dp, top = 16.dp),
                     style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    datePickerState.selectedDateMillis?.let {
+                        "Selected: ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it))}"
+                    } ?: "Select a date, then tap ${if (target == ActivityDatePickerTarget.START) "Next" else "Apply range"}.",
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 DatePicker(state = datePickerState)
                 dateRangeError?.let { error ->
