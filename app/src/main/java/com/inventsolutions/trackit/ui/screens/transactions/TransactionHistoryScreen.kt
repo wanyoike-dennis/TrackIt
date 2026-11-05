@@ -20,12 +20,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +56,17 @@ import kotlin.math.abs
 private enum class TransactionTypeFilter { ALL, INCOME, EXPENSE, TRANSFERS, SAVINGS, DEBT }
 private enum class ActivityKind { INCOME, EXPENSE, TRANSFER, SAVINGS, DEBT }
 private data class ActivityEvent(val key: String, val kind: ActivityKind, val title: String, val subtitle: String, val amountMinor: Long, val dateMillis: Long, val positive: Boolean = false, val transaction: MoneyTransaction? = null)
-private enum class TransactionPeriodFilter { ALL_TIME, THIS_MONTH }
+private enum class TransactionPeriodFilter { ALL_TIME, THIS_MONTH, CUSTOM }
+private enum class ActivityDatePickerTarget { START, END }
+
+private fun localDayStartFromUtcDatePicker(millis: Long): Long {
+    val utc = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = millis }
+    return Calendar.getInstance().apply {
+        clear()
+        set(utc.get(Calendar.YEAR), utc.get(Calendar.MONTH), utc.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+}
 
 private fun parseHistoryAmount(value: String): Long? = runCatching {
     BigDecimal(value.trim().replace(",", ""))
@@ -86,6 +99,9 @@ fun TransactionHistoryScreen(
     var search by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf(TransactionTypeFilter.ALL) }
     var periodFilter by remember { mutableStateOf(TransactionPeriodFilter.ALL_TIME) }
+    var customStartDate by remember { mutableStateOf<Long?>(null) }
+    var customEndDate by remember { mutableStateOf<Long?>(null) }
+    var datePickerTarget by remember { mutableStateOf<ActivityDatePickerTarget?>(null) }
     val now = Calendar.getInstance()
     val monthKeyNow = "%04d-%02d".format(Locale.US, now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1)
     val accountNames = accounts.associate { it.id to it.name }
@@ -131,7 +147,17 @@ fun TransactionHistoryScreen(
         }
         val date = Calendar.getInstance().apply { timeInMillis = event.dateMillis }
         val monthKey = "%04d-%02d".format(Locale.US, date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1)
-        val matchesPeriod = periodFilter == TransactionPeriodFilter.ALL_TIME || monthKey == monthKeyNow
+        val matchesPeriod = when (periodFilter) {
+            TransactionPeriodFilter.ALL_TIME -> true
+            TransactionPeriodFilter.THIS_MONTH -> monthKey == monthKeyNow
+            TransactionPeriodFilter.CUSTOM -> {
+                val start = customStartDate?.let(::localDayStartFromUtcDatePicker)
+                val endExclusive = customEndDate?.let(::localDayStartFromUtcDatePicker)?.let { day ->
+                    Calendar.getInstance().apply { timeInMillis = day; add(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
+                }
+                start != null && endExclusive != null && event.dateMillis >= start && event.dateMillis < endExclusive
+            }
+        }
         val query = search.trim()
         val matchesSearch = query.isBlank() || event.title.contains(query, true) || event.subtitle.contains(query, true) ||
             event.transaction?.category?.contains(query, true) == true || event.transaction?.paymentMethod?.contains(query, true) == true
@@ -178,6 +204,16 @@ fun TransactionHistoryScreen(
                 onClick = { periodFilter = TransactionPeriodFilter.ALL_TIME }, label = { Text("All time") })
             FilterChip(selected = periodFilter == TransactionPeriodFilter.THIS_MONTH,
                 onClick = { periodFilter = TransactionPeriodFilter.THIS_MONTH }, label = { Text("This month") })
+            FilterChip(selected = periodFilter == TransactionPeriodFilter.CUSTOM,
+                onClick = { datePickerTarget = ActivityDatePickerTarget.START },
+                label = { Text(if (periodFilter == TransactionPeriodFilter.CUSTOM && customStartDate != null && customEndDate != null) "Custom dates" else "Date range") })
+        }
+        if (periodFilter == TransactionPeriodFilter.CUSTOM && customStartDate != null && customEndDate != null) {
+            Text(
+                "${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(customStartDate!!))} – ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(customEndDate!!))}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Card(
@@ -241,6 +277,44 @@ fun TransactionHistoryScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    datePickerTarget?.let { target ->
+        val initialDate = if (target == ActivityDatePickerTarget.START) customStartDate else customEndDate
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
+        DatePickerDialog(
+            onDismissRequest = { datePickerTarget = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    val selected = datePickerState.selectedDateMillis
+                    if (selected != null) {
+                        if (target == ActivityDatePickerTarget.START) {
+                            customStartDate = selected
+                            if (customEndDate != null && customEndDate!! < selected) customEndDate = null
+                            datePickerTarget = ActivityDatePickerTarget.END
+                        } else {
+                            if (customStartDate == null || selected >= customStartDate!!) {
+                                customEndDate = selected
+                                periodFilter = TransactionPeriodFilter.CUSTOM
+                            }
+                            datePickerTarget = null
+                        }
+                    } else {
+                        datePickerTarget = null
+                    }
+                }) { Text(if (target == ActivityDatePickerTarget.START) "Next" else "Apply") }
+            },
+            dismissButton = { TextButton(onClick = { datePickerTarget = null }) { Text("Cancel") } }
+        ) {
+            Column {
+                Text(
+                    if (target == ActivityDatePickerTarget.START) "Choose start date" else "Choose end date",
+                    modifier = Modifier.padding(start = 24.dp, top = 16.dp),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                DatePicker(state = datePickerState)
             }
         }
     }
