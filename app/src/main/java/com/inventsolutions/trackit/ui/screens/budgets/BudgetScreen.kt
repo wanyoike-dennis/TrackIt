@@ -208,26 +208,9 @@ fun BudgetScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("Budgets", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text(monthLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Button(onClick = {
-                    category = ""
-                    amount = ""
-                    validation = null
-                    editingBudgetId = null
-                    budgetType = MonthlyBudget.ONE_TIME
-                    showBudgetForm = true
-                }) {
-                    TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary, size = 20.dp)
-                    Text("Add budget")
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Budgets", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(monthLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
