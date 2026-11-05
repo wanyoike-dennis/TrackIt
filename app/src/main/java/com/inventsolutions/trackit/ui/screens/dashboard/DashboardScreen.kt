@@ -260,7 +260,10 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                 else -> 0L
             }
         }
-        account.openingBalanceMinor + transactionMovement + transferMovement + financialMovement
+        val reconciliationMovement = uiState.accountReconciliations.filter {
+            it.accountId == account.id && it.reconciledAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf { it.adjustmentMinor }
+        account.openingBalanceMinor + transactionMovement + transferMovement + financialMovement + reconciliationMovement
     }
     val availableBalance = if (uiState.accounts.any { !it.archived }) accountBalancesTotal
         else allIncome - allRecordedExpenses - totalSavingsBalance - debtRepaymentsRecorded + debtCollectionsRecorded
@@ -555,10 +558,12 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     transactions = uiState.transactions,
                     transfers = uiState.accountTransfers,
                     financialEntries = uiState.financialEntries,
+                    reconciliations = uiState.accountReconciliations,
                     errorMessage = uiState.errorMessage,
                     onAddAccount = viewModel::addFinancialAccount,
                     onUpdateAccount = viewModel::updateFinancialAccount,
                     onTransfer = viewModel::addAccountTransfer,
+                    onReconcile = viewModel::reconcileFinancialAccount,
                     onArchive = viewModel::archiveFinancialAccount,
                     onClearError = viewModel::clearError,
                     onBack = { selectedTab = "Home"; viewModel.clearError() }
