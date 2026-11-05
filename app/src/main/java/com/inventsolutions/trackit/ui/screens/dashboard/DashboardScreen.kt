@@ -542,7 +542,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                                 }
                         }
                     },
-                    onRestoreBackup = { restoreBackupLauncher.launch(arrayOf("application/json", "text/*")) }
+                    onRestoreBackup = { restoreBackupLauncher.launch(arrayOf("application/json", "application/octet-stream", "text/*")) }
                 )
             } else if (selectedTab == "Accounts") {
                 AccountsScreen(
