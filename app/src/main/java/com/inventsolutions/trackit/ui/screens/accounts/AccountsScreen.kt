@@ -553,6 +553,12 @@ fun AccountsScreen(
                     )
                     latestReconciliation?.let {
                         Text(
+                            "Statement " + accountKes(it.statementBalanceMinor) +
+                                " · TrackIt before " + accountKes(it.systemBalanceMinor),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
                             if (it.adjustmentMinor == 0L) "Balances matched"
                             else "Adjustment recorded: " + (if (it.adjustmentMinor > 0) "+" else "−") +
                                 accountKes(kotlin.math.abs(it.adjustmentMinor)),
