@@ -395,7 +395,8 @@ fun FinancialPlansScreen(
                         record = record,
                         onProgress = { progressRecord = record },
                         onHistory = { historyRecord = record },
-                        onWithdraw = { withdrawalRecord = record }
+                        onWithdraw = { withdrawalRecord = record },
+                        onDelete = { deleteRecord = record }
                     )
                 } else {
                     FinancialRecordCard(
@@ -877,8 +878,14 @@ fun FinancialPlansScreen(
     deleteRecord?.let { record ->
         AlertDialog(
             onDismissRequest = { deleteRecord = null },
-            title = { Text("Delete this plan?") },
-            text = { Text("“${record.title}” and its saved progress will be removed from this device.") },
+            title = { Text(if (record.type in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT)) "Delete these savings?" else "Delete this plan?") },
+            text = {
+                Text(
+                    if (record.type in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT))
+                        "“${record.title}” and its saved balance and activity history will be removed from this device. This cannot be undone."
+                    else "“${record.title}” and its saved progress will be removed from this device."
+                )
+            },
             confirmButton = {
                 Button(onClick = { onDelete(record.id); deleteRecord = null }) { TrackItIcon(R.drawable.ic_lucide_trash, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Delete plan") }
             },
@@ -1109,7 +1116,8 @@ private fun SavingsRecordCard(
     record: FinancialRecord,
     onProgress: () -> Unit,
     onHistory: () -> Unit,
-    onWithdraw: () -> Unit
+    onWithdraw: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val isGoal = record.type == FinancialRecord.SAVINGS_GOAL
     val progress = if (isGoal && record.targetMinor > 0L)
@@ -1179,6 +1187,15 @@ private fun SavingsRecordCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+                TextButton(
+                    onClick = onDelete,
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    TrackItIcon(R.drawable.ic_lucide_trash, null, size = 18.dp,
+                        tint = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             }
 
