@@ -534,7 +534,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                             runCatching { withContext(Dispatchers.IO) { viewModel.exportBackupJson() } }
                                 .onSuccess { json ->
                                     pendingBackupJson = json
-                                    createBackupLauncher.launch("TrackIt-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".json")
+                                    createBackupLauncher.launch("TrackIt-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".trackit")
                                 }
                                 .onFailure {
                                     noticeMessage = "Could not prepare a backup. Please try again."
