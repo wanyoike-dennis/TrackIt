@@ -435,7 +435,7 @@ fun AccountsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
                 Column(
@@ -452,19 +452,19 @@ fun AccountsScreen(
                                 "AVAILABLE BALANCE",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 accountKes(balances[detailAccount.id] ?: detailAccount.openingBalanceMinor),
                                 style = MaterialTheme.typography.headlineLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.10f)
+                                containerColor = MaterialTheme.colorScheme.surface
                             )
                         ) {
                             Box(Modifier.padding(13.dp), contentAlignment = Alignment.Center) {
@@ -478,7 +478,7 @@ fun AccountsScreen(
                         }
                     }
                     androidx.compose.material3.HorizontalDivider(
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.14f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -491,17 +491,17 @@ fun AccountsScreen(
                                 detailAccount.name,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 "${detailAccount.typeLabel()} · Opened ${accountDate(detailAccount.openingDateEpochMillis).substringBefore(",")}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 "Opening balance · ${accountKes(detailAccount.openingBalanceMinor)}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -516,32 +516,32 @@ fun AccountsScreen(
                     onClick = { editingAccount = detailAccount },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 15.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Card(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                         ) {
-                            Box(Modifier.padding(9.dp), contentAlignment = Alignment.Center) {
+                            Box(Modifier.padding(12.dp), contentAlignment = Alignment.Center) {
                                 TrackItIcon(
                                     R.drawable.ic_lucide_edit,
                                     null,
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    size = 20.dp
+                                    size = 23.dp
                                 )
                             }
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Edit account", style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold)
-                            Text("Details", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        Text(
+                            "Edit account",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
                 Card(
@@ -549,32 +549,32 @@ fun AccountsScreen(
                     modifier = Modifier.weight(1f),
                     enabled = !detailAccount.archived,
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 15.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Card(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                         ) {
-                            Box(Modifier.padding(9.dp), contentAlignment = Alignment.Center) {
+                            Box(Modifier.padding(12.dp), contentAlignment = Alignment.Center) {
                                 TrackItIcon(
                                     R.drawable.ic_lucide_repeat,
                                     null,
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    size = 20.dp
+                                    size = 23.dp
                                 )
                             }
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Reconcile", style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold)
-                            Text("Balance", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        Text(
+                            "Reconcile account",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
