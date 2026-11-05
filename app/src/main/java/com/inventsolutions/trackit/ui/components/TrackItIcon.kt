@@ -17,7 +17,7 @@ fun TrackItIcon(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    size: Dp = 20.dp
+    size: Dp = 25.dp
 ) {
     Icon(
         painter = painterResource(iconRes),
