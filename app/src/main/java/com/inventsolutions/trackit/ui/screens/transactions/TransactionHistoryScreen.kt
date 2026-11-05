@@ -52,7 +52,7 @@ import kotlin.math.abs
 
 private enum class TransactionTypeFilter { ALL, INCOME, EXPENSE, TRANSFERS, SAVINGS, DEBT }
 private enum class ActivityKind { INCOME, EXPENSE, TRANSFER, SAVINGS, DEBT }
-private data class ActivityEvent(val key: String, val kind: ActivityKind, val title: String, val subtitle: String, val amountMinor: Long, val dateMillis: Long, val transaction: MoneyTransaction? = null)
+private data class ActivityEvent(val key: String, val kind: ActivityKind, val title: String, val subtitle: String, val amountMinor: Long, val dateMillis: Long, val positive: Boolean = false, val transaction: MoneyTransaction? = null)
 private enum class TransactionPeriodFilter { ALL_TIME, THIS_MONTH }
 
 private fun parseHistoryAmount(value: String): Long? = runCatching {
@@ -86,10 +86,6 @@ fun TransactionHistoryScreen(
     var search by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf(TransactionTypeFilter.ALL) }
     var periodFilter by remember { mutableStateOf(TransactionPeriodFilter.ALL_TIME) }
-    var selectedTransaction by remember { mutableStateOf<MoneyTransaction?>(null) }
-    var editingTransaction by remember { mutableStateOf<MoneyTransaction?>(null) }
-    var deleteCandidate by remember { mutableStateOf<MoneyTransaction?>(null) }
-
     val now = Calendar.getInstance()
     val monthKeyNow = "%04d-%02d".format(Locale.US, now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1)
     val accountNames = accounts.associate { it.id to it.name }
@@ -97,7 +93,7 @@ fun TransactionHistoryScreen(
         transactions.forEach { tx ->
             val kind = if (tx.type == MoneyTransaction.INCOME) ActivityKind.INCOME else ActivityKind.EXPENSE
             add(ActivityEvent("tx-${tx.id}", kind, tx.description.ifBlank { tx.category },
-                listOf(tx.category, tx.paymentMethod).filter { it.isNotBlank() }.joinToString(" · "), tx.amountMinor, tx.dateEpochMillis, tx))
+                listOf(tx.category, tx.paymentMethod).filter { it.isNotBlank() }.joinToString(" · "), tx.amountMinor, tx.dateEpochMillis, positive = kind == ActivityKind.INCOME, transaction = tx))
         }
         accountTransfers.forEach { transfer ->
             val from = accountNames[transfer.fromAccountId] ?: "Account"
@@ -119,7 +115,7 @@ fun TransactionHistoryScreen(
                 FinancialRecordEntry.COLLECTION -> "Debt collection"
                 else -> "Financial update"
             }
-            add(ActivityEvent("entry-${entry.id}", kind, entry.note.ifBlank { action }, record.title, entry.amountMinor, entry.createdAtEpochMillis))
+            add(ActivityEvent("entry-${entry.id}", kind, entry.note.ifBlank { action }, record.title, entry.amountMinor, entry.createdAtEpochMillis, positive = entry.entryType == FinancialRecordEntry.WITHDRAWAL || entry.entryType == FinancialRecordEntry.COLLECTION))
         }
     }.sortedByDescending { it.dateMillis }
     val filtered = allEvents.filter { event ->
@@ -224,7 +220,7 @@ fun TransactionHistoryScreen(
                         Text(dateLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 2.dp))
                     }
                     items(events, key = { it.key }) { event ->
-                        val positive = event.kind == ActivityKind.INCOME || (event.kind == ActivityKind.SAVINGS && event.title.contains("withdrawal", true)) || (event.kind == ActivityKind.DEBT && event.title.contains("collection", true))
+                        val positive = event.positive
                         val amount = if (event.kind == ActivityKind.TRANSFER) historyKes(event.amountMinor) else (if (positive) "+ " else "− ") + historyKes(event.amountMinor)
                         Card(modifier = Modifier.fillMaxWidth().clickable { if (event.transaction != null) selectedTransaction = event.transaction else selectedEvent = event },
                             shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
