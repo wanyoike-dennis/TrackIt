@@ -882,7 +882,7 @@ fun FinancialPlansScreen(
             text = {
                 Text(
                     if (record.type in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT))
-                        "“${record.title}” and its saved balance and activity history will be removed from this device. This cannot be undone."
+                        "“${record.title}” and its saved balance will be removed from this device. This cannot be undone."
                     else "“${record.title}” and its saved progress will be removed from this device."
                 )
             },
