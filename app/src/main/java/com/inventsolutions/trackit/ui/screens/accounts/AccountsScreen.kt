@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.AccountTransfer
+import com.inventsolutions.trackit.data.local.AccountReconciliation
 import com.inventsolutions.trackit.data.local.FinancialAccount
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
@@ -170,7 +171,8 @@ private fun AccountActivityCard(
     detail: String,
     time: Long,
     amount: Long,
-    incoming: Boolean
+    incoming: Boolean,
+    balanceAfter: Long
 ) {
     val transfer = title.startsWith("Transfer")
     val icon = when {
@@ -202,12 +204,12 @@ private fun AccountActivityCard(
                 Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(accountDate(time), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(
-                (if (incoming) "+ " else "− ") + accountKes(amount),
-                fontWeight = FontWeight.Bold,
-                color = movementColor,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text((if (incoming) "+ " else "− ") + accountKes(amount), fontWeight = FontWeight.Bold,
+                    color = movementColor, style = MaterialTheme.typography.bodyMedium)
+                Text("Balance " + accountKes(balanceAfter), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -218,10 +220,12 @@ fun AccountsScreen(
     transactions: List<MoneyTransaction>,
     transfers: List<AccountTransfer>,
     financialEntries: List<FinancialRecordEntry>,
+    reconciliations: List<AccountReconciliation>,
     errorMessage: String?,
     onAddAccount: (String, String, Long) -> Unit,
     onUpdateAccount: (FinancialAccount) -> Unit,
     onTransfer: (Long, Long, Long, Long, String) -> Unit,
+    onReconcile: (Long, Long, String) -> Unit,
     onArchive: (FinancialAccount) -> Unit,
     onClearError: () -> Unit,
     onBack: () -> Unit
@@ -230,6 +234,10 @@ fun AccountsScreen(
     var showTransfer by remember { mutableStateOf(false) }
     var editingAccount by remember { mutableStateOf<FinancialAccount?>(null) }
     var selectedAccount by remember { mutableStateOf<FinancialAccount?>(null) }
+    var showReconcile by remember { mutableStateOf(false) }
+    var activitySearch by remember { mutableStateOf("") }
+    var activityType by remember { mutableStateOf("All activity") }
+    var activityPeriod by remember { mutableStateOf("All time") }
     val active = accounts.filter { !it.archived }
     val balances = accounts.associate { account ->
         val transactionMovement = transactions.filter {
@@ -248,7 +256,10 @@ fun AccountsScreen(
                 else -> 0L
             }
         }
-        account.id to (account.openingBalanceMinor + transactionMovement + transferMovement + financialMovement)
+        val reconciliationMovement = reconciliations.filter {
+            it.accountId == account.id && it.reconciledAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf { it.adjustmentMinor }
+        account.id to (account.openingBalanceMinor + transactionMovement + transferMovement + financialMovement + reconciliationMovement)
     }
     val detailAccount = accounts.firstOrNull { it.id == selectedAccount?.id }
 
@@ -456,6 +467,10 @@ fun AccountsScreen(
                         TrackItIcon(R.drawable.ic_lucide_edit, null, tint = TrackItEmeraldLight, size = 20.dp)
                         Text("Edit account details", color = Color.White)
                     }
+                    TextButton(onClick = { showReconcile = true }, enabled = !detailAccount.archived) {
+                        TrackItIcon(R.drawable.ic_lucide_scale, null, tint = TrackItEmeraldLight, size = 20.dp)
+                        Text("Reconcile account", color = Color.White)
+                    }
                 }
             }
 
@@ -464,13 +479,15 @@ fun AccountsScreen(
                 it.fromAccountId == detailAccount.id || it.toAccountId == detailAccount.id
             }
             val accountEntries = financialEntries.filter { it.accountId == detailAccount.id }
-            data class ActivityRow(val time: Long, val title: String, val detail: String, val amount: Long, val incoming: Boolean)
+            val accountReconciliations = reconciliations.filter { it.accountId == detailAccount.id }
+            data class ActivityRow(val time: Long, val title: String, val detail: String, val amount: Long,
+                val incoming: Boolean, val kind: String, val balanceAfter: Long = 0L)
             val activity = buildList {
                 accountTransactions.forEach {
                     val income = it.type == MoneyTransaction.INCOME
                     add(ActivityRow(it.dateEpochMillis, it.description.ifBlank { it.category },
                         if (income) "Income · ${it.category}" else "Expense · ${it.category}",
-                        it.amountMinor, income))
+                        it.amountMinor, income, if (income) "Income" else "Expenses"))
                 }
                 accountTransfers.forEach {
                     val incoming = it.toAccountId == detailAccount.id
@@ -479,33 +496,74 @@ fun AccountsScreen(
                     }?.name ?: "Other account"
                     add(ActivityRow(it.dateEpochMillis, if (incoming) "Transfer received" else "Transfer sent",
                         other + if (it.note.isBlank()) "" else " · ${it.note}",
-                        it.amountMinor, incoming))
+                        it.amountMinor, incoming, "Transfers"))
                 }
                 accountEntries.forEach {
                     val incoming = it.entryType == FinancialRecordEntry.WITHDRAWAL ||
                         it.entryType == FinancialRecordEntry.COLLECTION
                     add(ActivityRow(it.createdAtEpochMillis, it.label(), it.note.ifBlank { "Savings / debt record" },
-                        it.amountMinor, incoming))
+                        it.amountMinor, incoming, "Savings & debt"))
                 }
-            }.sortedByDescending { it.time }
+                accountReconciliations.forEach {
+                    add(ActivityRow(it.reconciledAtEpochMillis, "Balance adjustment",
+                        it.note.ifBlank { "Account reconciliation" }, kotlin.math.abs(it.adjustmentMinor),
+                        it.adjustmentMinor >= 0L, "Adjustments"))
+                }
+            }.sortedBy { it.time }
+            var runningBalance = detailAccount.openingBalanceMinor
+            val activityWithBalances = activity.map { item ->
+                runningBalance += if (item.incoming) item.amount else -item.amount
+                item.copy(balanceAfter = runningBalance)
+            }.asReversed()
+            val cutoff = when (activityPeriod) {
+                "30 days" -> System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+                "90 days" -> System.currentTimeMillis() - 90L * 24 * 60 * 60 * 1000
+                else -> Long.MIN_VALUE
+            }
+            val visibleActivity = activityWithBalances.filter { item ->
+                (activityType == "All activity" || item.kind == activityType) && item.time >= cutoff &&
+                    (activitySearch.isBlank() || item.title.contains(activitySearch, true) || item.detail.contains(activitySearch, true))
+            }
 
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Recent activity", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("${activity.size} entries", style = MaterialTheme.typography.labelMedium,
+                Text("Transaction history", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("${visibleActivity.size} of ${activity.size}", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (activity.isEmpty()) {
+            OutlinedTextField(value = activitySearch, onValueChange = { activitySearch = it },
+                modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Search account history") })
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                var typeMenu by remember { mutableStateOf(false) }
+                var periodMenu by remember { mutableStateOf(false) }
+                Box(Modifier.weight(1f)) {
+                    OutlinedButton(onClick = { typeMenu = true }, modifier = Modifier.fillMaxWidth()) { Text(activityType) }
+                    DropdownMenu(typeMenu, { typeMenu = false }) {
+                        listOf("All activity", "Income", "Expenses", "Transfers", "Savings & debt", "Adjustments").forEach {
+                            DropdownMenuItem(text = { Text(it) }, onClick = { activityType = it; typeMenu = false })
+                        }
+                    }
+                }
+                Box(Modifier.weight(1f)) {
+                    OutlinedButton(onClick = { periodMenu = true }, modifier = Modifier.fillMaxWidth()) { Text(activityPeriod) }
+                    DropdownMenu(periodMenu, { periodMenu = false }) {
+                        listOf("All time", "30 days", "90 days").forEach {
+                            DropdownMenuItem(text = { Text(it) }, onClick = { activityPeriod = it; periodMenu = false })
+                        }
+                    }
+                }
+            }
+            if (activity.isEmpty() || visibleActivity.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("No activity yet", fontWeight = FontWeight.SemiBold)
+                        Text(if (activity.isEmpty()) "No activity yet" else "No matching transactions", fontWeight = FontWeight.SemiBold)
                         Text(
                             "Income, expenses and transfers recorded against this account will appear here.",
                             style = MaterialTheme.typography.bodySmall,
@@ -518,12 +576,52 @@ fun AccountsScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
-                    items(activity) { item ->
-                        AccountActivityCard(item.title, item.detail, item.time, item.amount, item.incoming)
+                    items(visibleActivity) { item ->
+                        AccountActivityCard(item.title, item.detail, item.time, item.amount, item.incoming, item.balanceAfter)
                     }
                 }
             }
         }
+    }
+
+
+    if (showReconcile && detailAccount != null) {
+        var actualBalance by remember(detailAccount.id) {
+            mutableStateOf(((balances[detailAccount.id] ?: detailAccount.openingBalanceMinor) / 100.0).toString())
+        }
+        var note by remember(detailAccount.id) { mutableStateOf("") }
+        val currentBalance = balances[detailAccount.id] ?: detailAccount.openingBalanceMinor
+        val parsedBalance = accountAmount(actualBalance)
+        val difference = parsedBalance?.minus(currentBalance)
+        AlertDialog(
+            onDismissRequest = { showReconcile = false },
+            title = { Text("Reconcile " + detailAccount.name) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Compare the balance shown by your bank, M-Pesa or cash count with TrackIt's recorded balance.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("TrackIt balance", style = MaterialTheme.typography.labelMedium)
+                    Text(accountKes(currentBalance), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(actualBalance, { actualBalance = it }, label = { Text("Actual balance (KSh)") }, singleLine = true)
+                    OutlinedTextField(note, { note = it }, label = { Text("Note / reason (optional)") }, singleLine = true)
+                    if (difference != null) Text(
+                        if (difference == 0L) "The balances match. No adjustment is needed."
+                        else "Adjustment to record: " + (if (difference > 0) "+" else "−") + accountKes(kotlin.math.abs(difference)),
+                        color = if (difference == 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text("Saving records a separate adjustment. Existing transactions are not edited or deleted.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = parsedBalance != null && parsedBalance >= 0L, onClick = {
+                    parsedBalance?.let { onReconcile(detailAccount.id, it, note) }
+                    showReconcile = false
+                }) { Text("Save reconciliation") }
+            },
+            dismissButton = { TextButton(onClick = { showReconcile = false }) { Text("Cancel") } }
+        )
     }
 
     if (editingAccount != null) {
