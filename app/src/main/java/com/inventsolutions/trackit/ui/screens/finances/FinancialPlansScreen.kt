@@ -131,9 +131,6 @@ fun FinancialPlansScreen(
                     Text("Small steps. Clear progress. Less money stress.",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedButton(onClick = onBackToHome, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)) {
-                    Text("Home")
-                }
             }
         }
 
