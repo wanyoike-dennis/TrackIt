@@ -318,6 +318,9 @@ fun FinancialPlansScreen(
                     }
                 }
             }
+            val activeDebts = filteredDebts.filter { it.targetMinor > it.currentMinor }
+            val settledDebts = filteredDebts.filter { it.targetMinor <= it.currentMinor }
+
             if (debtsIOwe.isEmpty() && debtsOwedToMe.isEmpty()) {
                 item {
                     EmptyFinanceRecordsCard(
@@ -332,22 +335,47 @@ fun FinancialPlansScreen(
                 item {
                     Text(
                         if (debtSearch.isNotBlank()) "No debts match your search."
-                        else "There are no debts in this filter.",
+                        else "There are no debts in this view.",
                         modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             } else {
-                items(filteredDebts, key = { "debt-${it.id}" }) { record ->
-                    DebtRecordRow(
-                        record = record,
-                        onOpen = { historyRecord = record },
-                        onProgress = { progressRecord = record },
-                        onEdit = { editRecord = record },
-                        onHistory = { historyRecord = record },
-                        onDelete = { deleteRecord = record }
-                    )
+                if (activeDebts.isNotEmpty()) {
+                    item {
+                        Text("ACTIVE DEBTS", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp)
+                    }
+                    items(activeDebts, key = { "debt-${it.id}" }) { record ->
+                        DebtRecordRow(
+                            record = record,
+                            onOpen = { historyRecord = record },
+                            onProgress = { progressRecord = record },
+                            onEdit = { editRecord = record },
+                            onHistory = { historyRecord = record },
+                            onDelete = { deleteRecord = record }
+                        )
+                    }
+                }
+                if (settledDebts.isNotEmpty()) {
+                    item {
+                        Text("SETTLED", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    }
+                    items(settledDebts, key = { "debt-${it.id}" }) { record ->
+                        DebtRecordRow(
+                            record = record,
+                            isSettledStyle = true,
+                            onOpen = { historyRecord = record },
+                            onProgress = { progressRecord = record },
+                            onEdit = { editRecord = record },
+                            onHistory = { historyRecord = record },
+                            onDelete = { deleteRecord = record }
+                        )
+                    }
                 }
             }
         } else if (visibleRecords.isEmpty()) {
@@ -1026,6 +1054,7 @@ private fun EmptyFinanceRecordsCard(
 @Composable
 private fun DebtRecordRow(
     record: FinancialRecord,
+    isSettledStyle: Boolean = false,
     onOpen: () -> Unit,
     onProgress: () -> Unit,
     onEdit: () -> Unit,
@@ -1044,8 +1073,13 @@ private fun DebtRecordRow(
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSettledStyle) MaterialTheme.colorScheme.surfaceVariant
+                else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(
+            alpha = if (isSettledStyle) 0.55f else 1f
+        ))
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
