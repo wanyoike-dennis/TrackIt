@@ -177,9 +177,30 @@ fun ReportScreen(
     val previousIncome = previous.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor }
     val previousExpenses = previous.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor } +
         previousEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
+    val previousCashEntries = previousEntries.filterNot {
+        it.entryType == FinancialRecordEntry.COLLECTION &&
+            financialRecords.firstOrNull { record -> record.id == it.financialRecordId }?.type == FinancialRecord.CLIENT_RECEIVABLE
+    }
     val previousNet = previousIncome - previousExpenses -
-        previousEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
-        previousEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION || it.entryType == FinancialRecordEntry.WITHDRAWAL }.sumOf { it.amountMinor }
+        previousCashEntries.filter { it.entryType == FinancialRecordEntry.CONTRIBUTION || it.entryType == FinancialRecordEntry.REPAYMENT }.sumOf { it.amountMinor } +
+        previousCashEntries.filter { it.entryType == FinancialRecordEntry.COLLECTION || it.entryType == FinancialRecordEntry.WITHDRAWAL }.sumOf { it.amountMinor }
+    val monthTrends = (5 downTo 0).map { offset ->
+        val start = Calendar.getInstance().apply {
+            timeInMillis = nowMillis
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            add(Calendar.MONTH, -offset)
+        }
+        val end = (start.clone() as Calendar).apply { add(Calendar.MONTH, 1) }.timeInMillis
+        val monthTransactions = transactions.filter { it.dateEpochMillis >= start.timeInMillis && it.dateEpochMillis < end }
+        val monthEntries = financialEntries.filter { it.createdAtEpochMillis >= start.timeInMillis && it.createdAtEpochMillis < end }
+        Triple(
+            SimpleDateFormat("MMM", Locale.getDefault()).format(Date(start.timeInMillis)),
+            monthTransactions.filter { it.type == MoneyTransaction.INCOME }.sumOf { it.amountMinor },
+            monthTransactions.filter { it.type == MoneyTransaction.EXPENSE }.sumOf { it.amountMinor } +
+                monthEntries.filter { it.entryType == FinancialRecordEntry.SPENDING }.sumOf { it.amountMinor }
+        )
+    }
     val allowanceTitles = financialRecords.filter { it.type == FinancialRecord.ALLOWANCE }.associate { it.id to it.title }
     val regularCategorySpending = current.filter { it.type == MoneyTransaction.EXPENSE }
         .groupBy { it.category.trim().ifBlank { "Uncategorized" } }
@@ -282,6 +303,26 @@ fun ReportScreen(
             }
         }
         item {
+            Text("Income & expense trends", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Monthly activity over the last six months.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val maxValue = monthTrends.maxOfOrNull { maxOf(it.second, it.third) }?.coerceAtLeast(1L) ?: 1L
+                    monthTrends.forEach { month ->
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(month.first, style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ReportTrendBar("Income", month.second, maxValue, MaterialTheme.colorScheme.primary)
+                            ReportTrendBar("Expenses", month.third, maxValue, MaterialTheme.colorScheme.tertiary)
+                        }
+                    }
+                }
+            }
+        }
+        item {
             Text("Period comparison", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -371,4 +412,18 @@ private fun ReportComparisonRow(label: String, current: Long, previous: Long) {
             })
     }
 
+}
+
+@Composable
+private fun ReportTrendBar(label: String, amount: Long, maximum: Long, color: androidx.compose.ui.graphics.Color) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, Modifier.weight(0.75f), style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LinearProgressIndicator(progress = { (amount.toFloat() / maximum.toFloat()).coerceIn(0f, 1f) },
+            modifier = Modifier.weight(2f).height(7.dp), color = color,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant)
+        Text(reportKes(amount), Modifier.weight(1.2f), style = MaterialTheme.typography.labelSmall,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End)
+    }
 }
