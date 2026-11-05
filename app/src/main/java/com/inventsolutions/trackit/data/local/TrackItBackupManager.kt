@@ -16,7 +16,7 @@ import org.json.JSONObject
  * credentials, tokens and hardware identifiers are deliberately excluded.
  */
 object TrackItBackupManager {
-    private const val FORMAT_VERSION = 2
+    private const val FORMAT_VERSION = 3
     private const val PROFILE_PREFS = "trackit_personal_profile"
     private const val APPEARANCE_PREFS = "trackit_appearance"
 
@@ -31,7 +31,8 @@ object TrackItBackupManager {
         "transactions",
         "recurring_transactions",
         "financial_record_entries",
-        "account_transfers"
+        "account_transfers",
+        "account_reconciliations"
     )
     private val requiredLegacyTables = setOf(
         "expense_categories", "monthly_budgets", "financial_records",
@@ -101,7 +102,7 @@ object TrackItBackupManager {
             "The recurring transaction data is malformed."
         }
         require(data.keys().asSequence().all { it in tables }) { "The backup contains an unknown table." }
-        if (formatVersion >= 2) {
+        if (formatVersion >= 3) {
             require(tables.all { data.optJSONArray(it) != null }) { "The backup is missing one or more financial data tables." }
             val profile = root.optJSONObject("profile") ?: error("The backup is missing profile information.")
             val appearance = root.optJSONObject("settings")?.optJSONObject("appearance")
@@ -115,7 +116,7 @@ object TrackItBackupManager {
         sqlDb.beginTransaction()
         try {
             listOf(
-                "account_transfers", "financial_record_entries", "recurring_transactions",
+                "account_reconciliations", "account_transfers", "financial_record_entries", "recurring_transactions",
                 "transactions", "financial_records", "monthly_budgets",
                 "expense_categories", "financial_accounts"
             ).forEach { table ->
