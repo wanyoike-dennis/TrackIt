@@ -107,11 +107,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     suspend fun exportBackupJson(): String = withContext(Dispatchers.IO) {
-        TrackItBackupManager.export(database)
+        TrackItBackupManager.export(app, database)
     }
 
     suspend fun restoreBackupJson(json: String): Int = withContext(Dispatchers.IO) {
-        TrackItBackupManager.restore(database, json)
+        TrackItBackupManager.restore(app, database, json)
     }
 
     private val app = application
