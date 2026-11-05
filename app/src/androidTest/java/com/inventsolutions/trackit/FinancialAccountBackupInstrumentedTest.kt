@@ -23,10 +23,11 @@ import org.junit.runner.RunWith
 class FinancialAccountBackupInstrumentedTest {
 
     private lateinit var database: TrackItDatabase
+    private lateinit var context: Context
 
     @Before
     fun createDatabase() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+        context = ApplicationProvider.getApplicationContext()
         database = Room.inMemoryDatabaseBuilder(context, TrackItDatabase::class.java)
             .allowMainThreadQueries()
             .build()
@@ -127,14 +128,14 @@ class FinancialAccountBackupInstrumentedTest {
             )
         )
 
-        val backup = TrackItBackupManager.export(database)
+        val backup = TrackItBackupManager.export(context, database)
         database.openHelper.writableDatabase.execSQL("DELETE FROM account_transfers")
         database.openHelper.writableDatabase.execSQL("DELETE FROM financial_record_entries")
         database.openHelper.writableDatabase.execSQL("DELETE FROM transactions")
         database.openHelper.writableDatabase.execSQL("DELETE FROM financial_records")
         database.openHelper.writableDatabase.execSQL("DELETE FROM financial_accounts")
 
-        val restoredRows = TrackItBackupManager.restore(database, backup)
+        val restoredRows = TrackItBackupManager.restore(context, database, backup)
 
         assertEquals(10, restoredRows)
         assertEquals(2, database.financialAccountDao().observeAll().firstForTest().size)
@@ -168,7 +169,7 @@ class FinancialAccountBackupInstrumentedTest {
         )
 
         try {
-            TrackItBackupManager.restore(database, """{"app":"Other","formatVersion":1,"tables":{}}""")
+            TrackItBackupManager.restore(context, database, """{"app":"Other","formatVersion":1,"tables":{}}""")
             throw AssertionError("Restore should reject a backup from another app.")
         } catch (_: IllegalArgumentException) {
             // Expected: validation happens before the restore transaction starts.
