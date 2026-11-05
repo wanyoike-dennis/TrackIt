@@ -687,7 +687,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
         val entryType = when (record.type) {
             FinancialRecord.DEBT_I_OWE -> FinancialRecordEntry.REPAYMENT
-            FinancialRecord.DEBT_OWED_TO_ME -> FinancialRecordEntry.COLLECTION
+            FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE -> FinancialRecordEntry.COLLECTION
             FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT -> FinancialRecordEntry.CONTRIBUTION
             else -> FinancialRecordEntry.SPENDING
         }
