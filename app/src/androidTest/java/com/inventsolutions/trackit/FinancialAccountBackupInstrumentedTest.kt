@@ -11,8 +11,11 @@ import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import com.inventsolutions.trackit.data.local.TrackItBackupManager
 import com.inventsolutions.trackit.data.local.TrackItDatabase
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -36,6 +39,35 @@ class FinancialAccountBackupInstrumentedTest {
     @After
     fun closeDatabase() {
         database.close()
+    }
+
+    @Test
+    fun restoreRefreshesAnAlreadyActiveRoomFlow() = runBlocking {
+        database.financialAccountDao().insert(
+            FinancialAccount(
+                name = "M-Pesa",
+                type = FinancialAccount.MPESA,
+                openingBalanceMinor = 10_000L,
+                openingDateEpochMillis = 1L
+            )
+        )
+        val backup = TrackItBackupManager.export(context, database)
+        val accountUpdates = Channel<List<FinancialAccount>>(Channel.UNLIMITED)
+        val observer = launch {
+            database.financialAccountDao().observeAll().collect { accountUpdates.send(it) }
+        }
+
+        try {
+            assertEquals(1, withTimeout(5_000L) { accountUpdates.receive() }.size)
+
+            TrackItBackupManager.restore(context, database, backup)
+
+            val refreshedAccounts = withTimeout(5_000L) { accountUpdates.receive() }
+            assertEquals("M-Pesa", refreshedAccounts.single().name)
+        } finally {
+            observer.cancel()
+            accountUpdates.close()
+        }
     }
 
     @Test
