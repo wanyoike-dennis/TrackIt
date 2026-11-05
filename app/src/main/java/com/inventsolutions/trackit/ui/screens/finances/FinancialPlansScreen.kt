@@ -25,6 +25,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -198,7 +199,7 @@ fun FinancialPlansScreen(
                             Text("${(savingsProgress * 100).toInt()}% of target",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text("${financeKes((savingsTarget - savedTotal).coerceAtLeast(0L))} to go",
+                            Text("${financeKes((savingsTarget - savings.sumOf { it.currentMinor }).coerceAtLeast(0L))} to go",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
@@ -384,14 +385,23 @@ fun FinancialPlansScreen(
             }
         } else {
             items(visibleRecords, key = { it.id }) { record ->
-                FinancialRecordCard(
-                    record = record,
-                    onProgress = { progressRecord = record },
-                    onEdit = { editRecord = record },
-                    onHistory = { historyRecord = record },
-                    onWithdraw = { withdrawalRecord = record },
-                    onDelete = { deleteRecord = record }
-                )
+                if (section == FinanceSection.SAVINGS) {
+                    SavingsRecordCard(
+                        record = record,
+                        onProgress = { progressRecord = record },
+                        onHistory = { historyRecord = record },
+                        onWithdraw = { withdrawalRecord = record }
+                    )
+                } else {
+                    FinancialRecordCard(
+                        record = record,
+                        onProgress = { progressRecord = record },
+                        onEdit = { editRecord = record },
+                        onHistory = { historyRecord = record },
+                        onWithdraw = { withdrawalRecord = record },
+                        onDelete = { deleteRecord = record }
+                    )
+                }
             }
         }
 
@@ -1084,6 +1094,241 @@ private fun DebtRecordRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavingsRecordCard(
+    record: FinancialRecord,
+    onProgress: () -> Unit,
+    onHistory: () -> Unit,
+    onWithdraw: () -> Unit
+) {
+    val isGoal = record.type == FinancialRecord.SAVINGS_GOAL
+    val progress = if (isGoal && record.targetMinor > 0L)
+        (record.currentMinor.toFloat() / record.targetMinor).coerceIn(0f, 1f) else 0f
+    val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
+    val accent = MaterialTheme.colorScheme.primary
+    val planLabel = when (record.contributionMethod) {
+        FinancialRecord.CONTRIBUTION_WEEKLY -> "Weekly plan"
+        FinancialRecord.CONTRIBUTION_MONTHLY -> "Monthly plan"
+        FinancialRecord.CONTRIBUTION_ONE_TIME -> "One-time goal"
+        else -> "Flexible saving"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(13.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(58.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isGoal) {
+                        CircularProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxSize(),
+                            strokeWidth = 5.dp,
+                            color = accent,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        Text(
+                            "${(progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = accent
+                        )
+                    } else {
+                        Box(
+                            Modifier.fillMaxSize().clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            TrackItIcon(
+                                R.drawable.ic_lucide_piggy_bank,
+                                null,
+                                size = 28.dp,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        record.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2
+                    )
+                    Text(
+                        if (isGoal) record.savingsCategory.ifBlank { "SAVINGS GOAL" }.uppercase()
+                        else "FLEXIBLE SAVINGS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = accent,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.6.sp
+                    )
+                    Text(
+                        planLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        "SAVED SO FAR",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        financeKes(record.currentMinor),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                if (isGoal) {
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            "TARGET",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            financeKes(record.targetMinor),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                } else {
+                    Text(
+                        "No fixed target",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (isGoal) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                    color = accent,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Text(
+                    if (remaining == 0L) "Goal reached — keep building your savings"
+                    else "${financeKes(remaining)} left to reach your goal",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (remaining == 0L) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (remaining == 0L) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+
+            if (isGoal && record.plannedContributionMinor > 0L &&
+                record.contributionMethod in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY
+                )
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        planLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        financeKes(record.plannedContributionMinor),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            if (record.dueDateEpochMillis != null) {
+                Text(
+                    "Target date · " + SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+                        .format(Date(record.dueDateEpochMillis)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (record.notes.isNotBlank()) {
+                Text(
+                    record.notes,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onHistory,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(13.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 9.dp)
+                ) {
+                    TrackItIcon(R.drawable.ic_lucide_history, null, size = 18.dp)
+                    Spacer(Modifier.width(6.dp))
+                    Text("History")
+                }
+                if (record.currentMinor > 0L) {
+                    OutlinedButton(
+                        onClick = onWithdraw,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(13.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 9.dp)
+                    ) {
+                        TrackItIcon(R.drawable.ic_lucide_arrow_up_right, null, size = 18.dp)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Withdraw")
+                    }
+                }
+            }
+
+            Button(
+                onClick = onProgress,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(vertical = 12.dp)
+            ) {
+                TrackItIcon(R.drawable.ic_lucide_plus, null, tint = MaterialTheme.colorScheme.onPrimary)
+                Spacer(Modifier.width(7.dp))
+                Text(if (isGoal) "Add contribution" else "Add deposit")
             }
         }
     }
