@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -270,7 +272,8 @@ fun AccountsScreen(
     val archived = accounts.filter { it.archived }
 
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
+        Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)
+            .then(if (detailAccount != null) Modifier.verticalScroll(rememberScrollState()) else Modifier),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -607,11 +610,8 @@ fun AccountsScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(9.dp)
-                ) {
-                    items(visibleActivity) { item ->
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    visibleActivity.forEach { item ->
                         AccountActivityCard(item.title, item.detail, item.time, item.amount, item.incoming, item.balanceAfter)
                     }
                 }
