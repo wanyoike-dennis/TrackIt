@@ -276,6 +276,7 @@ fun ReportScreen(
                     }
                 }
             }
+            }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -327,6 +328,7 @@ fun ReportScreen(
                     }
                 }
             }
+            }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -343,6 +345,7 @@ fun ReportScreen(
                     ReportComparisonRow("Expenses", expenses, previousExpenses)
                     ReportComparisonRow("Net cash movement", net, previousNet)
                 }
+            }
             }
         }
         if (allowancePlans.isNotEmpty()) {
