@@ -487,16 +487,7 @@ fun AccountsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.10f)
-                            )
-                        ) {
-                            Box(Modifier.padding(10.dp), contentAlignment = Alignment.Center) {
-                                AccountTypeIcon(detailAccount.type, detailAccount.archived)
-                            }
-                        }
+                        AccountTypeIcon(detailAccount.type, detailAccount.archived)
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(
                                 detailAccount.name,
