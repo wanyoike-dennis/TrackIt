@@ -78,7 +78,7 @@ fun BudgetScreen(
                     Text("Budgets", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Text(monthLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedButton(onClick = onBackToHome) { TrackItIcon(R.drawable.ic_lucide_house, null); Text("Home") }
+                OutlinedButton(onClick = onBackToHome) { Text("Home") }
             }
         }
         item {
