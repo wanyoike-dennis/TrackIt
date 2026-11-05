@@ -103,6 +103,7 @@ fun TransactionHistoryScreen(
     var customStartDate by remember { mutableStateOf<Long?>(null) }
     var customEndDate by remember { mutableStateOf<Long?>(null) }
     var datePickerTarget by remember { mutableStateOf<ActivityDatePickerTarget?>(null) }
+    var dateRangeError by remember { mutableStateOf<String?>(null) }
     val now = Calendar.getInstance()
     val monthKeyNow = "%04d-%02d".format(Locale.US, now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1)
     val accountNames = accounts.associate { it.id to it.name }
@@ -206,7 +207,7 @@ fun TransactionHistoryScreen(
             FilterChip(selected = periodFilter == TransactionPeriodFilter.THIS_MONTH,
                 onClick = { periodFilter = TransactionPeriodFilter.THIS_MONTH }, label = { Text("This month") })
             FilterChip(selected = periodFilter == TransactionPeriodFilter.CUSTOM,
-                onClick = { datePickerTarget = ActivityDatePickerTarget.START },
+                onClick = { dateRangeError = null; datePickerTarget = ActivityDatePickerTarget.START },
                 label = { Text(if (periodFilter == TransactionPeriodFilter.CUSTOM && customStartDate != null && customEndDate != null) "Custom dates" else "Date range") })
         }
         if (periodFilter == TransactionPeriodFilter.CUSTOM && customStartDate != null && customEndDate != null) {
@@ -295,13 +296,17 @@ fun TransactionHistoryScreen(
                         if (target == ActivityDatePickerTarget.START) {
                             customStartDate = selected
                             if (customEndDate != null && customEndDate!! < selected) customEndDate = null
+                            dateRangeError = null
                             datePickerTarget = ActivityDatePickerTarget.END
                         } else {
                             if (customStartDate == null || selected >= customStartDate!!) {
                                 customEndDate = selected
                                 periodFilter = TransactionPeriodFilter.CUSTOM
+                                dateRangeError = null
+                                datePickerTarget = null
+                            } else {
+                                dateRangeError = "End date must be on or after the start date."
                             }
-                            datePickerTarget = null
                         }
                     } else {
                         datePickerTarget = null
@@ -317,6 +322,10 @@ fun TransactionHistoryScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
                 DatePicker(state = datePickerState)
+                dateRangeError?.let { error ->
+                    Text(error, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
                 }
             }
         }
