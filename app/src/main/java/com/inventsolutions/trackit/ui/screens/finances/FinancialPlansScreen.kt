@@ -619,7 +619,7 @@ fun FinancialPlansScreen(
         var validationError by remember(record.id) { mutableStateOf<String?>(null) }
         var selectedAccountId by remember(record.id) { mutableStateOf<Long?>(null) }
         val remaining = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
-        val isDebt = record.type == FinancialRecord.DEBT_I_OWE || record.type == FinancialRecord.DEBT_OWED_TO_ME
+        val isDebt = record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE)
         AlertDialog(
             onDismissRequest = { progressRecord = null },
             title = { Text(when (record.type) {
@@ -633,7 +633,7 @@ fun FinancialPlansScreen(
                     Text(record.title, style = MaterialTheme.typography.titleMedium)
                     Text(
                         when (record.type) {
-                            FinancialRecord.DEBT_OWED_TO_ME -> "${financeKes(remaining)} still to collect"
+                            FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE -> "${financeKes(remaining)} still to collect"
                             FinancialRecord.DEBT_I_OWE -> "${financeKes(remaining)} still to repay"
                             FinancialRecord.SAVINGS_GOAL -> "${financeKes(record.currentMinor)} saved of ${financeKes(record.targetMinor)}"
                             FinancialRecord.SAVINGS_ACCOUNT -> "${financeKes(record.currentMinor)} available to save"
