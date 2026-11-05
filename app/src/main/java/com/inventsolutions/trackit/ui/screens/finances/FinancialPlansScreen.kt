@@ -920,7 +920,7 @@ private fun FinanceTab(label: String, iconRes: Int, selected: Boolean, modifier:
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            TrackItIcon(iconRes, null, size = 21.dp, tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
+            TrackItIcon(iconRes, null, size = 26.dp, tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
                 color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
         }
@@ -1042,9 +1042,9 @@ private fun DebtRecordRow(
                             onClick = { menuExpanded = false; onProgress() })
                         DropdownMenuItem(text = { Text("View activity") },
                             onClick = { menuExpanded = false; onHistory() })
-                        DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit debt") } },
+                        DropdownMenuItem(text = { Text("Edit debt") },
                             onClick = { menuExpanded = false; onEdit() })
-                        DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete debt") } },
+                        DropdownMenuItem(text = { Text("Delete debt") },
                             onClick = { menuExpanded = false; onDelete() })
                     }
                 }
@@ -1133,10 +1133,10 @@ private fun FinancialRecordCard(
                 if (record.type !in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT)) {
                     Column(horizontalAlignment = Alignment.End) {
                         TextButton(onClick = onEdit, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                            TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit")
+                            if (!isDebt) TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit")
                         }
                         TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                            TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (!isDebt) TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
