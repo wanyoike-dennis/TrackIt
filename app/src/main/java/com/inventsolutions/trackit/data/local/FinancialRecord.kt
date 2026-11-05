@@ -39,6 +39,7 @@ data class FinancialRecord(
         const val CONTRIBUTION_FLEXIBLE = "FLEXIBLE"
         const val CONTRIBUTION_ONE_TIME = "ONE_TIME"
         const val DEBT_OWED_TO_ME = "DEBT_OWED_TO_ME"
+        const val CLIENT_RECEIVABLE = "CLIENT_RECEIVABLE"
         const val DEBT_I_OWE = "DEBT_I_OWE"
         const val SAVINGS_GOAL = "SAVINGS_GOAL"
         const val SAVINGS_ACCOUNT = "SAVINGS_ACCOUNT"
