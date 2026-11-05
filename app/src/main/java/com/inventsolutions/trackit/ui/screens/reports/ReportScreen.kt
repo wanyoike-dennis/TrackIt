@@ -231,8 +231,8 @@ fun ReportScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -244,7 +244,7 @@ fun ReportScreen(
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("REPORTING PERIOD", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         listOf(ReportPeriod.TODAY, ReportPeriod.THIS_WEEK, ReportPeriod.THIS_MONTH, ReportPeriod.ALL_TIME).forEach { period ->
@@ -260,10 +260,11 @@ fun ReportScreen(
             }
         }
         item {
-            Text("Financial overview", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Financial overview", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("NET CASH MOVEMENT", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(reportKes(net), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text("Income less expenses, savings and debt outflows, plus collections and withdrawals.",
@@ -277,10 +278,12 @@ fun ReportScreen(
             }
         }
         item {
-            Text("Spending analysis", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Category breakdown · $periodLabel", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(reportKes(totalCategorySpend), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Spending analysis", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Category breakdown · $periodLabel", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(reportKes(totalCategorySpend), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
         if (categorySpending.isEmpty()) {
@@ -291,7 +294,7 @@ fun ReportScreen(
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(category.name, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                             Text(reportKes(category.amount), fontWeight = FontWeight.SemiBold)
@@ -303,10 +306,13 @@ fun ReportScreen(
             }
         }
         item {
-            Text("Income & expense trends", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Monthly activity over the last six months.", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Income & expense trends", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Monthly activity over the last six months.", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -323,8 +329,9 @@ fun ReportScreen(
             }
         }
         item {
-            Text("Period comparison", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Period comparison", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -356,7 +363,7 @@ fun ReportScreen(
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Export report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text("Save the selected period as a CSV file.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedButton(onClick = {
