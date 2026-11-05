@@ -2,6 +2,7 @@ package com.inventsolutions.trackit.ui.screens.accounts
 
 import com.inventsolutions.trackit.R
 import com.inventsolutions.trackit.ui.components.TrackItIcon
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -112,6 +113,10 @@ fun AccountsScreen(
     }
     val detailAccount = accounts.firstOrNull { it.id == selectedAccount?.id }
 
+    BackHandler {
+        if (detailAccount != null) selectedAccount = null else onBack()
+    }
+
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
@@ -120,10 +125,6 @@ fun AccountsScreen(
                 Text(if (detailAccount == null) "Track the money you hold in different places."
                     else "Account balance and recent activity.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            TextButton(onClick = { if (detailAccount != null) selectedAccount = null else onBack() }) {
-                TrackItIcon(R.drawable.ic_lucide_arrow_left, null)
-                Text(if (detailAccount != null) "Back" else "Close")
             }
         }
 
