@@ -20,6 +20,7 @@ abstract class TrackItDatabase : RoomDatabase() {
     abstract fun recurringTransactionDao(): RecurringTransactionDao
     abstract fun financialAccountDao(): FinancialAccountDao
     abstract fun accountTransferDao(): AccountTransferDao
+    abstract fun accountReconciliationDao(): AccountReconciliationDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
