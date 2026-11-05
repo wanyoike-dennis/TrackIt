@@ -1222,7 +1222,7 @@ private fun OverviewCard(
                 horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
                     .background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
-                    DashboardGlyph("savings", Color(0xFF6EE7B7), Modifier.size(21.dp))
+                    DashboardGlyph("savings", Color(0xFF6EE7B7), Modifier.size(27.dp))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("MY MONEY", color = Color(0xFFB8C2D1),
@@ -1278,7 +1278,7 @@ private fun OverviewStat(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(9.dp)
     ) {
-        DashboardGlyph(symbol, accent, Modifier.size(19.dp))
+        DashboardGlyph(symbol, accent, Modifier.size(24.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, color = Color(0xFFB8C2D1),
                 style = MaterialTheme.typography.labelSmall, letterSpacing = 0.5.sp)
@@ -1491,7 +1491,7 @@ private fun QuickAction(
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(tint),
                 contentAlignment = Alignment.Center) {
-                DashboardGlyph(symbol, accent, Modifier.size(23.dp))
+                DashboardGlyph(symbol, accent, Modifier.size(28.dp))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
