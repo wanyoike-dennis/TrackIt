@@ -25,6 +25,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,6 +60,14 @@ private enum class ActivityKind { INCOME, EXPENSE, TRANSFER, SAVINGS, DEBT }
 private data class ActivityEvent(val key: String, val kind: ActivityKind, val title: String, val subtitle: String, val amountMinor: Long, val dateMillis: Long, val positive: Boolean = false, val transaction: MoneyTransaction? = null)
 private enum class TransactionPeriodFilter { ALL_TIME, THIS_MONTH, CUSTOM }
 private enum class ActivityDatePickerTarget { START, END }
+
+private fun todayUtcDatePickerMillis(): Long {
+    val localToday = Calendar.getInstance()
+    return Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(localToday.get(Calendar.YEAR), localToday.get(Calendar.MONTH), localToday.get(Calendar.DAY_OF_MONTH))
+    }.timeInMillis
+}
 
 private fun localDayStartFromUtcDatePicker(millis: Long): Long {
     val utc = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = millis }
@@ -286,13 +295,29 @@ fun TransactionHistoryScreen(
     datePickerTarget?.let { target ->
         key(target) {
             val initialDate = if (target == ActivityDatePickerTarget.START) customStartDate else customEndDate
-            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
+            val todayUtcMillis = remember { todayUtcDatePickerMillis() }
+            val todayYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = initialDate,
+                selectableDates = remember(target, customStartDate, todayUtcMillis) {
+                    object : SelectableDates {
+                        override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                            val notInFuture = utcTimeMillis <= todayUtcMillis
+                            val notBeforeStart = target != ActivityDatePickerTarget.END ||
+                                customStartDate == null || utcTimeMillis >= customStartDate!!
+                            return notInFuture && notBeforeStart
+                        }
+
+                        override fun isSelectableYear(year: Int): Boolean = year <= todayYear
+                    }
+                }
+            )
         DatePickerDialog(
             onDismissRequest = { datePickerTarget = null },
             confirmButton = {
                 TextButton(onClick = {
                     val selected = datePickerState.selectedDateMillis
-                    if (selected != null) {
+                    if (selected != null && selected <= todayUtcMillis) {
                         if (target == ActivityDatePickerTarget.START) {
                             customStartDate = selected
                             if (customEndDate != null && customEndDate!! < selected) customEndDate = null
