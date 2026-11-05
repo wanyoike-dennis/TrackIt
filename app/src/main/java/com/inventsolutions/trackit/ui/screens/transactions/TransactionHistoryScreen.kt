@@ -285,10 +285,7 @@ fun TransactionHistoryScreen(
     datePickerTarget?.let { target ->
         key(target) {
             val initialDate = if (target == ActivityDatePickerTarget.START) customStartDate else customEndDate
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = initialDate,
-                minDate = if (target == ActivityDatePickerTarget.END) customStartDate else null
-            )
+            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
         DatePickerDialog(
             onDismissRequest = { datePickerTarget = null },
             confirmButton = {
