@@ -135,14 +135,36 @@ fun ProfileScreen(
         )
 
         Spacer(Modifier.height(2.dp))
-        Text("SUPPORT", style = MaterialTheme.typography.labelMedium,
+        Text("ABOUT APP", style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        ProfileOption(
-            title = "Help & Support",
-            description = "Get help using TrackIt",
-            icon = { Text("?", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge) },
-            onClick = {}
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(13.dp)
+            ) {
+                Surface(shape = RoundedCornerShape(13.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    androidx.compose.foundation.layout.Box(Modifier.padding(10.dp)) {
+                        Text("i", color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("TrackIt", style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold)
+                    Text("Version 1.0", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                    Text("Your personal finance companion for tracking income, expenses, budgets and savings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 
