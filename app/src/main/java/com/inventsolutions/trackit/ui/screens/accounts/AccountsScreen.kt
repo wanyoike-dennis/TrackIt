@@ -32,16 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inventsolutions.trackit.data.local.AccountTransfer
 import com.inventsolutions.trackit.data.local.FinancialAccount
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
-import com.inventsolutions.trackit.ui.theme.TrackItEmeraldLight
-import com.inventsolutions.trackit.ui.theme.TrackItNavy
-import com.inventsolutions.trackit.ui.theme.TrackItNavyElevated
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -281,7 +277,7 @@ fun AccountsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = TrackItNavy)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(
                     Modifier.fillMaxWidth().padding(20.dp),
@@ -296,14 +292,14 @@ fun AccountsScreen(
                             "TOTAL BALANCE",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White.copy(alpha = 0.72f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Card(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = TrackItNavyElevated)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
                             Box(Modifier.padding(11.dp), contentAlignment = Alignment.Center) {
-                                TrackItIcon(R.drawable.ic_lucide_wallet, null, tint = TrackItEmeraldLight, size = 26.dp)
+                                TrackItIcon(R.drawable.ic_lucide_wallet, null, tint = MaterialTheme.colorScheme.primary, size = 26.dp)
                             }
                         }
                     }
@@ -311,7 +307,7 @@ fun AccountsScreen(
                         accountKes(active.sumOf { balances[it.id] ?: it.openingBalanceMinor }),
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         "${active.size} active ${if (active.size == 1) "account" else "accounts"}",
