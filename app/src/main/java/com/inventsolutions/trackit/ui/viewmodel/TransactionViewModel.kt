@@ -7,6 +7,7 @@ import androidx.room.withTransaction
 import com.inventsolutions.trackit.data.local.ExpenseCategory
 import com.inventsolutions.trackit.data.local.FinancialAccount
 import com.inventsolutions.trackit.data.local.AccountTransfer
+import com.inventsolutions.trackit.data.local.AccountReconciliation
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
