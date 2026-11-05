@@ -188,8 +188,7 @@ private fun InitialProfileSetup(
                     color = TrackItAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp)
             }
-            Text("Your money.
-Your picture.", color = Color.White,
+            Text("Your money.\nYour picture.", color = Color.White,
                 fontSize = 30.sp, lineHeight = 35.sp, fontWeight = FontWeight.ExtraBold)
             Text("Set up your profile so your financial space feels like yours from day one.",
                 color = Color(0xFFD0D9E2), style = MaterialTheme.typography.bodyMedium,
