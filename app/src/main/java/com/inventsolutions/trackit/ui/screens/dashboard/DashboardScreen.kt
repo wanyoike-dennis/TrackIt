@@ -127,6 +127,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
     val context = LocalContext.current
     val personalProfile = context.getSharedPreferences("trackit_personal_profile", android.content.Context.MODE_PRIVATE)
     val profileName = personalProfile.getString("full_name", "").orEmpty().trim()
+    val profileFirstName = profileName.split(Regex("\\s+")).firstOrNull().orEmpty()
     val profileInitials = profileName.split(" ").filter { it.isNotBlank() }.take(2)
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("").ifBlank { "P" }
     var selectedTab by remember { mutableStateOf("Home") }
@@ -601,7 +602,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                                     else -> "Good evening"
                                 }
                                 Text(
-                                    if (profileName.isNotBlank()) "$greeting, $profileName" else greeting,
+                                    if (profileFirstName.isNotBlank()) "$greeting, $profileFirstName" else greeting,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold,
