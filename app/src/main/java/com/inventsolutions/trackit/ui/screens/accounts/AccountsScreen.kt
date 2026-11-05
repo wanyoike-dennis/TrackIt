@@ -821,8 +821,7 @@ fun AccountsScreen(
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Text(selectedTypeLabel, modifier = Modifier.weight(1f))
-                                TrackItIcon(R.drawable.ic_lucide_chevron_down, null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, size = 18.dp)
+                                Text("⌄", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleLarge)
                             }
                             DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
                                 listOf(
