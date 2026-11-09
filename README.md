@@ -1,85 +1,107 @@
-# TrackIt — Personal Income & Budget Tracker
+# TrackIt — Personal Finance Tracker
 
-**TrackIt** is an Android app in development to help you understand where your money comes from, where it goes, and how much you can realistically save each month. It is being designed especially for people managing a salary alongside side hustles and other irregular income.
+TrackIt is an offline-first Android application for recording income and expenses, managing budgets, keeping track of savings and debts, and understanding day-to-day cash flow.
 
-The goal is to make everyday money tracking quick, useful, and reliable—even when you're offline.
+Built with Kotlin and Jetpack Compose, TrackIt keeps financial records on the device and provides practical tools to review and manage personal finances.
 
-> **Project status:** Early development. The repository currently contains the Android starter project and initial database dependency setup. Features described below are the product plan; they should not be assumed to be implemented yet.
+## What TrackIt includes
 
-## Why TrackIt?
-
-Money can come in from several sources throughout the month, while expenses happen every day. TrackIt aims to bring those records together in one simple place so you can:
-
-- Record income from a job, side hustle, business, or another source.
-- Record everyday spending without needing an internet connection.
-- Set a monthly budget for your whole spending plan, individual categories, or both.
-- See whether your current spending pace is likely to take you over budget.
-- Compare your planned savings with what you actually kept or set aside.
-- Review a clear summary at the end of each month.
-
-## Planned features
+### Dashboard
+- View an overview of income, spending, savings, debts, and available balance.
+- Review recent transactions and weekly cash flow.
+- See current-month totals, spending projections, and budget alerts.
+- View upcoming financial commitments.
 
 ### Income and expense tracking
-- Add income and expense entries with an amount, date, category, source, and optional notes.
-- Use a quick-entry flow for everyday transactions, with extra details available when needed.
-- Review transaction history and monthly totals.
+- Record income and expenses with amounts, dates, categories, and descriptions.
+- Associate transactions with a financial account.
+- Review transaction activity and history.
+- Track records locally without requiring an internet connection.
 
-### Flexible budgets
-- Set an overall monthly spending budget.
-- Set individual budgets for categories such as rent, food, transport, bills, and entertainment.
-- Use either budgeting method, or both together.
-- Get an advisory daily spending guide based on the monthly plan and remaining days.
-- See warnings when spending is moving too quickly or a budget has been exceeded.
+### Budgets
+- Create category-based monthly budgets.
+- Choose one-time or recurring budget behaviour.
+- Monitor spending against budget limits.
+- Receive alerts when monthly or recurring budget limits are exceeded.
+- Use budget guidance to help plan spending throughout the month.
 
-The daily guide is a planning aid, not a restriction on spending. Unused daily allowance does **not** roll over as a new allowance for the next day. Actual spending and the remaining monthly budget remain the basis for the month-to-date view.
+### Accounts and money management
+- Keep multiple financial accounts and opening balances.
+- Record transfers between accounts.
+- Review account transaction activity.
+- Reconcile account balances against external statements.
+- Archive accounts when they are no longer in use.
 
 ### Savings and debts
-Planned follow-on features include:
-- Set a monthly savings target.
-- Track money actually transferred or set aside as savings.
-- Distinguish money left unspent from money deliberately saved.
-- Record debts, repayments, and outstanding balances.
+- Create savings goals and record contributions.
+- Track flexible savings balances.
+- Record money owed and money owed to you.
+- Track repayments, collections, and outstanding balances.
+- Keep due dates and notes for financial records where applicable.
 
-### Monthly insights
-- Compare income and expenses for the selected month.
-- Review budgeted spending against actual spending.
-- See the difference between planned savings, money left over, and savings actually set aside.
-- Identify categories that take up the largest share of spending.
+### Recurring transactions and commitments
+- Set up recurring transaction records.
+- Keep track of upcoming financial commitments and due dates.
 
-### Offline-first and data portability
-- Keep core records available locally on the device.
-- Work without an internet connection.
-- Plan for export and backup so records can be preserved outside the app.
-- Consider optional multi-user support in a later phase; the initial focus is personal use.
+### Reports and financial review
+- Review income and expenses over time.
+- Compare spending by category.
+- Use dashboard cash-flow summaries and monthly figures to understand financial activity.
+
+### Daily reminders and notifications
+- Receive a daily reminder at **9:00 PM** to record the day's income and expenses.
+- Receive budget notifications when configured spending limits are exceeded.
+- Daily reminders use the device's local time and are rescheduled after device restarts or time-zone changes.
+- Notification delivery depends on Android notification permissions and device battery/background restrictions.
+
+### Backup and restore
+- Export financial records to a portable TrackIt backup file.
+- Restore records from a previously exported backup.
+- Backups include financial data, personal profile information, and supported app settings.
+- Backup files contain sensitive personal and financial information. Keep them in a secure location; exported backups are not encrypted.
+
+### Personalisation
+- Set up personal profile information.
+- Choose light, dark, or system appearance.
+- Use a consistent interface with Lucide-style icons.
+
+## Screenshots
+
+Screenshots will be added as the app's presentation assets are prepared.
 
 ## Technology
 
-The project is an Android application built with:
+| Area | Technology |
+| --- | --- |
+| Language | Kotlin |
+| UI | Jetpack Compose |
+| Design system | Material 3 |
+| Local database | Room |
+| Database code generation | KSP |
+| Architecture | ViewModel and repository-based structure |
+| Android notifications | NotificationCompat and AlarmManager |
 
-- **Kotlin**
-- **Jetpack Compose** and **Material 3** for the user interface
-- **Room** for planned local persistence
-- **KSP** for Room compiler/code generation
-- **MVVM and repository patterns** as the intended structure for separating UI, business logic, and data access
+TrackIt currently uses a local Room database. Core financial records are stored on the device; an internet connection is not required for everyday recording and review.
 
-The current project is an early scaffold. Architecture and dependencies may evolve as features are implemented and tested.
+## Requirements
+
+- Android Studio with an Android SDK compatible with the project configuration.
+- JDK compatible with the configured Gradle and Android Gradle Plugin versions.
+- An Android device or emulator.
+
+The project currently targets Android SDK 37 and supports Android 7.0 (API 24) and later.
 
 ## Getting started
 
-### Requirements
-- Android Studio with a compatible Android SDK
-- JDK compatible with the project's Gradle/Android Gradle Plugin configuration
-- An Android emulator or Android device
-
-### Open the project
-1. Clone or download this repository.
+1. Clone this repository.
 2. Open the project root in Android Studio.
-3. Allow Gradle sync to finish and install any SDK components Android Studio requests.
-4. Run the `app` configuration on an emulator or connected device.
+3. Allow Gradle sync to complete.
+4. Select the `app` run configuration.
+5. Run the app on an emulator or connected Android device.
 
-The project uses the Gradle wrapper, so prefer the included wrapper scripts rather than installing a separate Gradle version.
+### Build a debug APK
 
-On Windows, the wrapper can be run from Command Prompt with:
+On Windows Command Prompt:
 
 ```bat
 gradlew.bat assembleDebug
@@ -91,39 +113,54 @@ On macOS or Linux:
 ./gradlew assembleDebug
 ```
 
-These commands are intended as a build check; a successful build has not yet been confirmed for every environment.
+The debug APK is normally generated at:
 
-## Development roadmap
+```
+app/build/outputs/apk/debug/app-debug.apk
+```
 
-The planned implementation order is:
+## Notifications
 
-1. **Foundation:** confirm the build, establish app structure, and configure local database components.
-2. **Transactions:** create, edit, delete, and list income and expense records.
-3. **Dashboard:** show income, expenses, and the current month's position.
-4. **Budgets:** support overall and category budgets with daily guidance.
-5. **Monthly reports:** compare plans with actual results and calculate leftover money.
-6. **Savings and debts:** track savings targets, contributions, debts, and repayments.
-7. **Backup and export:** let users preserve and export their data.
-8. **Quality:** add tests, improve accessibility, and verify behaviour across screen sizes and offline scenarios.
+Android 13 and later require notification permission. TrackIt requests this permission so it can show budget alerts and the daily recording reminder.
 
-Roadmap items may be adjusted as the app develops.
+The daily reminder is scheduled for 9:00 PM using the device's local time. Android may delay inexact alarms while applying battery and background-use restrictions, so notification delivery is not guaranteed to occur at the exact minute on every device.
 
-## Design principles
+## Project structure
 
-- **Fast to use:** everyday entries should take as few steps as practical.
-- **Offline first:** recording and reviewing core financial data should not depend on a live connection.
-- **Clear, not judgmental:** provide useful warnings and explanations rather than shame or pressure.
-- **Honest summaries:** distinguish income, spending, unspent money, and savings actually set aside.
-- **Privacy minded:** personal financial records deserve careful handling.
-- **Built incrementally:** changes should be reviewed and tested before being treated as complete.
+```
+app/
+└── src/
+    └── main/
+        ├── java/com/inventsolutions/trackit/
+        │   ├── data/
+        │   │   ├── local/          # Room entities, DAOs, database and backup
+        │   │   └── repository/     # Data repositories
+        │   ├── notifications/      # Budget alerts and daily reminder
+        │   ├── ui/
+        │   │   ├── components/    # Shared UI components and icons
+        │   │   ├── screens/       # App screens
+        │   │   ├── theme/         # App theme and colour definitions
+        │   │   └── viewmodel/     # UI state and application logic
+        │   └── MainActivity.kt
+        └── res/                    # Android resources and launcher assets
+```
 
-## Contributing and feedback
+## Data and privacy
 
-This project is currently being built for personal use, with the possibility of supporting more users later. Suggestions and issue reports are welcome. Please describe the problem, the expected behaviour, and the steps needed to reproduce it where applicable.
+- Financial records are stored locally in the app's Room database.
+- TrackIt does not require an account or cloud connection for its core tracking features.
+- Exported backup files include sensitive information and should be protected.
+- Uninstalling the app or clearing its data may remove locally stored records. Export a backup before changing devices or reinstalling.
+
+## Current development status
+
+TrackIt is actively being developed. The repository contains implemented transaction, budgeting, account, savings, debt, reporting, profile, backup/restore, and notification functionality. Some areas may continue to evolve as the app is tested and refined.
+
+Please report bugs with the device/Android version, steps to reproduce, and any relevant screenshots or error messages.
 
 ## Disclaimer
 
-TrackIt is a personal money-tracking and budgeting tool in development. Its summaries are intended to support personal planning and are not professional financial, tax, or investment advice.
+TrackIt is a personal finance tracking and budgeting tool. Its summaries and projections are intended to support personal money management and are not professional financial, tax, legal, or investment advice.
 
 ---
 
