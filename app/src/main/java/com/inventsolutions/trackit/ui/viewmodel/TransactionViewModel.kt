@@ -1,0 +1,907 @@
+package com.inventsolutions.trackit.ui.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
+import com.inventsolutions.trackit.data.local.ExpenseCategory
+import com.inventsolutions.trackit.data.local.FinancialAccount
+import com.inventsolutions.trackit.data.local.AccountTransfer
+import com.inventsolutions.trackit.data.local.AccountReconciliation
+import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialRecordEntry
+import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.RecurringTransaction
+import com.inventsolutions.trackit.data.local.MonthlyBudget
+import com.inventsolutions.trackit.data.local.TrackItDatabase
+import com.inventsolutions.trackit.data.local.TrackItBackupManager
+import com.inventsolutions.trackit.data.repository.ExpenseCategoryRepository
+import com.inventsolutions.trackit.data.repository.MonthlyBudgetRepository
+import com.inventsolutions.trackit.data.repository.TransactionRepository
+import com.inventsolutions.trackit.notifications.BudgetNotifications
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+data class TransactionUiState(
+    val transactions: List<MoneyTransaction> = emptyList(),
+    val budgets: List<MonthlyBudget> = emptyList(),
+    val expenseCategories: List<ExpenseCategory> = emptyList(),
+    val financialRecords: List<FinancialRecord> = emptyList(),
+    val financialEntries: List<FinancialRecordEntry> = emptyList(),
+    val recurringTransactions: List<RecurringTransaction> = emptyList(),
+    val accounts: List<FinancialAccount> = emptyList(),
+    val accountTransfers: List<AccountTransfer> = emptyList(),
+    val accountReconciliations: List<AccountReconciliation> = emptyList(),
+    val isSaving: Boolean = false,
+    val errorMessage: String? = null
+)
+
+class TransactionViewModel(application: Application) : AndroidViewModel(application) {
+
+    private fun notifyUpcomingFinancialReminders() {
+        val now = System.currentTimeMillis()
+        val dayMillis = 24L * 60L * 60L * 1000L
+        val preferences = app.getSharedPreferences("trackit_financial_reminders", Application.MODE_PRIVATE)
+        val state = _uiState.value
+
+        state.financialRecords.forEach { record ->
+            val dueDate = record.dueDateEpochMillis
+            if (dueDate != null && dueDate <= now + dayMillis && dueDate >= now - 7L * dayMillis) {
+                val reminderKey = "due_${record.id}_$dueDate"
+                if (!preferences.getBoolean(reminderKey, false)) {
+                    BudgetNotifications.show(
+                        app,
+                        if (dueDate < now) "Financial item overdue" else "Financial item due soon",
+                        "${record.title}: ${formatKes((record.targetMinor - record.currentMinor).coerceAtLeast(0L))} remaining.",
+                        notificationId(record.id, "due-date")
+                    )
+                    preferences.edit().putBoolean(reminderKey, true).apply()
+                }
+            }
+
+            if (record.type != FinancialRecord.SAVINGS_GOAL ||
+                record.contributionMethod !in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY
+                ) || record.plannedContributionMinor <= 0L
+            ) return@forEach
+
+            val lastContribution = state.financialEntries
+                .filter {
+                    it.financialRecordId == record.id &&
+                        it.entryType == FinancialRecordEntry.CONTRIBUTION
+                }
+                .maxOfOrNull { it.createdAtEpochMillis } ?: record.createdAtEpochMillis
+            val nextDue = java.util.Calendar.getInstance().apply {
+                timeInMillis = lastContribution
+                add(
+                    java.util.Calendar.DAY_OF_MONTH,
+                    if (record.contributionMethod == FinancialRecord.CONTRIBUTION_WEEKLY) 7 else 0
+                )
+                if (record.contributionMethod == FinancialRecord.CONTRIBUTION_MONTHLY) {
+                    add(java.util.Calendar.MONTH, 1)
+                }
+            }.timeInMillis
+            if (nextDue <= now + dayMillis && nextDue >= now - 7L * dayMillis) {
+                val reminderKey = "contribution_${record.id}_$nextDue"
+                if (!preferences.getBoolean(reminderKey, false)) {
+                    BudgetNotifications.show(
+                        app,
+                        "Savings contribution due",
+                        "${record.title}: planned contribution ${formatKes(record.plannedContributionMinor)} is due.",
+                        notificationId(record.id, "contribution")
+                    )
+                    preferences.edit().putBoolean(reminderKey, true).apply()
+                }
+            }
+        }
+    }
+
+    suspend fun exportBackupJson(): String = withContext(Dispatchers.IO) {
+        TrackItBackupManager.export(app, database)
+    }
+
+    suspend fun restoreBackupJson(json: String): Int = withContext(Dispatchers.IO) {
+        TrackItBackupManager.restore(app, database, json)
+    }
+
+    private val app = application
+    private val database = TrackItDatabase.getInstance(application)
+    private val transactionRepository = TransactionRepository(database.transactionDao())
+    private val budgetRepository = MonthlyBudgetRepository(database.monthlyBudgetDao())
+    private val categoryRepository = ExpenseCategoryRepository(database.expenseCategoryDao())
+    private val financialRecordDao = database.financialRecordDao()
+    private val recurringTransactionDao = database.recurringTransactionDao()
+    private val financialAccountDao = database.financialAccountDao()
+    private val accountTransferDao = database.accountTransferDao()
+    private val accountReconciliationDao = database.accountReconciliationDao()
+    private val recurringProcessingMutex = Mutex()
+    private val monthKey = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
+
+    private val _uiState = MutableStateFlow(TransactionUiState())
+    val uiState: StateFlow<TransactionUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            transactionRepository.observeTransactions().collect { transactions ->
+                _uiState.update { it.copy(transactions = transactions) }
+            }
+        }
+        viewModelScope.launch {
+            budgetRepository.observeForMonth(monthKey).collect { budgets ->
+                _uiState.update { it.copy(budgets = budgets) }
+            }
+        }
+        viewModelScope.launch {
+            categoryRepository.observeCategories().collect { categories ->
+                _uiState.update { it.copy(expenseCategories = categories) }
+            }
+        }
+        viewModelScope.launch {
+            financialRecordDao.observeAll().collect { records ->
+                _uiState.update { it.copy(financialRecords = records) }
+                notifyUpcomingFinancialReminders()
+            }
+        }
+        viewModelScope.launch {
+            financialRecordDao.observeAllEntries().collect { entries ->
+                _uiState.update { it.copy(financialEntries = entries) }
+                notifyUpcomingFinancialReminders()
+            }
+        }
+        viewModelScope.launch {
+            recurringTransactionDao.observeAll().collect { items ->
+                _uiState.update { it.copy(recurringTransactions = items) }
+            }
+        }
+        viewModelScope.launch {
+            financialAccountDao.observeAll().collect { accounts ->
+                _uiState.update { it.copy(accounts = accounts) }
+            }
+        }
+        viewModelScope.launch {
+            accountTransferDao.observeAll().collect { transfers ->
+                _uiState.update { it.copy(accountTransfers = transfers) }
+            }
+        }
+        viewModelScope.launch {
+            accountReconciliationDao.observeAll().collect { reconciliations ->
+                _uiState.update { it.copy(accountReconciliations = reconciliations) }
+            }
+        }
+        viewModelScope.launch {
+            processDueRecurringTransactions()
+        }
+    }
+
+    fun addRecurringTransaction(
+        title: String,
+        type: String,
+        amountMinor: Long,
+        category: String,
+        description: String,
+        paymentMethod: String,
+        frequency: String,
+        firstRunEpochMillis: Long,
+        accountId: Long? = null
+    ) {
+        if (title.isBlank() || category.isBlank() || amountMinor <= 0L ||
+            type !in setOf(MoneyTransaction.INCOME, MoneyTransaction.EXPENSE) ||
+            paymentMethod.isBlank() ||
+            frequency !in setOf(RecurringTransaction.WEEKLY, RecurringTransaction.MONTHLY) ||
+            (accountId != null && _uiState.value.accounts.none { it.id == accountId && !it.archived })
+        ) {
+            _uiState.update { it.copy(errorMessage = "Enter a title, valid amount, category, payment method and repeat frequency.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                if (type == MoneyTransaction.EXPENSE) categoryRepository.ensureCategory(category.trim())
+                recurringTransactionDao.insert(
+                    RecurringTransaction(
+                        title = title.trim(),
+                        type = type,
+                        amountMinor = amountMinor,
+                        category = category.trim(),
+                        description = description.trim(),
+                        paymentMethod = paymentMethod.trim(),
+                        frequency = frequency,
+                        nextRunEpochMillis = firstRunEpochMillis,
+                        accountId = accountId
+                    )
+                )
+                processDueRecurringTransactions()
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't save the recurring transaction. Please try again.") }
+            }
+        }
+    }
+
+    fun setRecurringTransactionActive(item: RecurringTransaction, active: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                recurringTransactionDao.update(item.copy(active = active))
+                if (active) processDueRecurringTransactions()
+            }
+                .onSuccess { _uiState.update { state -> state.copy(errorMessage = null) } }
+                .onFailure { _uiState.update { state -> state.copy(errorMessage = "Couldn't update this recurring transaction.") } }
+        }
+    }
+
+    fun deleteRecurringTransaction(id: Long) {
+        viewModelScope.launch {
+            runCatching { recurringTransactionDao.deleteById(id) }
+                .onSuccess { _uiState.update { state -> state.copy(errorMessage = null) } }
+                .onFailure { _uiState.update { state -> state.copy(errorMessage = "Couldn't delete this recurring transaction.") } }
+        }
+    }
+
+    private suspend fun processDueRecurringTransactions() = recurringProcessingMutex.withLock {
+        val now = System.currentTimeMillis()
+        recurringTransactionDao.due(now).forEach { item ->
+            runCatching {
+                database.withTransaction {
+                    val occurrenceDate = item.nextRunEpochMillis
+                    val nextRun = java.util.Calendar.getInstance().apply {
+                        timeInMillis = occurrenceDate
+                        do {
+                            add(
+                                java.util.Calendar.DAY_OF_MONTH,
+                                if (item.frequency == RecurringTransaction.WEEKLY) 7 else 0
+                            )
+                            if (item.frequency == RecurringTransaction.MONTHLY) add(java.util.Calendar.MONTH, 1)
+                        } while (timeInMillis <= now)
+                    }.timeInMillis
+                    database.transactionDao().insert(
+                        MoneyTransaction(
+                            type = item.type,
+                            amountMinor = item.amountMinor,
+                            category = item.category,
+                            description = listOf(item.title, item.description).filter { it.isNotBlank() }.joinToString(" — "),
+                            paymentMethod = item.paymentMethod,
+                            dateEpochMillis = occurrenceDate,
+                            accountId = item.accountId
+                        )
+                    )
+                    recurringTransactionDao.update(item.copy(nextRunEpochMillis = nextRun))
+                }
+            }
+        }
+    }
+
+    suspend fun addTransaction(
+        type: String,
+        amountMinor: Long,
+        category: String,
+        description: String,
+        paymentMethod: String,
+        dateEpochMillis: Long,
+        allowanceRecordId: Long? = null,
+        accountId: Long? = null
+    ): Boolean {
+        if (amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
+            return false
+        }
+        if (category.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Choose or enter a category.") }
+            return false
+        }
+        if (accountId != null && _uiState.value.accounts.none { it.id == accountId && !it.archived }) {
+            _uiState.update { it.copy(errorMessage = "Choose an active account or leave the transaction unassigned.") }
+            return false
+        }
+
+        if (allowanceRecordId != null) {
+            val allowance = _uiState.value.financialRecords.firstOrNull { it.id == allowanceRecordId }
+            if (type != MoneyTransaction.EXPENSE || allowance?.type != FinancialRecord.ALLOWANCE) {
+                _uiState.update { it.copy(errorMessage = "Choose a valid allowance for this expense.") }
+                return false
+            }
+        }
+
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+        return try {
+            val normalizedCategory = category.trim()
+            if (type == MoneyTransaction.EXPENSE) {
+                categoryRepository.ensureCategory(normalizedCategory)
+            }
+            val transaction = MoneyTransaction(
+                type = type,
+                amountMinor = amountMinor,
+                category = normalizedCategory,
+                description = description.trim(),
+                paymentMethod = paymentMethod,
+                dateEpochMillis = dateEpochMillis,
+                allowanceRecordId = if (type == MoneyTransaction.EXPENSE) allowanceRecordId else null,
+                accountId = accountId
+            )
+            val stateBeforeSave = _uiState.value
+            database.withTransaction {
+                transactionRepository.add(transaction)
+                if (transaction.allowanceRecordId != null) {
+                    adjustAllowanceBalance(transaction.allowanceRecordId, transaction.amountMinor)
+                }
+            }
+            if (type == MoneyTransaction.EXPENSE) {
+                notifyIfBudgetExceeded(transaction, stateBeforeSave.transactions, stateBeforeSave.budgets)
+            }
+            _uiState.update { it.copy(isSaving = false, errorMessage = null) }
+            true
+        } catch (_: Exception) {
+            _uiState.update {
+                it.copy(isSaving = false, errorMessage = "Couldn't save this transaction. Please try again.")
+            }
+            false
+        }
+    }
+
+    fun createExpenseCategory(name: String, budgetLimitMinor: Long?, budgetType: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Enter a category name.") }
+            return
+        }
+        if (budgetLimitMinor != null && budgetLimitMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter a valid budget amount greater than zero.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                categoryRepository.ensureCategory(trimmed)
+                if (budgetLimitMinor != null) {
+                    budgetRepository.save(
+                        MonthlyBudget(
+                            monthKey = monthKey,
+                            category = trimmed,
+                            budgetType = budgetType,
+                            limitMinor = budgetLimitMinor
+                        )
+                    )
+                }
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't create this category. Please try again.") }
+            }
+        }
+    }
+
+    private fun notifyIfBudgetExceeded(
+        added: MoneyTransaction,
+        previousTransactions: List<MoneyTransaction>,
+        budgets: List<MonthlyBudget>
+    ) {
+        val transactionMonth = SimpleDateFormat("yyyy-MM", Locale.US).format(Date(added.dateEpochMillis))
+        val transactionDay = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(added.dateEpochMillis))
+        val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        if (transactionMonth != monthKey || added.allowanceRecordId != null) return
+
+        val daysInMonth = java.util.Calendar.getInstance().apply {
+            timeInMillis = added.dateEpochMillis
+        }.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+
+        budgets.forEach { budget ->
+            if (!budget.category.equals(added.category, ignoreCase = true)) return@forEach
+
+            val previousMonthSpend = previousTransactions
+                .filter {
+                    it.type == MoneyTransaction.EXPENSE &&
+                        it.allowanceRecordId == null &&
+                        it.category.equals(budget.category, ignoreCase = true) &&
+                        SimpleDateFormat("yyyy-MM", Locale.US).format(Date(it.dateEpochMillis)) == transactionMonth
+                }
+                .sumOf { it.amountMinor }
+            val currentMonthSpend = previousMonthSpend + added.amountMinor
+
+            if (previousMonthSpend <= budget.limitMinor && currentMonthSpend > budget.limitMinor) {
+                BudgetNotifications.show(
+                    app,
+                    "Monthly budget exceeded",
+                    "${budget.category}: you've gone ${formatKes(currentMonthSpend - budget.limitMinor)} over your monthly limit.",
+                    notificationId(budget.id, "monthly")
+                )
+            }
+
+            if (budget.budgetType == MonthlyBudget.RECURRING && transactionDay == todayKey) {
+                val previousTodaySpend = previousTransactions
+                    .filter {
+                        it.type == MoneyTransaction.EXPENSE &&
+                            it.allowanceRecordId == null &&
+                            it.category.equals(budget.category, ignoreCase = true) &&
+                            SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it.dateEpochMillis)) == todayKey
+                    }
+                    .sumOf { it.amountMinor }
+                val dailyLimit = budget.limitMinor / daysInMonth
+                val currentTodaySpend = previousTodaySpend + added.amountMinor
+
+                if (previousTodaySpend <= dailyLimit && currentTodaySpend > dailyLimit) {
+                    BudgetNotifications.show(
+                        app,
+                        "Recurring budget exceeded",
+                        "${budget.category}: you've gone ${formatKes(currentTodaySpend - dailyLimit)} over today's recurring budget.",
+                        notificationId(budget.id, "recurring")
+                    )
+                }
+            }
+        }
+    }
+
+    private fun notificationId(budgetId: Long, type: String): Int =
+        (budgetId * 31L + type.hashCode()).toInt() and 0x7fffffff
+
+    private fun formatKes(minor: Long): String {
+        val formatter = NumberFormat.getNumberInstance(Locale("en", "KE")).apply {
+            maximumFractionDigits = 2
+            minimumFractionDigits = if (minor % 100L == 0L) 0 else 2
+        }
+        return "KSh " + formatter.format(minor / 100.0)
+    }
+
+    fun updateTransaction(transaction: MoneyTransaction) {
+        if (transaction.amountMinor <= 0L || transaction.category.isBlank() || transaction.paymentMethod.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Check the amount, category, and payment method.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val normalized = transaction.copy(
+                    category = transaction.category.trim(),
+                    description = transaction.description.trim(),
+                    paymentMethod = transaction.paymentMethod.trim()
+                )
+                if (normalized.type == MoneyTransaction.EXPENSE) {
+                    categoryRepository.ensureCategory(normalized.category)
+                }
+                val original = _uiState.value.transactions.firstOrNull { it.id == normalized.id }
+                database.withTransaction {
+                    applyAllowanceChange(original, normalized)
+                    transactionRepository.update(normalized)
+                }
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't update this transaction. Please try again.") }
+            }
+        }
+    }
+
+    fun deleteTransaction(transactionId: Long) {
+        viewModelScope.launch {
+            try {
+                val original = _uiState.value.transactions.firstOrNull { it.id == transactionId }
+                database.withTransaction {
+                    if (original?.allowanceRecordId != null) {
+                        adjustAllowanceBalance(original.allowanceRecordId, -original.amountMinor)
+                    }
+                    transactionRepository.delete(transactionId)
+                }
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't delete this transaction. Please try again.") }
+            }
+        }
+    }
+
+    private suspend fun adjustAllowanceBalance(recordId: Long, deltaMinor: Long) {
+        if (deltaMinor == 0L) return
+        val allowance = financialRecordDao.getById(recordId) ?: return
+        if (allowance.type != FinancialRecord.ALLOWANCE) return
+        financialRecordDao.update(
+            allowance.copy(currentMinor = (allowance.currentMinor + deltaMinor).coerceAtLeast(0L))
+        )
+    }
+
+    private suspend fun applyAllowanceChange(
+        oldTransaction: MoneyTransaction?,
+        newTransaction: MoneyTransaction
+    ) {
+        val oldId = oldTransaction?.allowanceRecordId
+        val newId = newTransaction.allowanceRecordId
+        if (oldId == newId) {
+            if (oldId != null) {
+                adjustAllowanceBalance(
+                    oldId,
+                    newTransaction.amountMinor - (oldTransaction?.amountMinor ?: 0L)
+                )
+            }
+        } else {
+            if (oldId != null && oldTransaction != null) {
+                adjustAllowanceBalance(oldId, -oldTransaction.amountMinor)
+            }
+            if (newId != null) adjustAllowanceBalance(newId, newTransaction.amountMinor)
+        }
+    }
+
+    fun saveBudget(category: String, limitMinor: Long, budgetType: String) {
+        if (category.isBlank() || limitMinor <= 0L) return
+        viewModelScope.launch {
+            try {
+                categoryRepository.ensureCategory(category)
+                budgetRepository.save(
+                    MonthlyBudget(
+                        monthKey = monthKey,
+                        category = category.trim(),
+                        budgetType = budgetType,
+                        limitMinor = limitMinor
+                    )
+                )
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't save this budget. Please try again.") }
+            }
+        }
+    }
+
+    fun deleteBudget(budgetId: Long) {
+        viewModelScope.launch {
+            try {
+                budgetRepository.delete(budgetId)
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't delete this budget. Please try again.") }
+            }
+        }
+    }
+
+    fun addFinancialRecord(
+        type: String,
+        title: String,
+        targetMinor: Long,
+        dueDateEpochMillis: Long? = null,
+        notes: String = "",
+        savingsCategory: String = FinancialRecord.SAVINGS_GENERAL,
+        contributionMethod: String = FinancialRecord.CONTRIBUTION_FLEXIBLE,
+        plannedContributionMinor: Long = 0L
+    ) {
+        val invalidSavingsPlan = type == FinancialRecord.SAVINGS_GOAL && (
+            savingsCategory.isBlank() ||
+                contributionMethod !in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY,
+                    FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                    FinancialRecord.CONTRIBUTION_ONE_TIME
+                ) ||
+                (contributionMethod in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY
+                ) && plannedContributionMinor <= 0L)
+            )
+        if (type !in setOf(
+                FinancialRecord.DEBT_OWED_TO_ME,
+                FinancialRecord.CLIENT_RECEIVABLE,
+                FinancialRecord.DEBT_I_OWE,
+                FinancialRecord.SAVINGS_GOAL,
+                FinancialRecord.SAVINGS_ACCOUNT,
+                FinancialRecord.ALLOWANCE
+            ) || title.isBlank() || (type == FinancialRecord.SAVINGS_ACCOUNT && targetMinor != 0L) || (type != FinancialRecord.SAVINGS_ACCOUNT && targetMinor <= 0L) || invalidSavingsPlan
+        ) {
+            _uiState.update {
+                it.copy(errorMessage = if (invalidSavingsPlan) {
+                    "Enter a savings category and a valid contribution plan."
+                } else {
+                    "Enter a title and an amount greater than zero."
+                })
+            }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                financialRecordDao.insert(
+                    FinancialRecord(
+                        type = type,
+                        title = title.trim(),
+                        targetMinor = targetMinor,
+                        dueDateEpochMillis = dueDateEpochMillis,
+                        notes = notes.trim(),
+                        savingsCategory = if (type == FinancialRecord.SAVINGS_GOAL) savingsCategory.trim() else FinancialRecord.SAVINGS_GENERAL,
+                        contributionMethod = if (type == FinancialRecord.SAVINGS_GOAL) contributionMethod else FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                        plannedContributionMinor = if (type == FinancialRecord.SAVINGS_GOAL) plannedContributionMinor else 0L
+                    )
+                )
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't save this record. Please try again.") }
+            }
+        }
+    }
+
+    fun updateFinancialRecord(record: FinancialRecord) {
+        val invalidSavingsPlan = record.type == FinancialRecord.SAVINGS_GOAL && (
+            record.savingsCategory.isBlank() ||
+                record.contributionMethod !in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY,
+                    FinancialRecord.CONTRIBUTION_FLEXIBLE,
+                    FinancialRecord.CONTRIBUTION_ONE_TIME
+                ) ||
+                (record.contributionMethod in setOf(
+                    FinancialRecord.CONTRIBUTION_WEEKLY,
+                    FinancialRecord.CONTRIBUTION_MONTHLY
+                ) && record.plannedContributionMinor <= 0L)
+            )
+        if (record.title.isBlank() || (record.type == FinancialRecord.SAVINGS_ACCOUNT && record.targetMinor != 0L) || (record.type != FinancialRecord.SAVINGS_ACCOUNT && record.targetMinor <= 0L) || record.currentMinor < 0L || invalidSavingsPlan) {
+            _uiState.update { it.copy(errorMessage = "Enter a title and a valid amount greater than zero.") }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                financialRecordDao.update(record.copy(title = record.title.trim(), notes = record.notes.trim()))
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't edit this plan. Please try again.") }
+            }
+        }
+    }
+
+    private fun accountBalanceMinor(accountId: Long): Long? {
+        val state = _uiState.value
+        val account = state.accounts.firstOrNull { it.id == accountId } ?: return null
+        val transactionMovement = state.transactions.filter {
+            it.accountId == accountId && it.createdAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf { if (it.type == MoneyTransaction.INCOME) it.amountMinor else -it.amountMinor }
+        val transferMovement = state.accountTransfers.filter {
+            it.createdAtEpochMillis >= account.openingDateEpochMillis &&
+                (it.fromAccountId == accountId || it.toAccountId == accountId)
+        }.sumOf { if (it.toAccountId == accountId) it.amountMinor else -it.amountMinor }
+        val entryMovement = state.financialEntries.filter {
+            it.accountId == accountId && it.createdAtEpochMillis >= account.openingDateEpochMillis
+        }.sumOf {
+            when (it.entryType) {
+                FinancialRecordEntry.CONTRIBUTION, FinancialRecordEntry.REPAYMENT -> -it.amountMinor
+                FinancialRecordEntry.WITHDRAWAL, FinancialRecordEntry.COLLECTION -> it.amountMinor
+                else -> 0L
+            }
+        }
+        val reconciliationMovement = state.accountReconciliations
+            .filter { it.accountId == accountId && it.reconciledAtEpochMillis >= account.openingDateEpochMillis }
+            .sumOf { it.adjustmentMinor }
+        return account.openingBalanceMinor + transactionMovement + transferMovement + entryMovement + reconciliationMovement
+    }
+
+    private fun validateAccountMovement(accountId: Long?, amountMinor: Long, isOutgoing: Boolean): Boolean {
+        if (accountId == null) return true
+        val account = _uiState.value.accounts.firstOrNull { it.id == accountId && !it.archived }
+        if (account == null) {
+            _uiState.update { it.copy(errorMessage = "Choose an active account or leave the movement unassigned.") }
+            return false
+        }
+        val balance = accountBalanceMinor(accountId) ?: 0L
+        if (isOutgoing && amountMinor > balance) {
+            _uiState.update { it.copy(errorMessage = "This amount is more than the available balance in ${account.name}.") }
+            return false
+        }
+        return true
+    }
+
+    fun addFinancialProgress(record: FinancialRecord, amountMinor: Long, note: String = "", accountId: Long? = null) {
+        if (amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
+            return
+        }
+        val isClientReceivable = record.type == FinancialRecord.CLIENT_RECEIVABLE
+        val isDebt = record.type == FinancialRecord.DEBT_I_OWE ||
+            record.type == FinancialRecord.DEBT_OWED_TO_ME || isClientReceivable
+        val outstanding = (record.targetMinor - record.currentMinor).coerceAtLeast(0L)
+        if (isDebt && amountMinor > outstanding) {
+            _uiState.update { it.copy(errorMessage = "That amount is more than the outstanding debt.") }
+            return
+        }
+        val entryType = when (record.type) {
+            FinancialRecord.DEBT_I_OWE -> FinancialRecordEntry.REPAYMENT
+            FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE -> FinancialRecordEntry.COLLECTION
+            FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT -> FinancialRecordEntry.CONTRIBUTION
+            else -> FinancialRecordEntry.SPENDING
+        }
+        if (!validateAccountMovement(accountId, amountMinor, entryType == FinancialRecordEntry.CONTRIBUTION || entryType == FinancialRecordEntry.REPAYMENT)) return
+        viewModelScope.launch {
+            try {
+                database.withTransaction {
+                    if (isClientReceivable) {
+                        // A client payment is real cash income. Store it once as a
+                        // transaction; keep the receivable entry only as a linked
+                        // collection history item, without a second balance movement.
+                        transactionRepository.add(
+                            MoneyTransaction(
+                                type = MoneyTransaction.INCOME,
+                                amountMinor = amountMinor,
+                                category = "Client payment",
+                                description = record.title + if (note.isBlank()) "" else " — ${note.trim()}",
+                                paymentMethod = "Client payment",
+                                dateEpochMillis = System.currentTimeMillis(),
+                                accountId = accountId
+                            )
+                        )
+                    }
+                    financialRecordDao.saveProgress(
+                        record.copy(currentMinor = record.currentMinor + amountMinor),
+                        FinancialRecordEntry(
+                            financialRecordId = record.id,
+                            entryType = entryType,
+                            amountMinor = amountMinor,
+                            note = note.trim(),
+                            accountId = if (isClientReceivable) null else accountId
+                        )
+                    )
+                }
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't save this update. Please try again.") }
+            }
+        }
+    }
+
+    fun withdrawSavings(record: FinancialRecord, amountMinor: Long, note: String = "", accountId: Long? = null) {
+        if (record.type !in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT) || amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter a valid withdrawal amount.") }
+            return
+        }
+        if (amountMinor > record.currentMinor) {
+            _uiState.update { it.copy(errorMessage = "You cannot withdraw more than the amount saved.") }
+            return
+        }
+        if (!validateAccountMovement(accountId, amountMinor, false)) return
+        viewModelScope.launch {
+            try {
+                financialRecordDao.saveProgress(
+                    record.copy(currentMinor = record.currentMinor - amountMinor),
+                    FinancialRecordEntry(
+                        financialRecordId = record.id,
+                        entryType = FinancialRecordEntry.WITHDRAWAL,
+                        amountMinor = amountMinor,
+                        note = note.trim(),
+                        accountId = accountId
+                    )
+                )
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't record this withdrawal. Please try again.") }
+            }
+        }
+    }
+
+    fun deleteFinancialRecord(recordId: Long) {
+        viewModelScope.launch {
+            try {
+                database.withTransaction {
+                    if (_uiState.value.financialRecords.any { it.id == recordId && it.type == FinancialRecord.ALLOWANCE }) {
+                        database.transactionDao().clearAllowanceLink(recordId)
+                    }
+                    financialRecordDao.deleteById(recordId)
+                }
+                _uiState.update { it.copy(errorMessage = null) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(errorMessage = "Couldn't delete this record. Please try again.") }
+            }
+        }
+    }
+
+    fun addFinancialAccount(name: String, type: String, openingBalanceMinor: Long, openingDateEpochMillis: Long = System.currentTimeMillis()) {
+        val cleanName = name.trim()
+        if (cleanName.isBlank() || type !in FinancialAccount.TYPES || openingBalanceMinor < 0L) {
+            _uiState.update { it.copy(errorMessage = "Enter an account name and a valid opening balance.") }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                financialAccountDao.insert(
+                    FinancialAccount(
+                        name = cleanName,
+                        type = type,
+                        openingBalanceMinor = openingBalanceMinor,
+                        openingDateEpochMillis = openingDateEpochMillis
+                    )
+                )
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't create this account. Please try again.") }
+            }
+        }
+    }
+
+    fun updateFinancialAccount(account: FinancialAccount) {
+        val cleanName = account.name.trim()
+        if (cleanName.isBlank() || account.type !in FinancialAccount.TYPES) {
+            _uiState.update { it.copy(errorMessage = "Enter a valid account name and type.") }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                val existing = _uiState.value.accounts.firstOrNull { it.id == account.id }
+                    ?: error("Account no longer exists.")
+                financialAccountDao.update(existing.copy(name = cleanName, type = account.type))
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't update this account. Please try again.") }
+            }
+        }
+    }
+
+    fun archiveFinancialAccount(account: FinancialAccount) {
+        viewModelScope.launch {
+            runCatching { financialAccountDao.update(account.copy(archived = true)) }
+                .onFailure { _uiState.update { state -> state.copy(errorMessage = "Couldn't archive this account.") } }
+        }
+    }
+
+    fun addAccountTransfer(fromAccountId: Long, toAccountId: Long, amountMinor: Long, dateEpochMillis: Long, note: String = "") {
+        val state = _uiState.value
+        val source = state.accounts.firstOrNull { it.id == fromAccountId && !it.archived }
+        val destinationExists = state.accounts.any { it.id == toAccountId && !it.archived }
+        if (fromAccountId == toAccountId || amountMinor <= 0L || source == null || !destinationExists) {
+            _uiState.update { it.copy(errorMessage = "Choose two different active accounts and enter a valid amount.") }
+            return
+        }
+        val sourceBalance = accountBalanceMinor(fromAccountId) ?: 0L
+        if (amountMinor > sourceBalance) {
+            _uiState.update { it.copy(errorMessage = "This transfer is more than the available balance in " + source.name + ".") }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                accountTransferDao.insert(
+                    AccountTransfer(
+                        fromAccountId = fromAccountId,
+                        toAccountId = toAccountId,
+                        amountMinor = amountMinor,
+                        note = note.trim(),
+                        dateEpochMillis = dateEpochMillis
+                    )
+                )
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't record this transfer. Please try again.") }
+            }
+        }
+    }
+
+    fun reconcileFinancialAccount(accountId: Long, statementBalanceMinor: Long, note: String = "") {
+        val state = _uiState.value
+        val account = state.accounts.firstOrNull { it.id == accountId && !it.archived }
+        if (account == null) {
+            _uiState.update { it.copy(errorMessage = "Choose an active account to reconcile.") }
+            return
+        }
+        val systemBalance = accountBalanceMinor(accountId)
+        if (systemBalance == null) {
+            _uiState.update { it.copy(errorMessage = "Couldn't calculate this account balance. Please try again.") }
+            return
+        }
+        val adjustment = statementBalanceMinor - systemBalance
+        viewModelScope.launch {
+            runCatching {
+                database.withTransaction {
+                    accountReconciliationDao.insert(
+                        AccountReconciliation(
+                            accountId = accountId,
+                            statementBalanceMinor = statementBalanceMinor,
+                            systemBalanceMinor = systemBalance,
+                            adjustmentMinor = adjustment,
+                            note = note.trim()
+                        )
+                    )
+                }
+            }.onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
+            }.onFailure {
+                _uiState.update { it.copy(errorMessage = "Couldn't save this reconciliation. Your account history was not changed.") }
+            }
+        }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+}
