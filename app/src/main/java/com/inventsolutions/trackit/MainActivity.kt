@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.inventsolutions.trackit.notifications.BudgetNotifications
+import com.inventsolutions.trackit.notifications.DailyRecordReminder
 import com.inventsolutions.trackit.ui.screens.dashboard.DashboardScreen
 import com.inventsolutions.trackit.ui.screens.profile.PersonalInformationScreen
 import com.inventsolutions.trackit.ui.theme.TrackItTheme
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         BudgetNotifications.createChannel(this)
+        DailyRecordReminder.scheduleNext(this)
         requestNotificationPermissionIfNeeded()
         transactionViewModel = ViewModelProvider(this)[TransactionViewModel::class.java]
         setContent {
