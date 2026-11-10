@@ -13,45 +13,61 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import com.inventsolutions.trackit.data.local.TrackItDatabase
-import com.inventsolutions.trackit.data.local.MoneyTransaction
-import androidx.room.withTransaction
-import kotlinx.coroutines.launch
-import java.math.BigDecimal
-import java.text.ParsePosition
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import androidx.compose.material3.Text
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.inventsolutions.trackit.R
+import com.inventsolutions.trackit.data.local.ExpenseCategory
+import com.inventsolutions.trackit.data.local.FinancialAccount
+import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.MonthlyBudget
+import com.inventsolutions.trackit.data.local.TrackItDatabase
 import com.inventsolutions.trackit.data.sms.MpesaSmsReceiver
-import com.inventsolutions.trackit.ui.components.TrackItIcon
+import com.inventsolutions.trackit.ui.screens.transactions.TransactionEntryScreen
+import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
-fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
+fun MpesaSmsSettingsScreen(
+    budgets: List<MonthlyBudget>,
+    transactions: List<MoneyTransaction>,
+    expenseCategories: List<ExpenseCategory>,
+    allowances: List<FinancialRecord>,
+    accounts: List<FinancialAccount>,
+    onCreateCategory: (name: String, budgetLimitMinor: Long?, budgetType: String) -> Unit,
+    onApprovePending: suspend (
+        pendingId: Long,
+        type: String,
+        amountMinor: Long,
+        category: String,
+        description: String,
+        paymentMethod: String,
+        dateEpochMillis: Long,
+        allowanceRecordId: Long?,
+        accountId: Long?
+    ) -> Boolean,
+    onBack: () -> Unit
+) {
     val context = LocalContext.current
     val database = remember { TrackItDatabase.getInstance(context) }
     val pending by database.pendingMpesaTransactionDao().observeAll().collectAsState(initial = emptyList())
@@ -61,22 +77,66 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
     var permissionGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED)
     }
+    var selectedPendingId by remember { mutableStateOf<Long?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionGranted = granted
         enabled = granted
         prefs.edit().putBoolean(MpesaSmsReceiver.KEY_ENABLED, granted).apply()
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                TrackItIcon(R.drawable.ic_lucide_arrow_left, "Back", tint = MaterialTheme.colorScheme.onSurface)
+    val selectedPending = pending.firstOrNull { it.id == selectedPendingId }
+    if (selectedPending != null) {
+        TransactionEntryScreen(
+            type = selectedPending.type,
+            isSaving = false,
+            errorMessage = null,
+            budgets = budgets,
+            transactions = transactions,
+            expenseCategories = expenseCategories,
+            allowances = allowances,
+            accounts = accounts,
+            initialAmountMinor = selectedPending.amountMinor,
+            initialDescription = selectedPending.description,
+            initialDateEpochMillis = selectedPending.dateEpochMillis,
+            initialPaymentMethod = "M-Pesa",
+            screenTitle = "Review M-Pesa transaction",
+            screenSubtitle = "Check and complete the details before adding it to TrackIt.",
+            submitButtonLabel = "Approve & save transaction",
+            onBack = { selectedPendingId = null },
+            onClearError = {},
+            onCreateCategory = onCreateCategory,
+            onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId, accountId ->
+                scope.launch {
+                    val saved = onApprovePending(
+                        selectedPending.id,
+                        type,
+                        amountMinor,
+                        category,
+                        description,
+                        paymentMethod,
+                        dateEpochMillis,
+                        allowanceRecordId,
+                        accountId
+                    )
+                    if (saved) {
+                        database.pendingMpesaTransactionDao().deleteById(selectedPending.id)
+                        selectedPendingId = null
+                    }
+                }
             }
-            Column {
-                Text("M-Pesa SMS import", style = MaterialTheme.typography.headlineSmall)
-                Text("Review detected transactions before saving", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        )
+        return
+    }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("M-Pesa SMS import", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Detect confirmations and review them before saving.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = onBack) { Text("Back to profile") }
         }
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -126,94 +186,30 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             pending.forEach { item ->
-                var amountText by remember(item.id) {
-                    mutableStateOf(BigDecimal.valueOf(item.amountMinor, 2).toPlainString())
-                }
-                var descriptionText by remember(item.id) { mutableStateOf(item.description) }
-                var categoryText by remember(item.id) { mutableStateOf("Uncategorised") }
-                var dateText by remember(item.id) {
-                    mutableStateOf(formatMpesaReviewDate(item.dateEpochMillis))
-                }
-                var validationMessage by remember(item.id) { mutableStateOf<String?>(null) }
-
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Review transaction", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text(
-                            (if (item.type == MoneyTransaction.INCOME) "Money received" else "Money sent / paid"),
+                            if (item.type == MoneyTransaction.INCOME) "Money received" else "Money sent / paid",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "KSh " + NumberFormat.getNumberInstance(Locale("en", "KE")).format(item.amountMinor / 100.0),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = if (item.type == MoneyTransaction.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(item.description, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(item.dateEpochMillis)) +
+                                " · Ref " + item.reference,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        OutlinedTextField(
-                            value = amountText,
-                            onValueChange = { amountText = it; validationMessage = null },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Amount (KES)") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                        )
-                        OutlinedTextField(
-                            value = descriptionText,
-                            onValueChange = { descriptionText = it; validationMessage = null },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Description") },
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = categoryText,
-                            onValueChange = { categoryText = it; validationMessage = null },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Category") },
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = dateText,
-                            onValueChange = { dateText = it; validationMessage = null },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Date and time (d MMM yyyy, h:mm a)") },
-                            singleLine = true
-                        )
-                        Text("M-Pesa reference: " + item.reference, style = MaterialTheme.typography.labelSmall,
+                        Text("Open the standard transaction form to choose an account, select or create a category, and complete the details.",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            "Check the details before saving. The confirmed transaction amount is used; M-Pesa fees are not added.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        if (validationMessage != null) {
-                            Text(validationMessage!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(onClick = {
-                                val amountMinor = runCatching {
-                                    BigDecimal(amountText.trim().replace(",", "")).movePointRight(2).longValueExact()
-                                }.getOrNull()
-                                val parsedDate = parseMpesaReviewDate(dateText)
-                                when {
-                                    amountMinor == null || amountMinor <= 0L ->
-                                        validationMessage = "Enter a valid amount greater than zero."
-                                    descriptionText.isBlank() ->
-                                        validationMessage = "Enter a description."
-                                    categoryText.isBlank() ->
-                                        validationMessage = "Enter a category."
-                                    parsedDate == null ->
-                                        validationMessage = "Enter a valid date, for example 10 Nov 2026, 6:52 AM."
-                                    else -> scope.launch {
-                                        database.withTransaction {
-                                            database.transactionDao().insert(
-                                                MoneyTransaction(
-                                                    type = item.type,
-                                                    amountMinor = amountMinor,
-                                                    category = categoryText.trim(),
-                                                    description = descriptionText.trim(),
-                                                    paymentMethod = "M-Pesa",
-                                                    dateEpochMillis = parsedDate
-                                                )
-                                            )
-                                            database.pendingMpesaTransactionDao().deleteById(item.id)
-                                        }
-                                    }
-                                }
-                            }) { Text("Approve & save") }
+                            Button(onClick = { selectedPendingId = item.id }) { Text("Review details") }
                             OutlinedButton(onClick = {
                                 scope.launch { database.pendingMpesaTransactionDao().deleteById(item.id) }
                             }) { Text("Dismiss") }
@@ -223,16 +219,4 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
             }
         }
     }
-}
-
-private fun formatMpesaReviewDate(epochMillis: Long): String =
-    SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(epochMillis))
-
-private fun parseMpesaReviewDate(value: String): Long? {
-    val formatter = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).apply {
-        isLenient = false
-    }
-    val position = ParsePosition(0)
-    val parsed = formatter.parse(value.trim(), position) ?: return null
-    return if (position.index == value.trim().length) parsed.time else null
 }
