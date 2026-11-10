@@ -14,6 +14,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.font.FontWeight
+import com.inventsolutions.trackit.data.local.TrackItDatabase
+import com.inventsolutions.trackit.data.local.MoneyTransaction
+import androidx.room.withTransaction
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.material3.Text
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
@@ -35,6 +49,9 @@ import com.inventsolutions.trackit.ui.components.TrackItIcon
 @Composable
 fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val database = remember { TrackItDatabase.getInstance(context) }
+    val pending by database.pendingMpesaTransactionDao().observeAll().collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences(MpesaSmsReceiver.PREFS, Context.MODE_PRIVATE) }
     var enabled by remember { mutableStateOf(prefs.getBoolean(MpesaSmsReceiver.KEY_ENABLED, false)) }
     var permissionGranted by remember {
@@ -97,6 +114,50 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
         if (enabled) {
             Text("Detection is active for new messages only. TrackIt does not scan your existing SMS inbox.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+
+        Text("Pending transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (pending.isEmpty()) {
+            Text("No transactions waiting for review.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            pending.forEach { item ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(item.description, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text("KES " + "%.2f".format(Locale.ROOT, item.amountMinor / 100.0),
+                            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(item.dateEpochMillis)),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Reference: " + item.reference, style = MaterialTheme.typography.labelSmall)
+                        Text("This will be saved as " + if (item.type == MoneyTransaction.INCOME) "income" else "expense" +
+                            " in the Uncategorised category, without adding any M-Pesa fee.",
+                            style = MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(onClick = {
+                                scope.launch {
+                                    database.withTransaction {
+                                        database.transactionDao().insert(
+                                            MoneyTransaction(
+                                                type = item.type,
+                                                amountMinor = item.amountMinor,
+                                                category = "Uncategorised",
+                                                description = item.description,
+                                                paymentMethod = "M-Pesa",
+                                                dateEpochMillis = item.dateEpochMillis
+                                            )
+                                        )
+                                        database.pendingMpesaTransactionDao().deleteById(item.id)
+                                    }
+                                }
+                            }) { Text("Approve & save") }
+                            OutlinedButton(onClick = {
+                                scope.launch { database.pendingMpesaTransactionDao().deleteById(item.id) }
+                            }) { Text("Dismiss") }
+                        }
+                    }
+                }
+            }
         }
     }
 }
