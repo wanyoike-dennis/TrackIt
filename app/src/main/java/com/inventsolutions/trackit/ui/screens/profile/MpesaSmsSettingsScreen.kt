@@ -3,7 +3,6 @@ package com.inventsolutions.trackit.ui.screens.profile
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -12,12 +11,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +62,7 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
         prefs.edit().putBoolean(MpesaSmsReceiver.KEY_ENABLED, granted).apply()
     }
 
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
                 TrackItIcon(R.drawable.ic_lucide_arrow_left, "Back", tint = MaterialTheme.colorScheme.onSurface)
@@ -130,7 +129,7 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
                         Text(SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(item.dateEpochMillis)),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("Reference: " + item.reference, style = MaterialTheme.typography.labelSmall)
-                        Text("This will be saved as " + if (item.type == MoneyTransaction.INCOME) "income" else "expense" +
+                        Text("This will be saved as " + (if (item.type == MoneyTransaction.INCOME) "income" else "expense") +
                             " in the Uncategorised category, without adding any M-Pesa fee.",
                             style = MaterialTheme.typography.bodySmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
