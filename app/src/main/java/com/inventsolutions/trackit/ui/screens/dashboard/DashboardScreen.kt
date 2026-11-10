@@ -86,6 +86,7 @@ import com.inventsolutions.trackit.ui.screens.finances.FinancialPlansScreen
 import com.inventsolutions.trackit.ui.screens.profile.ProfileScreen
 import com.inventsolutions.trackit.ui.screens.profile.AppearanceScreen
 import com.inventsolutions.trackit.ui.screens.profile.PersonalInformationScreen
+import com.inventsolutions.trackit.ui.screens.profile.MpesaSmsSettingsScreen
 import com.inventsolutions.trackit.ui.screens.profile.BackupRestoreScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
@@ -522,8 +523,11 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     onOpenPersonalInformation = { selectedTab = "PersonalInformation" },
                     onOpenAppearance = { selectedTab = "Appearance" },
                     onOpenBackupRestore = { selectedTab = "Backup" },
+                    onOpenMpesaImport = { selectedTab = "MpesaSms" },
                     onBack = { selectedTab = "Home" }
                 )
+            } else if (selectedTab == "MpesaSms") {
+                MpesaSmsSettingsScreen(onBack = { selectedTab = "Profile" })
             } else if (selectedTab == "Appearance") {
                 AppearanceScreen(
                     selectedMode = themeMode,
