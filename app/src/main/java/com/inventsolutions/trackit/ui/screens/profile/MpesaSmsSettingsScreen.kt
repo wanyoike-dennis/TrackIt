@@ -13,17 +13,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import com.inventsolutions.trackit.data.local.TrackItDatabase
 import com.inventsolutions.trackit.data.local.MoneyTransaction
 import androidx.room.withTransaction
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -121,32 +126,91 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             pending.forEach { item ->
+                var amountText by remember(item.id) {
+                    mutableStateOf(BigDecimal.valueOf(item.amountMinor, 2).toPlainString())
+                }
+                var descriptionText by remember(item.id) { mutableStateOf(item.description) }
+                var categoryText by remember(item.id) { mutableStateOf("Uncategorised") }
+                var dateText by remember(item.id) {
+                    mutableStateOf(formatMpesaReviewDate(item.dateEpochMillis))
+                }
+                var validationMessage by remember(item.id) { mutableStateOf<String?>(null) }
+
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(item.description, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text("KES " + "%.2f".format(Locale.ROOT, item.amountMinor / 100.0),
-                            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Text(SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(item.dateEpochMillis)),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Reference: " + item.reference, style = MaterialTheme.typography.labelSmall)
-                        Text("This will be saved as " + (if (item.type == MoneyTransaction.INCOME) "income" else "expense") +
-                            " in the Uncategorised category, without adding any M-Pesa fee.",
-                            style = MaterialTheme.typography.bodySmall)
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Review transaction", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            (if (item.type == MoneyTransaction.INCOME) "Money received" else "Money sent / paid"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = amountText,
+                            onValueChange = { amountText = it; validationMessage = null },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Amount (KES)") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                        )
+                        OutlinedTextField(
+                            value = descriptionText,
+                            onValueChange = { descriptionText = it; validationMessage = null },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Description") },
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = categoryText,
+                            onValueChange = { categoryText = it; validationMessage = null },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Category") },
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = dateText,
+                            onValueChange = { dateText = it; validationMessage = null },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Date and time (d MMM yyyy, h:mm a)") },
+                            singleLine = true
+                        )
+                        Text("M-Pesa reference: " + item.reference, style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "Check the details before saving. The confirmed transaction amount is used; M-Pesa fees are not added.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (validationMessage != null) {
+                            Text(validationMessage!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Button(onClick = {
-                                scope.launch {
-                                    database.withTransaction {
-                                        database.transactionDao().insert(
-                                            MoneyTransaction(
-                                                type = item.type,
-                                                amountMinor = item.amountMinor,
-                                                category = "Uncategorised",
-                                                description = item.description,
-                                                paymentMethod = "M-Pesa",
-                                                dateEpochMillis = item.dateEpochMillis
+                                val amountMinor = runCatching {
+                                    BigDecimal(amountText.trim().replace(",", "")).movePointRight(2).longValueExact()
+                                }.getOrNull()
+                                val parsedDate = parseMpesaReviewDate(dateText)
+                                when {
+                                    amountMinor == null || amountMinor <= 0L ->
+                                        validationMessage = "Enter a valid amount greater than zero."
+                                    descriptionText.isBlank() ->
+                                        validationMessage = "Enter a description."
+                                    categoryText.isBlank() ->
+                                        validationMessage = "Enter a category."
+                                    parsedDate == null ->
+                                        validationMessage = "Enter a valid date, for example 10 Nov 2026, 6:52 AM."
+                                    else -> scope.launch {
+                                        database.withTransaction {
+                                            database.transactionDao().insert(
+                                                MoneyTransaction(
+                                                    type = item.type,
+                                                    amountMinor = amountMinor,
+                                                    category = categoryText.trim(),
+                                                    description = descriptionText.trim(),
+                                                    paymentMethod = "M-Pesa",
+                                                    dateEpochMillis = parsedDate
+                                                )
                                             )
-                                        )
-                                        database.pendingMpesaTransactionDao().deleteById(item.id)
+                                            database.pendingMpesaTransactionDao().deleteById(item.id)
+                                        }
                                     }
                                 }
                             }) { Text("Approve & save") }
@@ -159,4 +223,16 @@ fun MpesaSmsSettingsScreen(onBack: () -> Unit) {
             }
         }
     }
+}
+
+private fun formatMpesaReviewDate(epochMillis: Long): String =
+    SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(epochMillis))
+
+private fun parseMpesaReviewDate(value: String): Long? {
+    val formatter = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).apply {
+        isLenient = false
+    }
+    val position = ParsePosition(0)
+    val parsed = formatter.parse(value.trim(), position) ?: return null
+    return if (position.index == value.trim().length) parsed.time else null
 }
