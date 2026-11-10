@@ -527,7 +527,27 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     onBack = { selectedTab = "Home" }
                 )
             } else if (selectedTab == "MpesaSms") {
-                MpesaSmsSettingsScreen(onBack = { selectedTab = "Profile" })
+                MpesaSmsSettingsScreen(
+                    budgets = uiState.budgets,
+                    transactions = uiState.transactions,
+                    expenseCategories = uiState.expenseCategories,
+                    allowances = uiState.financialRecords.filter { it.type == FinancialRecord.ALLOWANCE },
+                    accounts = uiState.accounts,
+                    onCreateCategory = viewModel::createExpenseCategory,
+                    onApprovePending = { pendingId, type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId, accountId ->
+                        viewModel.addTransaction(
+                            type = type,
+                            amountMinor = amountMinor,
+                            category = category,
+                            description = description,
+                            paymentMethod = paymentMethod,
+                            dateEpochMillis = dateEpochMillis,
+                            allowanceRecordId = allowanceRecordId,
+                            accountId = accountId
+                        )
+                    },
+                    onBack = { selectedTab = "Profile" }
+                )
             } else if (selectedTab == "Appearance") {
                 AppearanceScreen(
                     selectedMode = themeMode,
