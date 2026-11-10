@@ -28,6 +28,7 @@ object MpesaSmsParser {
     private val sent = Regex("""sent\s+to\s+(.+?)\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
     private val received = Regex("""received\s+Ksh\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+from\s+(.+?)\s+\d{4}\*{3}\d{3}\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
     private val paid = Regex("""paid\s+to\s+(.+?)\.?\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+    private val airtimePurchase = Regex("""bought\\s+Ksh\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?\\s+of\\s+airtime\\s+on\\s+\\d{1,2}/\\d{1,2}/\\d{2}\\s+at""", RegexOption.IGNORE_CASE)
 
     fun parse(message: String, timeZone: TimeZone = TimeZone.getDefault()): ParsedMpesaTransaction? {
         val normalized = message.replace("\r", " ").replace("\n", " ").replace(Regex("""\s+"""), " ").trim()
@@ -48,6 +49,7 @@ object MpesaSmsParser {
         val sentMatch = sent.find(normalized)
         val receivedMatch = received.find(normalized)
         val paidMatch = paid.find(normalized)
+        val airtimeMatch = airtimePurchase.find(normalized)
 
         return when {
             sentMatch != null -> {
@@ -68,6 +70,9 @@ object MpesaSmsParser {
                     reference, MoneyTransaction.EXPENSE, amountMinor, "Paid to $name", name, date
                 )
             }
+            airtimeMatch != null -> ParsedMpesaTransaction(
+                reference, MoneyTransaction.EXPENSE, amountMinor, "Airtime purchase", "Airtime", date
+            )
             else -> null
         }
     }
