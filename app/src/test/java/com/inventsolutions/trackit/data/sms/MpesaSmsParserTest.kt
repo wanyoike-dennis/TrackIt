@@ -55,6 +55,23 @@ class MpesaSmsParserTest {
     }
 
     @Test
+    fun parsesAirtimePurchaseAndIgnoresBalanceFeesAndDailyLimit() {
+        val result = MpesaSmsParser.parse(
+            "UKAMF0Z6GP confirmed.You bought Ksh5.00 of airtime on 10/11/26 at 10:02 AM." +
+                "New M-PESA balance is Ksh0.00. Transaction cost, Ksh0.00. " +
+                "Amount you can transact within the day is 499,855.00. See all your balances now https://saf.cx/3wAmy-",
+            kenyaTime
+        )
+
+        assertNotNull(result)
+        assertEquals("UKAMF0Z6GP", result!!.reference)
+        assertEquals(MoneyTransaction.EXPENSE, result.type)
+        assertEquals(500L, result.amountMinor)
+        assertEquals("Airtime purchase", result.description)
+        assertEquals("Airtime", result.counterparty)
+    }
+
+    @Test
     fun rejectsMessagesWithoutSupportedConfirmationFormat() {
         assertNull(MpesaSmsParser.parse("Your M-PESA balance is Ksh500.00", kenyaTime))
     }
