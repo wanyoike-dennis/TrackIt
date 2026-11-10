@@ -11,6 +11,8 @@ import android.app.NotificationManager
 import android.os.Build
 import com.inventsolutions.trackit.MainActivity
 import com.inventsolutions.trackit.data.local.PendingMpesaTransaction
+import com.inventsolutions.trackit.data.local.MpesaImportReference
+import androidx.room.withTransaction
 import com.inventsolutions.trackit.data.local.TrackItDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,17 +39,27 @@ class MpesaSmsReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = TrackItDatabase.getInstance(context)
-                val inserted = db.pendingMpesaTransactionDao().insertIfNew(
-                    PendingMpesaTransaction(
-                        reference = parsed.reference,
-                        type = parsed.type,
-                        amountMinor = parsed.amountMinor,
-                        description = parsed.description,
-                        counterparty = parsed.counterparty,
-                        dateEpochMillis = parsed.dateEpochMillis
+                val inserted = db.withTransaction {
+                    val referenceInserted = db.mpesaImportReferenceDao().insertIfNew(
+                        MpesaImportReference(reference = parsed.reference)
                     )
-                )
-                if (inserted != -1L) showReviewNotification(context, parsed.description, parsed.amountMinor)
+                    if (referenceInserted == -1L) {
+                        false
+                    } else {
+                        db.pendingMpesaTransactionDao().insertIfNew(
+                            PendingMpesaTransaction(
+                                reference = parsed.reference,
+                                type = parsed.type,
+                                amountMinor = parsed.amountMinor,
+                                description = parsed.description,
+                                counterparty = parsed.counterparty,
+                                dateEpochMillis = parsed.dateEpochMillis
+                            )
+                        )
+                        true
+                    }
+                }
+                if (inserted) showReviewNotification(context, parsed.description, parsed.amountMinor)
             } finally {
                 pending.finish()
             }
