@@ -78,6 +78,13 @@ fun TransactionEntryScreen(
     expenseCategories: List<ExpenseCategory>,
     allowances: List<FinancialRecord>,
     accounts: List<FinancialAccount>,
+    initialAmountMinor: Long? = null,
+    initialDescription: String = "",
+    initialDateEpochMillis: Long = System.currentTimeMillis(),
+    initialPaymentMethod: String = "M-Pesa",
+    screenTitle: String? = null,
+    screenSubtitle: String? = null,
+    submitButtonLabel: String? = null,
     onBack: () -> Unit,
     onClearError: () -> Unit,
     onCreateCategory: (name: String, budgetLimitMinor: Long?, budgetType: String) -> Unit,
@@ -93,10 +100,14 @@ fun TransactionEntryScreen(
     ) -> Unit
 ) {
     val context = LocalContext.current
-    var amount by remember { mutableStateOf("") }
+    var amount by remember(initialAmountMinor) {
+        mutableStateOf(initialAmountMinor?.let {
+            BigDecimal.valueOf(it, 2).stripTrailingZeros().toPlainString()
+        }.orEmpty())
+    }
     var category by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var paymentMethod by remember { mutableStateOf("M-Pesa") }
+    var description by remember(initialDescription) { mutableStateOf(initialDescription) }
+    var paymentMethod by remember(initialPaymentMethod) { mutableStateOf(initialPaymentMethod) }
     var paymentMenuExpanded by remember { mutableStateOf(false) }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var allowanceMenuExpanded by remember { mutableStateOf(false) }
@@ -109,7 +120,7 @@ fun TransactionEntryScreen(
     var newBudgetAmount by remember { mutableStateOf("") }
     var newBudgetType by remember { mutableStateOf(MonthlyBudget.ONE_TIME) }
     var categoryDialogError by remember { mutableStateOf<String?>(null) }
-    var dateEpochMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var dateEpochMillis by remember(initialDateEpochMillis) { mutableStateOf(initialDateEpochMillis) }
 
     val isIncome = type == MoneyTransaction.INCOME
     val dateLabel = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(dateEpochMillis))
@@ -253,14 +264,14 @@ fun TransactionEntryScreen(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    if (isIncome) "Add income" else "Add expense",
+                    screenTitle ?: if (isIncome) "Add income" else "Add expense",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    if (isIncome) "Record money you received." else "Record money you spent.",
+                    screenSubtitle ?: if (isIncome) "Record money you received." else "Record money you spent.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -570,7 +581,7 @@ fun TransactionEntryScreen(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
-                TrackItIcon(if (isIncome) R.drawable.ic_lucide_arrow_up_right else R.drawable.ic_lucide_arrow_down_right, null, tint = MaterialTheme.colorScheme.onPrimary); Text("Save " + if (isIncome) "income" else "expense")
+                TrackItIcon(if (isIncome) R.drawable.ic_lucide_arrow_up_right else R.drawable.ic_lucide_arrow_down_right, null, tint = MaterialTheme.colorScheme.onPrimary); Text(submitButtonLabel ?: ("Save " + if (isIncome) "income" else "expense"))
             }
         }
         Text("Your transaction is saved on this device and works offline.",
