@@ -9,10 +9,7 @@ import java.util.TimeZone
 
 /**
  * Parses supported Safaricom M-Pesa confirmation messages.
- *
- * Only the confirmed transaction amount is imported. Transaction fees,
- * balances, daily limits and promotional content are deliberately ignored.
- * The original SMS body is not retained by this parser.
+ * Only the confirmed amount is imported; fees, balances and daily limits are ignored.
  */
 data class ParsedMpesaTransaction(
     val reference: String,
@@ -25,15 +22,15 @@ data class ParsedMpesaTransaction(
 )
 
 object MpesaSmsParser {
-    private val header = Regex("""^\\s*([A-Z0-9]{10})\\s+Confirmed\\.?""", RegexOption.IGNORE_CASE)
-    private val amount = Regex("""Ksh\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
-    private val dateTime = Regex("""(\\d{1,2}/\\d{1,2}/\\d{2})\\s+at\\s+(\\d{1,2}:\\d{2}\\s*[AP]M)""", RegexOption.IGNORE_CASE)
-    private val sent = Regex("""sent\\s+to\\s+(.+?)\\s+on\\s+\\d{1,2}/\\d{1,2}/\\d{2}\\s+at""", RegexOption.IGNORE_CASE)
-    private val received = Regex("""received\\s+Ksh\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?\\s+from\\s+(.+?)\\s+\\d{4}\\*{3}\\d{3}\\s+on\\s+\\d{1,2}/\\d{1,2}/\\d{2}\\s+at""", RegexOption.IGNORE_CASE)
-    private val paid = Regex("""paid\\s+to\\s+(.+?)\\.?\\s+on\\s+\\d{1,2}/\\d{1,2}/\\d{2}\\s+at""", RegexOption.IGNORE_CASE)
+    private val header = Regex("""^\s*([A-Z0-9]{10})\s+Confirmed\.?""", RegexOption.IGNORE_CASE)
+    private val amount = Regex("""Ksh\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
+    private val dateTime = Regex("""(\d{1,2}/\d{1,2}/\d{2})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)""", RegexOption.IGNORE_CASE)
+    private val sent = Regex("""sent\s+to\s+(.+?)\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+    private val received = Regex("""received\s+Ksh\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+from\s+(.+?)\s+\d{4}\*{3}\d{3}\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+    private val paid = Regex("""paid\s+to\s+(.+?)\.?\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
 
     fun parse(message: String, timeZone: TimeZone = TimeZone.getDefault()): ParsedMpesaTransaction? {
-        val normalized = message.replace("\\r", " ").replace("\\n", " ").replace(Regex("""\\s+"""), " ").trim()
+        val normalized = message.replace("\r", " ").replace("\n", " ").replace(Regex("""\s+"""), " ").trim()
         val reference = header.find(normalized)?.groupValues?.getOrNull(1)?.uppercase(Locale.ROOT) ?: return null
         val amountText = amount.find(normalized)?.groupValues?.getOrNull(1)?.replace(",", "") ?: return null
         val amountMinor = try {
@@ -54,24 +51,21 @@ object MpesaSmsParser {
 
         return when {
             sentMatch != null -> {
-                val name = sentMatch.groupValues[1].trim().trimEnd('.')
+                val name = sentMatch.groupValues[1].trim().trimEnd('.').replace(Regex("""\s+"""), " ")
                 if (name.isBlank()) null else ParsedMpesaTransaction(
-                    reference, MoneyTransaction.EXPENSE, amountMinor,
-                    "Sent to $name", name, date
+                    reference, MoneyTransaction.EXPENSE, amountMinor, "Sent to $name", name, date
                 )
             }
             receivedMatch != null -> {
-                val name = receivedMatch.groupValues[1].trim().trimEnd('.')
+                val name = receivedMatch.groupValues[1].trim().trimEnd('.').replace(Regex("""\s+"""), " ")
                 if (name.isBlank()) null else ParsedMpesaTransaction(
-                    reference, MoneyTransaction.INCOME, amountMinor,
-                    "Received from $name", name, date
+                    reference, MoneyTransaction.INCOME, amountMinor, "Received from $name", name, date
                 )
             }
             paidMatch != null -> {
-                val name = paidMatch.groupValues[1].trim().trimEnd('.')
+                val name = paidMatch.groupValues[1].trim().trimEnd('.').replace(Regex("""\s+"""), " ")
                 if (name.isBlank()) null else ParsedMpesaTransaction(
-                    reference, MoneyTransaction.EXPENSE, amountMinor,
-                    "Paid to $name", name, date
+                    reference, MoneyTransaction.EXPENSE, amountMinor, "Paid to $name", name, date
                 )
             }
             else -> null
@@ -79,12 +73,13 @@ object MpesaSmsParser {
     }
 
     private fun parseDateTime(date: String, time: String, timeZone: TimeZone): Long? {
-        val formatter = SimpleDateFormat("dd/MM/yy h:mm a", Locale.ENGLISH).apply {
+        val input = "$date $time".uppercase(Locale.ENGLISH)
+        val formatter = SimpleDateFormat("d/M/yy h:mm a", Locale.ENGLISH).apply {
             isLenient = false
             this.timeZone = timeZone
         }
         val position = ParsePosition(0)
-        val parsed = formatter.parse("$date $time".uppercase(Locale.ENGLISH), position) ?: return null
-        return if (position.index == "$date $time".length) parsed.time else null
+        val parsed = formatter.parse(input, position) ?: return null
+        return if (position.index == input.length) parsed.time else null
     }
 }
