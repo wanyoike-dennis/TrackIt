@@ -533,6 +533,9 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     expenseCategories = uiState.expenseCategories,
                     allowances = uiState.financialRecords.filter { it.type == FinancialRecord.ALLOWANCE },
                     accounts = uiState.accounts,
+                    isSaving = uiState.isSaving,
+                    errorMessage = uiState.errorMessage,
+                    onClearError = viewModel::clearError,
                     onCreateCategory = viewModel::createExpenseCategory,
                     onApprovePending = { pendingId, type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId, accountId ->
                         viewModel.addTransaction(
