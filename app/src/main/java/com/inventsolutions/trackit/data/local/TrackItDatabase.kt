@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class, FinancialAccount::class, AccountTransfer::class, AccountReconciliation::class],
-    version = 14,
+    entities = [MoneyTransaction::class, MonthlyBudget::class, ExpenseCategory::class, FinancialRecord::class, FinancialRecordEntry::class, RecurringTransaction::class, FinancialAccount::class, AccountTransfer::class, AccountReconciliation::class, PendingMpesaTransaction::class],
+    version = 15,
     exportSchema = false
 )
 abstract class TrackItDatabase : RoomDatabase() {
@@ -21,6 +21,7 @@ abstract class TrackItDatabase : RoomDatabase() {
     abstract fun financialAccountDao(): FinancialAccountDao
     abstract fun accountTransferDao(): AccountTransferDao
     abstract fun accountReconciliationDao(): AccountReconciliationDao
+    abstract fun pendingMpesaTransactionDao(): PendingMpesaTransactionDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -119,12 +120,21 @@ abstract class TrackItDatabase : RoomDatabase() {
             }
         }
 
+
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS pending_mpesa_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, reference TEXT NOT NULL, type TEXT NOT NULL, amountMinor INTEGER NOT NULL, description TEXT NOT NULL, counterparty TEXT NOT NULL, dateEpochMillis INTEGER NOT NULL, receivedAtEpochMillis INTEGER NOT NULL)")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pending_mpesa_transactions_reference ON pending_mpesa_transactions(reference)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_pending_mpesa_transactions_dateEpochMillis ON pending_mpesa_transactions(dateEpochMillis)")
+            }
+        }
+
         @Volatile private var INSTANCE: TrackItDatabase? = null
 
         fun getInstance(context: Context): TrackItDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(context.applicationContext, TrackItDatabase::class.java, "trackit_database")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
                     .build()
                     .also { INSTANCE = it }
             }
