@@ -54,6 +54,9 @@ fun MpesaSmsSettingsScreen(
     expenseCategories: List<ExpenseCategory>,
     allowances: List<FinancialRecord>,
     accounts: List<FinancialAccount>,
+    isSaving: Boolean,
+    errorMessage: String?,
+    onClearError: () -> Unit,
     onCreateCategory: (name: String, budgetLimitMinor: Long?, budgetType: String) -> Unit,
     onApprovePending: suspend (
         pendingId: Long,
@@ -88,8 +91,8 @@ fun MpesaSmsSettingsScreen(
     if (selectedPending != null) {
         TransactionEntryScreen(
             type = selectedPending.type,
-            isSaving = false,
-            errorMessage = null,
+            isSaving = isSaving,
+            errorMessage = errorMessage,
             budgets = budgets,
             transactions = transactions,
             expenseCategories = expenseCategories,
@@ -103,7 +106,7 @@ fun MpesaSmsSettingsScreen(
             screenSubtitle = "Check and complete the details before adding it to TrackIt.",
             submitButtonLabel = "Approve & save transaction",
             onBack = { selectedPendingId = null },
-            onClearError = {},
+            onClearError = onClearError,
             onCreateCategory = onCreateCategory,
             onSave = { type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId, accountId ->
                 scope.launch {
