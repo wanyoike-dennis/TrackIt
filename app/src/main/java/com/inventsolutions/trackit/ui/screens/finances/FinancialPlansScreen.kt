@@ -1226,10 +1226,8 @@ private fun SavingsRecordCard(
                     onClick = onDelete,
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    TrackItIcon(R.drawable.ic_lucide_trash, null, size = 18.dp,
+                    TrackItIcon(R.drawable.ic_lucide_trash, "Delete savings", size = 18.dp,
                         tint = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             }
 
@@ -1434,13 +1432,36 @@ private fun FinancialRecordCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold
                     )
                 }
-                if (record.type !in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT)) {
+                if (isAllowance) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        TextButton(
+                            onClick = onEdit,
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                        ) {
+                            TrackItIcon(R.drawable.ic_lucide_edit, "Edit allowance", size = 18.dp)
+                        }
+                        TextButton(
+                            onClick = onDelete,
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                        ) {
+                            TrackItIcon(
+                                R.drawable.ic_lucide_trash,
+                                "Delete allowance",
+                                size = 18.dp,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                } else if (record.type !in setOf(FinancialRecord.SAVINGS_GOAL, FinancialRecord.SAVINGS_ACCOUNT)) {
                     Column(horizontalAlignment = Alignment.End) {
                         TextButton(onClick = onEdit, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                            if (!isDebt) TrackItIcon(R.drawable.ic_lucide_edit, null); Text("Edit")
+                            Text("Edit")
                         }
                         TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
-                            if (!isDebt) TrackItIcon(R.drawable.ic_lucide_trash, null); Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

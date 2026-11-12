@@ -56,6 +56,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.local.TrackItDatabase
 import com.inventsolutions.trackit.ui.screens.accounts.AccountsScreen
 import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
@@ -86,6 +87,7 @@ import com.inventsolutions.trackit.ui.screens.finances.FinancialPlansScreen
 import com.inventsolutions.trackit.ui.screens.profile.ProfileScreen
 import com.inventsolutions.trackit.ui.screens.profile.AppearanceScreen
 import com.inventsolutions.trackit.ui.screens.profile.PersonalInformationScreen
+import com.inventsolutions.trackit.ui.screens.profile.MpesaSmsSettingsScreen
 import com.inventsolutions.trackit.ui.screens.profile.BackupRestoreScreen
 import com.inventsolutions.trackit.ui.viewmodel.TransactionViewModel
 
@@ -131,6 +133,10 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
     val profileInitials = profileName.split(" ").filter { it.isNotBlank() }.take(2)
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("").ifBlank { "P" }
     var selectedTab by remember { mutableStateOf("Home") }
+    var mpesaReturnTab by remember { mutableStateOf("Home") }
+    val pendingMpesaTransactions by remember {
+        TrackItDatabase.getInstance(context).pendingMpesaTransactionDao().observeAll()
+    }.collectAsState(initial = emptyList())
     var entryType by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf(false) }
     var noticeMessage by remember { mutableStateOf("") }
@@ -522,7 +528,36 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     onOpenPersonalInformation = { selectedTab = "PersonalInformation" },
                     onOpenAppearance = { selectedTab = "Appearance" },
                     onOpenBackupRestore = { selectedTab = "Backup" },
+                    onOpenMpesaImport = {
+                        mpesaReturnTab = "Profile"
+                        selectedTab = "MpesaSms"
+                    },
                     onBack = { selectedTab = "Home" }
+                )
+            } else if (selectedTab == "MpesaSms") {
+                MpesaSmsSettingsScreen(
+                    budgets = uiState.budgets,
+                    transactions = uiState.transactions,
+                    expenseCategories = uiState.expenseCategories,
+                    allowances = uiState.financialRecords.filter { it.type == FinancialRecord.ALLOWANCE },
+                    accounts = uiState.accounts,
+                    isSaving = uiState.isSaving,
+                    errorMessage = uiState.errorMessage,
+                    onClearError = viewModel::clearError,
+                    onCreateCategory = viewModel::createExpenseCategory,
+                    onApprovePending = { pendingId, type, amountMinor, category, description, paymentMethod, dateEpochMillis, allowanceRecordId, accountId ->
+                        viewModel.addTransaction(
+                            type = type,
+                            amountMinor = amountMinor,
+                            category = category,
+                            description = description,
+                            paymentMethod = paymentMethod,
+                            dateEpochMillis = dateEpochMillis,
+                            allowanceRecordId = allowanceRecordId,
+                            accountId = accountId
+                        )
+                    },
+                    onBack = { selectedTab = mpesaReturnTab }
                 )
             } else if (selectedTab == "Appearance") {
                 AppearanceScreen(
@@ -945,6 +980,75 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                                 QuickAction("savings", "Savings & debts", TrackItAmberTint, TrackItAmber,
                                     Modifier.weight(1f)) {
                                     selectedTab = "Money"
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                mpesaReturnTab = "Home"
+                                selectedTab = "MpesaSms"
+                            },
+                            shape = RoundedCornerShape(22.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Box(
+                                    Modifier.size(48.dp).clip(RoundedCornerShape(15.dp))
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    androidx.compose.material3.Icon(
+                                        painter = androidx.compose.ui.res.painterResource(R.drawable.ic_lucide_wallet),
+                                        contentDescription = "M-Pesa",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(27.dp)
+                                    )
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(
+                                        "Import M-Pesa SMS",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        if (pendingMpesaTransactions.isNotEmpty())
+                                            "Review your detected transactions"
+                                        else
+                                            "Detect and review new payment confirmations",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
+                                    )
+                                }
+                                if (pendingMpesaTransactions.isNotEmpty()) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    ) {
+                                        Text(
+                                            pendingMpesaTransactions.size.toString(),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        "Open  →",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
                                 }
                             }
                         }

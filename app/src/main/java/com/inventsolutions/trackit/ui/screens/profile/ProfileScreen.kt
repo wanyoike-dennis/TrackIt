@@ -35,6 +35,7 @@ fun ProfileScreen(
     onOpenPersonalInformation: () -> Unit,
     onOpenAppearance: () -> Unit,
     onOpenBackupRestore: () -> Unit,
+    onOpenMpesaImport: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -127,6 +128,12 @@ fun ProfileScreen(
         Spacer(Modifier.height(2.dp))
         Text("DATA & STORAGE", style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ProfileOption(
+            title = "M-Pesa SMS import",
+            description = "Detect new M-Pesa confirmations for your review",
+            icon = { Text("K", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge) },
+            onClick = onOpenMpesaImport
+        )
         ProfileOption(
             title = "Backup & Restore",
             description = "Export or restore your financial records",

@@ -1,0 +1,90 @@
+package com.inventsolutions.trackit.data.sms
+
+import com.inventsolutions.trackit.data.local.MoneyTransaction
+import java.math.BigDecimal
+import java.text.ParsePosition
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
+
+/**
+ * Parses supported Safaricom M-Pesa confirmation messages.
+ * Only the confirmed amount is imported; fees, balances and daily limits are ignored.
+ */
+data class ParsedMpesaTransaction(
+    val reference: String,
+    val type: String,
+    val amountMinor: Long,
+    val description: String,
+    val counterparty: String,
+    val dateEpochMillis: Long,
+    val currency: String = "KES"
+)
+
+object MpesaSmsParser {
+    private val header = Regex("""^\s*([A-Z0-9]{10})\s+Confirmed\.?""", RegexOption.IGNORE_CASE)
+    private val amount = Regex("""Ksh\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
+    private val dateTime = Regex("""(\d{1,2}/\d{1,2}/\d{2})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)""", RegexOption.IGNORE_CASE)
+    private val sent = Regex("""sent\s+to\s+(.+?)\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+    private val received = Regex("""received\s+Ksh\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+from\s+(.+?)\s+\d{4}\*{3}\d{3}\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+    private val paid = Regex("""paid\s+to\s+(.+?)\.?\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+    private val airtimePurchase = Regex("""bought\s+Ksh\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+of\s+airtime\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+
+    fun parse(message: String, timeZone: TimeZone = TimeZone.getDefault()): ParsedMpesaTransaction? {
+        val normalized = message.replace("\r", " ").replace("\n", " ").replace(Regex("""\s+"""), " ").trim()
+        val reference = header.find(normalized)?.groupValues?.getOrNull(1)?.uppercase(Locale.ROOT) ?: return null
+        val amountText = amount.find(normalized)?.groupValues?.getOrNull(1)?.replace(",", "") ?: return null
+        val amountMinor = try {
+            BigDecimal(amountText).movePointRight(2).longValueExact()
+        } catch (_: ArithmeticException) {
+            return null
+        } catch (_: NumberFormatException) {
+            return null
+        }
+        if (amountMinor <= 0L) return null
+
+        val dateMatch = dateTime.find(normalized) ?: return null
+        val date = parseDateTime(dateMatch.groupValues[1], dateMatch.groupValues[2], timeZone) ?: return null
+
+        val sentMatch = sent.find(normalized)
+        val receivedMatch = received.find(normalized)
+        val paidMatch = paid.find(normalized)
+        val airtimeMatch = airtimePurchase.find(normalized)
+
+        return when {
+            sentMatch != null -> {
+                val name = sentMatch.groupValues[1].trim().trimEnd('.').replace(Regex("""\s+"""), " ")
+                if (name.isBlank()) null else ParsedMpesaTransaction(
+                    reference, MoneyTransaction.EXPENSE, amountMinor, "Sent to $name", name, date
+                )
+            }
+            receivedMatch != null -> {
+                val name = receivedMatch.groupValues[1].trim().trimEnd('.').replace(Regex("""\s+"""), " ")
+                if (name.isBlank()) null else ParsedMpesaTransaction(
+                    reference, MoneyTransaction.INCOME, amountMinor, "Received from $name", name, date
+                )
+            }
+            paidMatch != null -> {
+                val name = paidMatch.groupValues[1].trim().trimEnd('.').replace(Regex("""\s+"""), " ")
+                if (name.isBlank()) null else ParsedMpesaTransaction(
+                    reference, MoneyTransaction.EXPENSE, amountMinor, "Paid to $name", name, date
+                )
+            }
+            airtimeMatch != null -> ParsedMpesaTransaction(
+                reference, MoneyTransaction.EXPENSE, amountMinor, "Airtime purchase", "Airtime", date
+            )
+            else -> null
+        }
+    }
+
+    private fun parseDateTime(date: String, time: String, timeZone: TimeZone): Long? {
+        val input = "$date $time".uppercase(Locale.ENGLISH)
+        val formatter = SimpleDateFormat("d/M/yy h:mm a", Locale.ENGLISH).apply {
+            isLenient = false
+            this.timeZone = timeZone
+        }
+        val position = ParsePosition(0)
+        val parsed = formatter.parse(input, position) ?: return null
+        return if (position.index == input.length) parsed.time else null
+    }
+}
