@@ -276,7 +276,7 @@ fun TransactionEntryScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            OutlinedButton(onClick = onBack) { TrackItIcon(R.drawable.ic_lucide_arrow_left, null); Text("Cancel") }
+            OutlinedButton(onClick = onBack) { Text("Cancel") }
         }
 
         Card(
