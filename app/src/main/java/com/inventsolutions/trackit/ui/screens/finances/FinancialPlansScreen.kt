@@ -1226,10 +1226,8 @@ private fun SavingsRecordCard(
                     onClick = onDelete,
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    TrackItIcon(R.drawable.ic_lucide_trash, null, size = 18.dp,
+                    TrackItIcon(R.drawable.ic_lucide_trash, "Delete savings", size = 18.dp,
                         tint = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             }
 
