@@ -133,6 +133,26 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     val uiState: StateFlow<TransactionUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentFacility = financialRecordDao.getByTypeAndTitle(
+                FinancialRecord.FULIZA_FACILITY,
+                "Fuliza M-PESA"
+            )
+            val legacyFulizaDebt = financialRecordDao.getByTypeAndTitle(
+                FinancialRecord.DEBT_I_OWE,
+                "Fuliza M-PESA"
+            )
+            if (currentFacility == null && legacyFulizaDebt != null) {
+                financialRecordDao.update(
+                    legacyFulizaDebt.copy(
+                        type = FinancialRecord.FULIZA_FACILITY,
+                        targetMinor = 0L,
+                        currentMinor = (legacyFulizaDebt.targetMinor - legacyFulizaDebt.currentMinor).coerceAtLeast(0L),
+                        notes = "Fuliza credit facility. Set your credit limit manually; the limit is not cash."
+                    )
+                )
+            }
+        }
         viewModelScope.launch {
             transactionRepository.observeTransactions().collect { transactions ->
                 _uiState.update { it.copy(transactions = transactions) }
