@@ -72,6 +72,21 @@ class MpesaSmsParserTest {
     }
 
     @Test
+    fun parsesFourDigitYearMpesaPayBillConfirmationWithTrailingReference() {
+        val result = MpesaSmsParser.parse(
+            "Ksh 10.00 sent to KCB Pay Bill 522522 for account 120***0929 DENNIS NJOROGE WANYOIKE " +
+                "has been received on 07/11/2026 at 07:25 AM. M-PESA ref UK7MF0L01F. " +
+                "To reverse this transaction, SMS this message to 16120.",
+            kenyaTime
+        )
+        assertNotNull(result)
+        assertEquals("UK7MF0L01F", result!!.reference)
+        assertEquals(MoneyTransaction.EXPENSE, result.type)
+        assertEquals(1_000L, result.amountMinor)
+        assertEquals("Sent to KCB Pay Bill 522522 for account 120***0929 DENNIS NJOROGE WANYOIKE", result.description)
+    }
+
+    @Test
     fun rejectsMessagesWithoutSupportedConfirmationFormat() {
         assertNull(MpesaSmsParser.parse("Your M-PESA balance is Ksh500.00", kenyaTime))
     }
