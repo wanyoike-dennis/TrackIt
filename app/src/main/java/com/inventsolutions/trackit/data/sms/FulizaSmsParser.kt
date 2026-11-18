@@ -11,7 +11,6 @@ data class ParsedFulizaEvent(
     val kind: String,
     val amountMinor: Long,
     val accessFeeMinor: Long = 0L,
-    val outstandingMinor: Long? = null,
     val dueDateEpochMillis: Long? = null,
     val dueDateLabel: String? = null,
     val receivedAtEpochMillis: Long
@@ -24,7 +23,6 @@ object FulizaSmsParser {
     private val reference = Regex("""^\s*([A-Z0-9]{10})\s+Confirmed\.?""", RegexOption.IGNORE_CASE)
     private val borrowingAmount = Regex("""Fuliza\s+M-PESA\s+amount\s+is\s+Ksh\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
     private val accessFee = Regex("""Access\s+Fee\s+charged\s+Ksh\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
-    private val outstanding = Regex("""Total\s+Fuliza\s+M-PESA\s+outstanding\s+amount\s+is\s+Ksh\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
     private val dueDate = Regex("""\bdue\s+on\s+(\d{1,2}/\d{1,2}/\d{2,4})""", RegexOption.IGNORE_CASE)
     private val repayment = Regex("""Ksh\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s+from\s+your\s+M-PESA\s+has\s+been\s+used\s+to\s+(?:partially\s+)?pay\s+your\s+outstanding\s+Fuliza\s+M-PESA""", RegexOption.IGNORE_CASE)
 
@@ -52,7 +50,6 @@ object FulizaSmsParser {
         val borrowingMatch = borrowingAmount.find(normalized) ?: return null
         val amount = toMinor(borrowingMatch.groupValues[1]) ?: return null
         val fee = accessFee.find(normalized)?.groupValues?.getOrNull(1)?.let(::toMinor) ?: 0L
-        val outstandingAmount = outstanding.find(normalized)?.groupValues?.getOrNull(1)?.let(::toMinor)
         if (amount <= 0L || fee < 0L) return null
         val dueLabel = dueDate.find(normalized)?.groupValues?.getOrNull(1)
         val dueEpoch = dueLabel?.let { parseDueDate(it, timeZone) }
@@ -62,7 +59,6 @@ object FulizaSmsParser {
             kind = BORROWING,
             amountMinor = amount,
             accessFeeMinor = fee,
-            outstandingMinor = outstandingAmount,
             dueDateEpochMillis = dueEpoch,
             dueDateLabel = dueLabel,
             receivedAtEpochMillis = receivedAtEpochMillis
