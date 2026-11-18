@@ -1,5 +1,6 @@
 package com.inventsolutions.trackit.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -17,8 +18,8 @@ data class PendingMpesaTransaction(
     val counterparty: String,
     val dateEpochMillis: Long,
     val receivedAtEpochMillis: Long = System.currentTimeMillis(),
-    val source: String = SOURCE_MPESA,
-    val isAccountTransfer: Boolean = false,
+    @ColumnInfo(defaultValue = "'MPESA'") val source: String = SOURCE_MPESA,
+    @ColumnInfo(defaultValue = "0") val isAccountTransfer: Boolean = false,
     val transferDestinationType: String? = null
 ) {
     companion object {
