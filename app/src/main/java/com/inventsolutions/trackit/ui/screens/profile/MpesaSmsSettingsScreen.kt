@@ -17,6 +17,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -46,6 +49,8 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.math.BigDecimal
+import com.inventsolutions.trackit.data.local.PendingMpesaTransaction
 
 @Composable
 fun MpesaSmsSettingsScreen(
@@ -69,6 +74,7 @@ fun MpesaSmsSettingsScreen(
         allowanceRecordId: Long?,
         accountId: Long?
     ) -> Boolean,
+    onApprovePendingTransfer: suspend (pendingId: Long, fromAccountId: Long, toAccountId: Long, amountMinor: Long, dateEpochMillis: Long, note: String) -> Boolean,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -89,8 +95,22 @@ fun MpesaSmsSettingsScreen(
 
     val selectedPending = pending.firstOrNull { it.id == selectedPendingId }
     if (selectedPending != null) {
+        var treatAsTransfer by remember(selectedPending.id) { mutableStateOf(selectedPending.isAccountTransfer) }
+        if (treatAsTransfer) {
+            BankTransferReviewScreen(
+                pending = selectedPending,
+                accounts = accounts,
+                isSaving = isSaving,
+                errorMessage = errorMessage,
+                onClearError = onClearError,
+                onApprove = onApprovePendingTransfer,
+                onSwitchToExpense = { treatAsTransfer = false },
+                onDismiss = { selectedPendingId = null }
+            )
+            return
+        }
         TransactionEntryScreen(
-            type = selectedPending.type,
+            type = if (selectedPending.type == "TRANSFER") MoneyTransaction.EXPENSE else selectedPending.type,
             isSaving = isSaving,
             errorMessage = errorMessage,
             budgets = budgets,
@@ -101,8 +121,8 @@ fun MpesaSmsSettingsScreen(
             initialAmountMinor = selectedPending.amountMinor,
             initialDescription = selectedPending.description,
             initialDateEpochMillis = selectedPending.dateEpochMillis,
-            initialPaymentMethod = "M-Pesa",
-            screenTitle = "Review M-Pesa transaction",
+            initialPaymentMethod = when (selectedPending.source) { PendingMpesaTransaction.SOURCE_KCB -> "KCB"; PendingMpesaTransaction.SOURCE_IM -> "I&M Bank"; else -> "M-Pesa" },
+            screenTitle = "Review ${selectedPending.source} transaction",
             screenSubtitle = "Check and complete the details before adding it to TrackIt.",
             submitButtonLabel = "Approve & save transaction",
             onBack = { selectedPendingId = null },
@@ -136,7 +156,7 @@ fun MpesaSmsSettingsScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("M-Pesa SMS import", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("SMS transaction import", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("Detect confirmations and review them before saving.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onBack) { Text("Back to profile") }
@@ -145,7 +165,7 @@ fun MpesaSmsSettingsScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Your privacy", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "When enabled, TrackIt listens only for new incoming messages from a recognised M-Pesa/Safaricom sender and checks whether they match supported transaction confirmations. Processing happens on this device. SMS contents are not uploaded or retained. Unrelated messages are ignored.",
+                    "When enabled, TrackIt checks only new incoming messages from the M-Pesa/Safaricom, KCB and I&MBANK sender IDs for supported transaction confirmations. Processing happens on this device. SMS contents are not uploaded or retained. Unrelated messages are ignored.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
@@ -156,7 +176,7 @@ fun MpesaSmsSettingsScreen(
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Detect new M-Pesa messages", style = MaterialTheme.typography.titleSmall)
+                Text("Detect new M-Pesa and bank messages", style = MaterialTheme.typography.titleSmall)
                 Text(
                     if (permissionGranted) "SMS permission is granted" else "Android will ask for SMS permission when you enable this",
                     style = MaterialTheme.typography.bodySmall,
@@ -192,7 +212,7 @@ fun MpesaSmsSettingsScreen(
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text(
-                            if (item.type == MoneyTransaction.INCOME) "Money received" else "Money sent / paid",
+                            when { item.isAccountTransfer -> "Possible account transfer"; item.type == MoneyTransaction.INCOME -> "Money received"; else -> "Money sent / paid" },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -204,11 +224,11 @@ fun MpesaSmsSettingsScreen(
                         Text(item.description, style = MaterialTheme.typography.bodyMedium)
                         Text(
                             SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(item.dateEpochMillis)) +
-                                " · Ref " + item.reference,
+                                " · " + item.source + " · Ref " + item.reference,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text("Open the standard transaction form to choose an account, select or create a category, and complete the details.",
+                        Text(if (item.isAccountTransfer) "Choose the bank account and your mobile-money account. You can switch this to an expense if it was sent to someone else." else "Open the standard transaction form to choose an account, select or create a category, and complete the details.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -221,5 +241,106 @@ fun MpesaSmsSettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BankTransferReviewScreen(
+    pending: PendingMpesaTransaction,
+    accounts: List<FinancialAccount>,
+    isSaving: Boolean,
+    errorMessage: String?,
+    onClearError: () -> Unit,
+    onApprove: suspend (Long, Long, Long, Long, Long, String) -> Boolean,
+    onSwitchToExpense: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val activeAccounts = accounts.filter { !it.archived }
+    var amount by remember(pending.id) { mutableStateOf("%.2f".format(Locale.ROOT, pending.amountMinor / 100.0)) }
+    var fromId by remember(pending.id, accounts) {
+        mutableStateOf(activeAccounts.firstOrNull { it.type == FinancialAccount.BANK }?.id ?: activeAccounts.firstOrNull()?.id ?: 0L)
+    }
+    var toId by remember(pending.id, accounts) {
+        mutableStateOf(activeAccounts.firstOrNull { it.type == (pending.transferDestinationType ?: FinancialAccount.MPESA) && it.id != fromId }?.id
+            ?: activeAccounts.firstOrNull { it.id != fromId }?.id ?: 0L)
+    }
+    var fromExpanded by remember { mutableStateOf(false) }
+    var toExpanded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text("Review account transfer", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(pending.description, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(pending.dateEpochMillis)) +
+                " · " + pending.source + " · Ref " + pending.reference,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedTextField(
+            value = amount,
+            onValueChange = { amount = it },
+            label = { Text("Transfer amount (KSh)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("From account", style = MaterialTheme.typography.labelLarge)
+            OutlinedButton(onClick = { fromExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(activeAccounts.firstOrNull { it.id == fromId }?.name ?: "Select source account")
+            }
+            DropdownMenu(expanded = fromExpanded, onDismissRequest = { fromExpanded = false }) {
+                activeAccounts.forEach { account ->
+                    DropdownMenuItem(text = { Text(account.name) }, onClick = {
+                        fromId = account.id
+                        if (toId == account.id) toId = activeAccounts.firstOrNull { it.id != account.id }?.id ?: 0L
+                        fromExpanded = false
+                    })
+                }
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("To account", style = MaterialTheme.typography.labelLarge)
+            OutlinedButton(onClick = { toExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(activeAccounts.firstOrNull { it.id == toId }?.name ?: "Select destination account")
+            }
+            DropdownMenu(expanded = toExpanded, onDismissRequest = { toExpanded = false }) {
+                activeAccounts.filter { it.id != fromId }.forEach { account ->
+                    DropdownMenuItem(text = { Text(account.name) }, onClick = { toId = account.id; toExpanded = false })
+                }
+            }
+        }
+        Text(
+            "This records a movement between your own accounts, not income or an expense. Bank charges are not added to the transfer amount.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (errorMessage != null) {
+            Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = onClearError) { Text("Dismiss message") }
+        }
+        Button(
+            enabled = !isSaving && fromId != 0L && toId != 0L && fromId != toId,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                val minor = runCatching {
+                    BigDecimal(amount.trim().replace(",", "")).movePointRight(2).longValueExact()
+                }.getOrNull()
+                if (minor == null || minor <= 0L) {
+                    onClearError()
+                } else {
+                    scope.launch {
+                        if (onApprove(pending.id, fromId, toId, minor, pending.dateEpochMillis, pending.description)) onDismiss()
+                    }
+                }
+            }
+        ) { Text(if (isSaving) "Saving…" else "Approve transfer") }
+        OutlinedButton(onClick = onSwitchToExpense, modifier = Modifier.fillMaxWidth()) {
+            Text("This was a payment to someone else — record as expense")
+        }
+        OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
     }
 }
