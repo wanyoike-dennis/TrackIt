@@ -27,39 +27,68 @@ class MpesaSmsReceiver : BroadcastReceiver() {
         val messages = runCatching { Telephony.Sms.Intents.getMessagesFromIntent(intent).toList() }.getOrNull()
             ?: return
         val sender = messages.firstOrNull()?.originatingAddress.orEmpty()
-        // M-Pesa sender IDs vary by carrier configuration. Require a recognisable
-        // M-Pesa/Safaricom sender label rather than reading unrelated SMS.
-        val senderLooksLikeMpesa = sender.contains("MPESA", true) ||
-            sender.contains("M-PESA", true) || sender.contains("SAFARICOM", true)
-        if (!senderLooksLikeMpesa) return
-
         val body = messages.joinToString(separator = "") { it.messageBody.orEmpty() }
-        val parsed = MpesaSmsParser.parse(body) ?: return
+
+        val bank = when {
+            sender.contains("I&MBANK", true) -> BankSmsParser.parse(sender, body)
+            sender.equals("KCB", true) -> BankSmsParser.parse(sender, body)
+            else -> null
+        }
+        val mpesa = if (bank == null && (
+                sender.contains("MPESA", true) || sender.contains("M-PESA", true) ||
+                    sender.contains("SAFARICOM", true)
+            )) MpesaSmsParser.parse(body) else null
+
+        if (bank == null && mpesa == null) return
         val pending = PendingResultHolder(goAsync())
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = TrackItDatabase.getInstance(context)
                 val inserted = db.withTransaction {
+                    val primaryReference = bank?.reference ?: mpesa!!.reference
                     val referenceInserted = db.mpesaImportReferenceDao().insertIfNew(
-                        MpesaImportReference(reference = parsed.reference)
+                        MpesaImportReference(reference = primaryReference)
                     )
-                    if (referenceInserted == -1L) {
-                        false
-                    } else {
-                        db.pendingMpesaTransactionDao().insertIfNew(
-                            PendingMpesaTransaction(
-                                reference = parsed.reference,
-                                type = parsed.type,
-                                amountMinor = parsed.amountMinor,
-                                description = parsed.description,
-                                counterparty = parsed.counterparty,
-                                dateEpochMillis = parsed.dateEpochMillis
-                            )
+                    if (referenceInserted == -1L) return@withTransaction false
+
+                    val linkedReference = bank?.linkedMpesaReference
+                    if (linkedReference != null) {
+                        val aliasInserted = db.mpesaImportReferenceDao().insertIfNew(
+                            MpesaImportReference(reference = linkedReference)
                         )
-                        true
+                        if (aliasInserted == -1L) return@withTransaction false
                     }
+
+                    val item = if (bank != null) {
+                        PendingMpesaTransaction(
+                            reference = bank.reference,
+                            type = if (bank.isAccountTransfer) "TRANSFER" else com.inventsolutions.trackit.data.local.MoneyTransaction.EXPENSE,
+                            amountMinor = bank.amountMinor,
+                            description = bank.description,
+                            counterparty = bank.counterparty,
+                            dateEpochMillis = bank.dateEpochMillis,
+                            source = bank.source,
+                            isAccountTransfer = bank.isAccountTransfer,
+                            transferDestinationType = bank.transferDestinationType
+                        )
+                    } else {
+                        PendingMpesaTransaction(
+                            reference = mpesa!!.reference,
+                            type = mpesa.type,
+                            amountMinor = mpesa.amountMinor,
+                            description = mpesa.description,
+                            counterparty = mpesa.counterparty,
+                            dateEpochMillis = mpesa.dateEpochMillis,
+                            source = PendingMpesaTransaction.SOURCE_MPESA
+                        )
+                    }
+                    db.pendingMpesaTransactionDao().insertIfNew(item) != -1L
                 }
-                if (inserted) showReviewNotification(context, parsed.description, parsed.amountMinor)
+                if (inserted) {
+                    val description = bank?.description ?: mpesa!!.description
+                    val amount = bank?.amountMinor ?: mpesa!!.amountMinor
+                    showReviewNotification(context, description, amount)
+                }
             } finally {
                 pending.finish()
             }
@@ -70,7 +99,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "M-Pesa transaction reviews", NotificationManager.IMPORTANCE_DEFAULT)
+                NotificationChannel(CHANNEL_ID, "SMS transaction reviews", NotificationManager.IMPORTANCE_DEFAULT)
             )
         }
         val openApp = android.app.PendingIntent.getActivity(
@@ -81,7 +110,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
         val amount = "KES " + "%.2f".format(java.util.Locale.ROOT, amountMinor / 100.0)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("M-Pesa transaction to review")
+            .setContentTitle("Transaction to review")
             .setContentText("$description • $amount")
             .setContentIntent(openApp)
             .setAutoCancel(true)
@@ -96,7 +125,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
     companion object {
         const val PREFS = "trackit_mpesa_sms"
         const val KEY_ENABLED = "enabled"
-        private const val CHANNEL_ID = "mpesa_transaction_review"
+        private const val CHANNEL_ID = "sms_transaction_review"
         private const val NOTIFICATION_ID = 62041
     }
 }
