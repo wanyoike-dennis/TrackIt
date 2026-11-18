@@ -17,6 +17,12 @@ interface PendingMpesaTransactionDao {
     @Query("SELECT * FROM pending_mpesa_transactions WHERE id = :id LIMIT 1")
     suspend fun findById(id: Long): PendingMpesaTransaction?
 
+    @Query("SELECT * FROM pending_mpesa_transactions WHERE reference = :reference LIMIT 1")
+    suspend fun findByReference(reference: String): PendingMpesaTransaction?
+
+    @Query("DELETE FROM pending_mpesa_transactions WHERE reference = :reference")
+    suspend fun deleteByReference(reference: String)
+
     @Query("DELETE FROM pending_mpesa_transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
