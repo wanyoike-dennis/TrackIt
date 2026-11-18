@@ -92,7 +92,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
                                             type = FinancialRecord.FULIZA_FACILITY,
                                             title = "Fuliza M-PESA",
                                             targetMinor = 0L,
-                                            currentMinor = borrowedWithFee,
+                                            currentMinor = FulizaDebtCalculator.afterBorrowing(0L, fuliza.amountMinor, fuliza.accessFeeMinor),
                                             dueDateEpochMillis = fuliza.dueDateEpochMillis,
                                             notes = "Set your Fuliza credit limit manually. The limit is a credit facility, not available cash.",
                                             createdAtEpochMillis = fuliza.receivedAtEpochMillis
@@ -101,7 +101,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
                                 } else {
                                     debtDao.update(
                                         facility.copy(
-                                            currentMinor = facility.currentMinor + borrowedWithFee,
+                                            currentMinor = FulizaDebtCalculator.afterBorrowing(facility.currentMinor, fuliza.amountMinor, fuliza.accessFeeMinor),
                                             dueDateEpochMillis = fuliza.dueDateEpochMillis ?: facility.dueDateEpochMillis
                                         )
                                     )
@@ -142,7 +142,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
                                 } else {
                                     debtDao.update(
                                         facility.copy(
-                                            currentMinor = (facility.currentMinor - fuliza.amountMinor).coerceAtLeast(0L)
+                                            currentMinor = FulizaDebtCalculator.afterRepayment(facility.currentMinor, fuliza.amountMinor)
                                         )
                                     )
                                     facility.id
