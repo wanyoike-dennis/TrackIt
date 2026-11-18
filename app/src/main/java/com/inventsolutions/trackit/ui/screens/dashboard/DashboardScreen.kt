@@ -240,7 +240,12 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
     // must show the outstanding balance, consistent with the Money screen.
     val debtRepaymentsRecorded = debtsIOwe.sumOf { it.currentMinor }
     val debtCollectionsRecorded = debtsOwedToMe.sumOf { it.currentMinor }
-    val debtOutstandingToRepay = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
+    val fulizaOutstandingDebt = uiState.financialRecords
+        .firstOrNull { it.type == FinancialRecord.FULIZA_FACILITY }
+        ?.currentMinor ?: 0L
+    // Fuliza is a liability, never income or account cash.
+    val debtOutstandingToRepay = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) } +
+        fulizaOutstandingDebt
     val debtOutstandingToCollect = debtsOwedToMe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
     val reminderWindowEnd = todayStartForReminder(now) + 7L * 24L * 60L * 60L * 1000L
     val upcomingCommitments = uiState.financialRecords
