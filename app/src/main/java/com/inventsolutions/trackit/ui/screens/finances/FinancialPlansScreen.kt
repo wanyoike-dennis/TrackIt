@@ -76,7 +76,7 @@ fun FinancialPlansScreen(
     accounts: List<FinancialAccount>,
     errorMessage: String?,
     onBackToHome: () -> Unit,
-    onAdd: (type: String, title: String, targetMinor: Long, dueDateEpochMillis: Long?, notes: String, savingsCategory: String, contributionMethod: String, plannedContributionMinor: Long) -> Unit,
+    onAdd: (type: String, title: String, targetMinor: Long, dueDateEpochMillis: Long?, notes: String, savingsCategory: String, contributionMethod: String, plannedContributionMinor: Long, currentMinor: Long) -> Unit,
     onAddProgress: (FinancialRecord, Long, String, Long?) -> Unit,
     onWithdraw: (FinancialRecord, Long, String, Long?) -> Unit,
     onEdit: (FinancialRecord) -> Unit,
@@ -531,6 +531,7 @@ fun FinancialPlansScreen(
 
     if (showFulizaSetup) {
         var limit by remember { mutableStateOf("") }
+        var openingDebt by remember { mutableStateOf("0") }
         var validationError by remember { mutableStateOf<String?>(null) }
         AlertDialog(
             onDismissRequest = { showFulizaSetup = false },
@@ -547,6 +548,14 @@ fun FinancialPlansScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    OutlinedTextField(
+                        value = openingDebt,
+                        onValueChange = { openingDebt = it; validationError = null },
+                        label = { Text("Current outstanding debt (KSh)") },
+                        supportingText = { Text("Enter zero if you have not borrowed yet.") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     if (validationError != null) Text(validationError!!, color = MaterialTheme.colorScheme.error)
                 }
             },
@@ -556,13 +565,19 @@ fun FinancialPlansScreen(
                     val minor = parsed?.let { runCatching {
                         it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
                     }.getOrNull() }
+                    val openingDebtMinor = openingDebt.trim().replace(",", "").toBigDecimalOrNull()?.let { value ->
+                        runCatching { value.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull()
+                    }
                     if (minor == null || minor <= 0L) {
                         validationError = "Enter a credit limit greater than zero."
+                    } else if (openingDebtMinor == null || openingDebtMinor < 0L) {
+                        validationError = "Enter a valid current outstanding debt (zero or more)."
                     } else {
                         onAdd(
                             FinancialRecord.FULIZA_FACILITY, "Fuliza M-PESA", minor, null,
                             "Credit facility only. Not cash, income or available account money.",
-                            FinancialRecord.SAVINGS_GENERAL, FinancialRecord.CONTRIBUTION_FLEXIBLE, 0L
+                            FinancialRecord.SAVINGS_GENERAL, FinancialRecord.CONTRIBUTION_FLEXIBLE, 0L,
+                            openingDebtMinor
                         )
                         showFulizaSetup = false
                     }
@@ -728,7 +743,7 @@ fun FinancialPlansScreen(
                                 type, title, if (type == FinancialRecord.SAVINGS_ACCOUNT) 0L else (minor ?: 0L), parsedDate,
                                 if (type == FinancialRecord.CLIENT_RECEIVABLE && hustleName.isNotBlank()) "Hustle: ${hustleName.trim()}\\n${notes.trim()}" else notes,
                                 savingsCategory.trim(), contributionMethod,
-                                parsedContribution ?: 0L
+                                parsedContribution ?: 0L, 0L
                             )
                             showCreate = false
                         }
