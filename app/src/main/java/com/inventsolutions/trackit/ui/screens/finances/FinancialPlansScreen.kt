@@ -118,6 +118,7 @@ fun FinancialPlansScreen(
     val savingsProgress = if (savingsTarget > 0L) (savings.sumOf { it.currentMinor }.toFloat() / savingsTarget).coerceIn(0f, 1f) else 0f
     val owedToMe = debtsOwedToMe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
     val iOwe = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) } + fulizaOutstanding
+    val debtsToRepayCount = debtsIOwe.size + (if (fulizaFacility != null) 1 else 0)
     val allowanceLeft = allowances.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
 
     LazyColumn(
@@ -220,7 +221,7 @@ fun FinancialPlansScreen(
                                 modifier = Modifier.weight(1f),
                                 label = "You owe",
                                 value = financeKes(iOwe),
-                                hint = "${debtsIOwe.size + (if (fulizaFacility != null) 1 else 0)} ${(if (debtsIOwe.size + (if (fulizaFacility != null) 1 else 0) == 1) "debt" else "debts")} to repay",
+                                hint = "$debtsToRepayCount ${if (debtsToRepayCount == 1) "debt" else "debts"} to repay",
                                 valueColor = MaterialTheme.colorScheme.error
                             )
                         }
@@ -349,7 +350,7 @@ fun FinancialPlansScreen(
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Available Fuliza limit", style = MaterialTheme.typography.bodySmall,
+                                Text("Unused credit limit · not cash", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(if (limit > 0L) financeKes(availableLimit) else "Set limit",
                                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
