@@ -121,7 +121,7 @@ fun MpesaSmsSettingsScreen(
             initialAmountMinor = selectedPending.amountMinor,
             initialDescription = selectedPending.description,
             initialDateEpochMillis = selectedPending.dateEpochMillis,
-            initialPaymentMethod = when (selectedPending.source) { PendingMpesaTransaction.SOURCE_KCB -> "KCB"; PendingMpesaTransaction.SOURCE_IM -> "I&M Bank"; else -> "M-Pesa" },
+            initialPaymentMethod = when (selectedPending.source) { PendingMpesaTransaction.SOURCE_KCB, PendingMpesaTransaction.SOURCE_IM -> "Bank"; else -> "M-Pesa" },
             screenTitle = "Review ${selectedPending.source} transaction",
             screenSubtitle = "Check and complete the details before adding it to TrackIt.",
             submitButtonLabel = "Approve & save transaction",
@@ -266,6 +266,7 @@ private fun BankTransferReviewScreen(
     }
     var fromExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
+    var validationError by remember(pending.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -280,9 +281,13 @@ private fun BankTransferReviewScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (activeAccounts.size < 2) {
+            Text("Add at least two active accounts (for example, your bank and M-Pesa/T-Kash) before approving this transfer.",
+                color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
         OutlinedTextField(
             value = amount,
-            onValueChange = { amount = it },
+            onValueChange = { amount = it; validationError = null },
             label = { Text("Transfer amount (KSh)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -318,6 +323,9 @@ private fun BankTransferReviewScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (validationError != null) {
+            Text(validationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
         if (errorMessage != null) {
             Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick = onClearError) { Text("Dismiss message") }
@@ -330,7 +338,7 @@ private fun BankTransferReviewScreen(
                     BigDecimal(amount.trim().replace(",", "")).movePointRight(2).longValueExact()
                 }.getOrNull()
                 if (minor == null || minor <= 0L) {
-                    onClearError()
+                    validationError = "Enter a valid transfer amount greater than zero."
                 } else {
                     scope.launch {
                         if (onApprove(pending.id, fromId, toId, minor, pending.dateEpochMillis, pending.description)) onDismiss()
