@@ -16,5 +16,14 @@ data class PendingMpesaTransaction(
     val description: String,
     val counterparty: String,
     val dateEpochMillis: Long,
-    val receivedAtEpochMillis: Long = System.currentTimeMillis()
-)
+    val receivedAtEpochMillis: Long = System.currentTimeMillis(),
+    val source: String = SOURCE_MPESA,
+    val isAccountTransfer: Boolean = false,
+    val transferDestinationType: String? = null
+) {
+    companion object {
+        const val SOURCE_MPESA = "MPESA"
+        const val SOURCE_KCB = "KCB"
+        const val SOURCE_IM = "I&M Bank"
+    }
+}
