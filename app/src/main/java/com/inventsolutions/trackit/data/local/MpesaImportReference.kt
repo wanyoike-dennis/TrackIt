@@ -4,8 +4,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Permanent M-Pesa reference ledger. A reference remains here after approval or
- * dismissal so a redelivered SMS can never recreate the same review item.
+ * Permanent SMS import reference ledger shared by M-Pesa and supported banks.
+ * References remain after approval or dismissal so a redelivered message cannot
+ * recreate the same review item or duplicate a cross-channel transfer.
  */
 @Entity(tableName = "mpesa_import_references")
 data class MpesaImportReference(
