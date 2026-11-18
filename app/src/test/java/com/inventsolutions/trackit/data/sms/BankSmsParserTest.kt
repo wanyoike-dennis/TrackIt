@@ -48,7 +48,7 @@ class BankSmsParserTest {
     }
 
     @Test
-    fun parsesKcbPesaLinkAsExpenseAndIgnoresCost() {
+    fun flagsKcbPesaLinkForAccountReviewAndIgnoresCost() {
         val result = BankSmsParser.parse(
             "KCB",
             "KES 19,977.00 SEND TO PESALINK from 120****929 to - DENNIS NJOROGE WANYOIKE " +
@@ -57,7 +57,8 @@ class BankSmsParserTest {
         )
         assertNotNull(result)
         assertEquals(1_997_700L, result!!.amountMinor)
-        assertFalse(result.isAccountTransfer)
+        assertTrue(result.isAccountTransfer)
+        assertEquals("BANK", result.transferDestinationType)
         assertEquals("DENNIS NJOROGE WANYOIKE", result.counterparty)
     }
 
