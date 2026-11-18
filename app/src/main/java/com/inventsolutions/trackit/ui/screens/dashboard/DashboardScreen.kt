@@ -625,14 +625,15 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                     accounts = uiState.accounts,
                     errorMessage = uiState.errorMessage,
                     onBackToHome = { selectedTab = "Home" },
-                    onAdd = { type, title, targetMinor, dueDateEpochMillis, notes, savingsCategory, contributionMethod, plannedContributionMinor ->
+                    onAdd = { type, title, targetMinor, dueDateEpochMillis, notes, savingsCategory, contributionMethod, plannedContributionMinor, currentMinor ->
                         viewModel.addFinancialRecord(
                             type, title, targetMinor,
                             dueDateEpochMillis = dueDateEpochMillis,
                             notes = notes,
                             savingsCategory = savingsCategory,
                             contributionMethod = contributionMethod,
-                            plannedContributionMinor = plannedContributionMinor
+                            plannedContributionMinor = plannedContributionMinor,
+                            currentMinor = currentMinor
                         )
                     },
                     onAddProgress = { record, amount, note, accountId -> viewModel.addFinancialProgress(record, amount, note, accountId) },
