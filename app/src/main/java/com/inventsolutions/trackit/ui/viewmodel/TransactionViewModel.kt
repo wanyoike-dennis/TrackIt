@@ -63,7 +63,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                     BudgetNotifications.show(
                         app,
                         if (dueDate < now) "Financial item overdue" else "Financial item due soon",
-                        "${record.title}: ${formatKes((record.targetMinor - record.currentMinor).coerceAtLeast(0L))} remaining.",
+                        if (record.type == FinancialRecord.FULIZA_FACILITY) {
+                            "${record.title}: outstanding debt ${formatKes(record.currentMinor)}."
+                        } else {
+                            "${record.title}: ${formatKes((record.targetMinor - record.currentMinor).coerceAtLeast(0L))} remaining."
+                        },
                         notificationId(record.id, "due-date")
                     )
                     preferences.edit().putBoolean(reminderKey, true).apply()
@@ -133,6 +137,26 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     val uiState: StateFlow<TransactionUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentFacility = financialRecordDao.getByTypeAndTitle(
+                FinancialRecord.FULIZA_FACILITY,
+                "Fuliza M-PESA"
+            )
+            val legacyFulizaDebt = financialRecordDao.getByTypeAndTitle(
+                FinancialRecord.DEBT_I_OWE,
+                "Fuliza M-PESA"
+            )
+            if (currentFacility == null && legacyFulizaDebt != null) {
+                financialRecordDao.update(
+                    legacyFulizaDebt.copy(
+                        type = FinancialRecord.FULIZA_FACILITY,
+                        targetMinor = 0L,
+                        currentMinor = (legacyFulizaDebt.targetMinor - legacyFulizaDebt.currentMinor).coerceAtLeast(0L),
+                        notes = "Fuliza credit facility. Set your credit limit manually; the limit is not cash."
+                    )
+                )
+            }
+        }
         viewModelScope.launch {
             transactionRepository.observeTransactions().collect { transactions ->
                 _uiState.update { it.copy(transactions = transactions) }
@@ -561,7 +585,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         notes: String = "",
         savingsCategory: String = FinancialRecord.SAVINGS_GENERAL,
         contributionMethod: String = FinancialRecord.CONTRIBUTION_FLEXIBLE,
-        plannedContributionMinor: Long = 0L
+        plannedContributionMinor: Long = 0L,
+        currentMinor: Long = 0L
     ) {
         val invalidSavingsPlan = type == FinancialRecord.SAVINGS_GOAL && (
             savingsCategory.isBlank() ||
@@ -576,10 +601,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                     FinancialRecord.CONTRIBUTION_MONTHLY
                 ) && plannedContributionMinor <= 0L)
             )
-        if (type !in setOf(
+        if (currentMinor < 0L || type !in setOf(
                 FinancialRecord.DEBT_OWED_TO_ME,
                 FinancialRecord.CLIENT_RECEIVABLE,
                 FinancialRecord.DEBT_I_OWE,
+                FinancialRecord.FULIZA_FACILITY,
                 FinancialRecord.SAVINGS_GOAL,
                 FinancialRecord.SAVINGS_ACCOUNT,
                 FinancialRecord.ALLOWANCE
@@ -601,6 +627,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                         type = type,
                         title = title.trim(),
                         targetMinor = targetMinor,
+                        currentMinor = currentMinor,
                         dueDateEpochMillis = dueDateEpochMillis,
                         notes = notes.trim(),
                         savingsCategory = if (type == FinancialRecord.SAVINGS_GOAL) savingsCategory.trim() else FinancialRecord.SAVINGS_GENERAL,
@@ -864,6 +891,46 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             }.onFailure {
                 _uiState.update { it.copy(errorMessage = "Couldn't record this transfer. Please try again.") }
             }
+        }
+    }
+
+    suspend fun addImportedAccountTransfer(
+        fromAccountId: Long,
+        toAccountId: Long,
+        amountMinor: Long,
+        dateEpochMillis: Long,
+        note: String
+    ): Boolean {
+        val state = _uiState.value
+        val source = state.accounts.firstOrNull { it.id == fromAccountId && !it.archived }
+        val destination = state.accounts.firstOrNull { it.id == toAccountId && !it.archived }
+        if (source == null || destination == null || fromAccountId == toAccountId || amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Choose two different active accounts and enter a valid amount.") }
+            return false
+        }
+        val sourceBalance = accountBalanceMinor(fromAccountId) ?: 0L
+        if (amountMinor > sourceBalance) {
+            _uiState.update { it.copy(errorMessage = "This transfer is more than the available balance in " + source.name + ".") }
+            return false
+        }
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+        return try {
+            database.withTransaction {
+                accountTransferDao.insert(
+                    AccountTransfer(
+                        fromAccountId = fromAccountId,
+                        toAccountId = toAccountId,
+                        amountMinor = amountMinor,
+                        note = note.trim(),
+                        dateEpochMillis = dateEpochMillis
+                    )
+                )
+            }
+            _uiState.update { it.copy(isSaving = false, errorMessage = null) }
+            true
+        } catch (_: Exception) {
+            _uiState.update { it.copy(isSaving = false, errorMessage = "Couldn't save this account transfer. Please try again.") }
+            false
         }
     }
 

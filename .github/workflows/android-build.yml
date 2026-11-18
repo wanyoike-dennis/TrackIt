@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - feature/financial-intelligence-ux-features
+      - feature/mpesa-sms-transaction-detection
   pull_request:
     branches:
       - main
       - feature/transaction-entry
+      - master
 
 permissions:
   contents: read
