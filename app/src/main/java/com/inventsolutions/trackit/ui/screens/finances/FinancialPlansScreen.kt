@@ -91,9 +91,12 @@ fun FinancialPlansScreen(
     var historyRecord by remember { mutableStateOf<FinancialRecord?>(null) }
     var debtFilter by remember { mutableStateOf("All") }
     var debtSearch by remember { mutableStateOf("") }
+    var showFulizaSetup by remember { mutableStateOf(false) }
 
     val debtsOwedToMe = records.filter { it.type in setOf(FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE) }
     val debtsIOwe = records.filter { it.type == FinancialRecord.DEBT_I_OWE }
+    val fulizaFacility = records.firstOrNull { it.type == FinancialRecord.FULIZA_FACILITY }
+    val fulizaOutstanding = fulizaFacility?.currentMinor ?: 0L
     val savings = records.filter { it.type == FinancialRecord.SAVINGS_GOAL }
     val savingsAccounts = records.filter { it.type == FinancialRecord.SAVINGS_ACCOUNT }
     val allowances = records.filter { it.type == FinancialRecord.ALLOWANCE }
@@ -114,7 +117,7 @@ fun FinancialPlansScreen(
     val savingsTarget = savings.sumOf { it.targetMinor }
     val savingsProgress = if (savingsTarget > 0L) (savings.sumOf { it.currentMinor }.toFloat() / savingsTarget).coerceIn(0f, 1f) else 0f
     val owedToMe = debtsOwedToMe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
-    val iOwe = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
+    val iOwe = debtsIOwe.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) } + fulizaOutstanding
     val allowanceLeft = allowances.sumOf { (it.targetMinor - it.currentMinor).coerceAtLeast(0L) }
 
     LazyColumn(
@@ -217,7 +220,7 @@ fun FinancialPlansScreen(
                                 modifier = Modifier.weight(1f),
                                 label = "You owe",
                                 value = financeKes(iOwe),
-                                hint = "${debtsIOwe.size} ${if (debtsIOwe.size == 1) "debt" else "debts"} to repay",
+                                hint = "${debtsIOwe.size + if (fulizaFacility != null) 1 else 0} ${if (debtsIOwe.size + if (fulizaFacility != null) 1 else 0 == 1) "debt" else "debts"} to repay",
                                 valueColor = MaterialTheme.colorScheme.error
                             )
                         }
@@ -293,6 +296,82 @@ fun FinancialPlansScreen(
 
         if (section == FinanceSection.DEBTS) {
             item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("FULIZA M-PESA", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp)
+                                Text("Overdraft facility", style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold)
+                            }
+                            Text("↗", color = MaterialTheme.colorScheme.error, fontSize = 24.sp)
+                        }
+                        Text(
+                            "Credit is not cash, income, savings or available account money.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (fulizaFacility == null) {
+                            Text("Set your assigned Fuliza limit to start tracking borrowing and repayments.",
+                                style = MaterialTheme.typography.bodyMedium)
+                            Button(onClick = { showFulizaSetup = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Set Fuliza limit")
+                            }
+                        } else {
+                            val limit = fulizaFacility.targetMinor
+                            val availableLimit = (limit - fulizaOutstanding).coerceAtLeast(0L)
+                            val usedFraction = if (limit > 0L) (fulizaOutstanding.toFloat() / limit).coerceIn(0f, 1f) else 0f
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("OUTSTANDING DEBT", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(financeKes(fulizaOutstanding), style = MaterialTheme.typography.headlineSmall,
+                                        color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.ExtraBold)
+                                }
+                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("CREDIT LIMIT", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(financeKes(limit), style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            LinearProgressIndicator(
+                                progress = { usedFraction },
+                                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                                color = MaterialTheme.colorScheme.error,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Available Fuliza limit", style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (limit > 0L) financeKes(availableLimit) else "Set limit",
+                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary)
+                            }
+                            if (fulizaOutstanding > limit && limit > 0L) {
+                                Text("Outstanding debt is above the saved credit limit.",
+                                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { editRecord = fulizaFacility }, modifier = Modifier.weight(1f)) {
+                                    Text("Edit facility")
+                                }
+                                OutlinedButton(onClick = { historyRecord = fulizaFacility }, modifier = Modifier.weight(1f)) {
+                                    Text("Activity history")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            item {
                 OutlinedTextField(
                     value = debtSearch,
                     onValueChange = { debtSearch = it },
@@ -321,7 +400,7 @@ fun FinancialPlansScreen(
             val activeDebts = filteredDebts.filter { it.targetMinor > it.currentMinor }
             val settledDebts = filteredDebts.filter { it.targetMinor <= it.currentMinor }
 
-            if (debtsIOwe.isEmpty() && debtsOwedToMe.isEmpty()) {
+            if (debtsIOwe.isEmpty() && debtsOwedToMe.isEmpty() && fulizaFacility == null) {
                 item {
                     EmptyFinanceRecordsCard(
                         title = "Start with a clear picture",
@@ -331,7 +410,7 @@ fun FinancialPlansScreen(
                         onAction = { showCreate = true }
                     )
                 }
-            } else if (filteredDebts.isEmpty()) {
+            } else if (filteredDebts.isEmpty() && fulizaFacility == null) {
                 item {
                     Text(
                         if (debtSearch.isNotBlank()) "No debts match your search."
@@ -446,6 +525,49 @@ fun FinancialPlansScreen(
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+
+    if (showFulizaSetup) {
+        var limit by remember { mutableStateOf("") }
+        var validationError by remember { mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { showFulizaSetup = false },
+            title = { Text("Set your Fuliza limit", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Enter the credit limit Safaricom assigned to you. This is a borrowing limit, not money in your account.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = limit,
+                        onValueChange = { limit = it; validationError = null },
+                        label = { Text("Fuliza credit limit (KSh)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (validationError != null) Text(validationError!!, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val parsed = limit.trim().replace(",", "").toBigDecimalOrNull()
+                    val minor = parsed?.let { runCatching {
+                        it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
+                    }.getOrNull() }
+                    if (minor == null || minor <= 0L) {
+                        validationError = "Enter a credit limit greater than zero."
+                    } else {
+                        onAdd(
+                            FinancialRecord.FULIZA_FACILITY, "Fuliza M-PESA", minor, null,
+                            "Credit facility only. Not cash, income or available account money.",
+                            FinancialRecord.SAVINGS_GENERAL, FinancialRecord.CONTRIBUTION_FLEXIBLE, 0L
+                        )
+                        showFulizaSetup = false
+                    }
+                }) { Text("Save limit") }
+            },
+            dismissButton = { TextButton(onClick = { showFulizaSetup = false }) { Text("Cancel") } }
+        )
     }
 
     if (showCreate) {
@@ -572,6 +694,7 @@ fun FinancialPlansScreen(
                     val minor = parsed?.let { runCatching {
                         it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
                     }.getOrNull() }
+                    val parsedFulizaDebt = if (record.type == FinancialRecord.FULIZA_FACILITY) fulizaDebt.trim().replace(",", "").toBigDecimalOrNull()?.let { value -> runCatching { value.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull() } else record.currentMinor
                     val parsedDate = if (dueDate.isBlank()) null else runCatching {
                         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
                             .parse(dueDate.trim())?.time
@@ -719,6 +842,7 @@ fun FinancialPlansScreen(
     editRecord?.let { record ->
         var title by remember(record.id) { mutableStateOf(record.title) }
         var target by remember(record.id) { mutableStateOf((record.targetMinor / 100.0).toString().removeSuffix(".0")) }
+        var fulizaDebt by remember(record.id) { mutableStateOf((record.currentMinor / 100.0).toString().removeSuffix(".0")) }
         var savingsCategory by remember(record.id) { mutableStateOf(record.savingsCategory) }
         var contributionMethod by remember(record.id) { mutableStateOf(record.contributionMethod) }
         var plannedContribution by remember(record.id) { mutableStateOf((record.plannedContributionMinor / 100.0).toString().removeSuffix(".0")) }
@@ -737,7 +861,18 @@ fun FinancialPlansScreen(
                     OutlinedTextField(value = title, onValueChange = { title = it; validationError = null },
                         label = { Text("Name / description") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = target, onValueChange = { target = it; validationError = null },
-                        label = { Text("Target / original amount (KSh)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        label = { Text(if (record.type == FinancialRecord.FULIZA_FACILITY) "Assigned credit limit (KSh)" else "Target / original amount (KSh)") },
+                        singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (record.type == FinancialRecord.FULIZA_FACILITY) {
+                        OutlinedTextField(
+                            value = fulizaDebt,
+                            onValueChange = { fulizaDebt = it; validationError = null },
+                            label = { Text("Current outstanding Fuliza debt (KSh)") },
+                            supportingText = { Text("Use this to enter any debt that existed before TrackIt started importing messages.") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     if (record.type == FinancialRecord.SAVINGS_GOAL) {
                         OutlinedTextField(value = savingsCategory, onValueChange = { savingsCategory = it },
                             label = { Text("Savings category") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -794,6 +929,7 @@ fun FinancialPlansScreen(
                     when {
                         title.isBlank() -> validationError = "Enter a name or description."
                         targetMinor == null || targetMinor <= 0L -> validationError = "Enter an amount greater than zero."
+                        record.type == FinancialRecord.FULIZA_FACILITY && (parsedFulizaDebt == null || parsedFulizaDebt < 0L) -> validationError = "Enter a valid outstanding debt amount."
                         dueDate.isNotBlank() && parsedDate == null && record.type != FinancialRecord.ALLOWANCE ->
                             validationError = "Use a valid date in YYYY-MM-DD format."
                         record.type in setOf(FinancialRecord.DEBT_I_OWE, FinancialRecord.DEBT_OWED_TO_ME, FinancialRecord.CLIENT_RECEIVABLE) &&
@@ -809,6 +945,7 @@ fun FinancialPlansScreen(
                             onEdit(record.copy(
                                 title = title.trim(),
                                 targetMinor = targetMinor,
+                                currentMinor = if (record.type == FinancialRecord.FULIZA_FACILITY) parsedFulizaDebt ?: record.currentMinor else record.currentMinor,
                                 dueDateEpochMillis = if (record.type == FinancialRecord.ALLOWANCE) null else parsedDate,
                                 notes = notes.trim(),
                                 savingsCategory = if (record.type == FinancialRecord.SAVINGS_GOAL) savingsCategory.trim() else record.savingsCategory,
