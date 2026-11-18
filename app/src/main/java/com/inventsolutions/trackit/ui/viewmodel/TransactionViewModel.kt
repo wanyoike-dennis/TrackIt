@@ -867,6 +867,46 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    suspend fun addImportedAccountTransfer(
+        fromAccountId: Long,
+        toAccountId: Long,
+        amountMinor: Long,
+        dateEpochMillis: Long,
+        note: String
+    ): Boolean {
+        val state = _uiState.value
+        val source = state.accounts.firstOrNull { it.id == fromAccountId && !it.archived }
+        val destination = state.accounts.firstOrNull { it.id == toAccountId && !it.archived }
+        if (source == null || destination == null || fromAccountId == toAccountId || amountMinor <= 0L) {
+            _uiState.update { it.copy(errorMessage = "Choose two different active accounts and enter a valid amount.") }
+            return false
+        }
+        val sourceBalance = accountBalanceMinor(fromAccountId) ?: 0L
+        if (amountMinor > sourceBalance) {
+            _uiState.update { it.copy(errorMessage = "This transfer is more than the available balance in " + source.name + ".") }
+            return false
+        }
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+        return try {
+            database.withTransaction {
+                accountTransferDao.insert(
+                    AccountTransfer(
+                        fromAccountId = fromAccountId,
+                        toAccountId = toAccountId,
+                        amountMinor = amountMinor,
+                        note = note.trim(),
+                        dateEpochMillis = dateEpochMillis
+                    )
+                )
+            }
+            _uiState.update { it.copy(isSaving = false, errorMessage = null) }
+            true
+        } catch (_: Exception) {
+            _uiState.update { it.copy(isSaving = false, errorMessage = "Couldn't save this account transfer. Please try again.") }
+            false
+        }
+    }
+
     fun reconcileFinancialAccount(accountId: Long, statementBalanceMinor: Long, note: String = "") {
         val state = _uiState.value
         val account = state.accounts.firstOrNull { it.id == accountId && !it.archived }
