@@ -60,47 +60,60 @@ class MpesaSmsReceiver : BroadcastReceiver() {
 
                     if (fuliza != null) {
                         val debtDao = db.financialRecordDao()
-                        val existingDebt = debtDao.getByTypeAndTitle(
-                            FinancialRecord.DEBT_I_OWE,
+                        var facility = debtDao.getByTypeAndTitle(
+                            FinancialRecord.FULIZA_FACILITY,
                             "Fuliza M-PESA"
                         )
+
+                        // Convert records created by the earlier Fuliza implementation without
+                        // losing their already-calculated outstanding balance or activity history.
+                        if (facility == null) {
+                            val legacyDebt = debtDao.getByTypeAndTitle(
+                                FinancialRecord.DEBT_I_OWE,
+                                "Fuliza M-PESA"
+                            )
+                            if (legacyDebt != null) {
+                                facility = legacyDebt.copy(
+                                    type = FinancialRecord.FULIZA_FACILITY,
+                                    targetMinor = 0L,
+                                    currentMinor = (legacyDebt.targetMinor - legacyDebt.currentMinor).coerceAtLeast(0L),
+                                    notes = "Fuliza credit facility. Set your credit limit manually; the limit is not cash."
+                                )
+                                debtDao.update(facility)
+                            }
+                        }
+
                         when (fuliza.kind) {
                             FulizaSmsParser.BORROWING -> {
                                 val borrowedWithFee = fuliza.amountMinor + fuliza.accessFeeMinor
-                                val newTarget = if (fuliza.outstandingMinor != null) {
-                                    (existingDebt?.currentMinor ?: 0L) + fuliza.outstandingMinor
-                                } else {
-                                    (existingDebt?.targetMinor ?: 0L) + borrowedWithFee
-                                }
-                                val debtId = if (existingDebt == null) {
+                                val debtId = if (facility == null) {
                                     debtDao.insert(
                                         FinancialRecord(
-                                            type = FinancialRecord.DEBT_I_OWE,
+                                            type = FinancialRecord.FULIZA_FACILITY,
                                             title = "Fuliza M-PESA",
-                                            targetMinor = newTarget,
+                                            targetMinor = 0L,
+                                            currentMinor = borrowedWithFee,
                                             dueDateEpochMillis = fuliza.dueDateEpochMillis,
-                                            notes = "Automatically updated from confirmed Safaricom Fuliza messages.",
+                                            notes = "Set your Fuliza credit limit manually. The limit is a credit facility, not available cash.",
                                             createdAtEpochMillis = fuliza.receivedAtEpochMillis
                                         )
                                     )
                                 } else {
                                     debtDao.update(
-                                        existingDebt.copy(
-                                            targetMinor = newTarget,
-                                            dueDateEpochMillis = fuliza.dueDateEpochMillis ?: existingDebt.dueDateEpochMillis
+                                        facility.copy(
+                                            currentMinor = facility.currentMinor + borrowedWithFee,
+                                            dueDateEpochMillis = fuliza.dueDateEpochMillis ?: facility.dueDateEpochMillis
                                         )
                                     )
-                                    existingDebt.id
+                                    facility.id
                                 }
                                 val note = buildString {
                                     append("Fuliza borrowing KES ")
                                     append("%.2f".format(java.util.Locale.ROOT, fuliza.amountMinor / 100.0))
                                     append("; access fee KES ")
                                     append("%.2f".format(java.util.Locale.ROOT, fuliza.accessFeeMinor / 100.0))
-                                    fuliza.outstandingMinor?.let {
-                                        append("; reported outstanding KES ")
-                                        append("%.2f".format(java.util.Locale.ROOT, it / 100.0))
-                                    }
+                                    append("; debt increased by KES ")
+                                    append("%.2f".format(java.util.Locale.ROOT, borrowedWithFee / 100.0))
                                     fuliza.dueDateLabel?.let { append("; due on ").append(it) }
                                     append(". Reference: ").append(fuliza.reference)
                                 }
@@ -115,29 +128,31 @@ class MpesaSmsReceiver : BroadcastReceiver() {
                                 )
                             }
                             FulizaSmsParser.REPAYMENT -> {
-                                val debtId = if (existingDebt == null) {
+                                val debtId = if (facility == null) {
                                     debtDao.insert(
                                         FinancialRecord(
-                                            type = FinancialRecord.DEBT_I_OWE,
+                                            type = FinancialRecord.FULIZA_FACILITY,
                                             title = "Fuliza M-PESA",
-                                            targetMinor = fuliza.amountMinor,
-                                            currentMinor = fuliza.amountMinor,
-                                            notes = "Automatically updated from confirmed Safaricom Fuliza messages.",
+                                            targetMinor = 0L,
+                                            currentMinor = 0L,
+                                            notes = "Set your Fuliza credit limit manually. The limit is a credit facility, not available cash.",
                                             createdAtEpochMillis = fuliza.receivedAtEpochMillis
                                         )
                                     )
                                 } else {
                                     debtDao.update(
-                                        existingDebt.copy(currentMinor = existingDebt.currentMinor + fuliza.amountMinor)
+                                        facility.copy(
+                                            currentMinor = (facility.currentMinor - fuliza.amountMinor).coerceAtLeast(0L)
+                                        )
                                     )
-                                    existingDebt.id
+                                    facility.id
                                 }
                                 debtDao.insertEntry(
                                     FinancialRecordEntry(
                                         financialRecordId = debtId,
                                         entryType = FinancialRecordEntry.REPAYMENT,
                                         amountMinor = fuliza.amountMinor,
-                                        note = "Fuliza repayment confirmed by Safaricom SMS. Reference: ${fuliza.reference}",
+                                        note = "Fuliza repayment reduced outstanding debt. Reference: ${fuliza.reference}",
                                         createdAtEpochMillis = fuliza.receivedAtEpochMillis
                                     )
                                 )
