@@ -992,7 +992,7 @@ fun FinancialPlansScreen(
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(
                                         when (entry.entryType) {
-                                            FinancialRecordEntry.REPAYMENT -> "Repayment"
+                                            FinancialRecordEntry.REPAYMENT -> if (record.type == FinancialRecord.FULIZA_FACILITY) "Fuliza repayment" else "Repayment"
                                             FinancialRecordEntry.BORROWING -> "Fuliza borrowing"
                                             FinancialRecordEntry.COLLECTION -> "Collection"
                                             FinancialRecordEntry.CONTRIBUTION -> "Savings contribution"
