@@ -557,6 +557,15 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                             accountId = accountId
                         )
                     },
+                    onApprovePendingTransfer = { pendingId, fromAccountId, toAccountId, amountMinor, dateEpochMillis, note ->
+                        viewModel.addImportedAccountTransfer(
+                            fromAccountId = fromAccountId,
+                            toAccountId = toAccountId,
+                            amountMinor = amountMinor,
+                            dateEpochMillis = dateEpochMillis,
+                            note = note
+                        )
+                    },
                     onBack = { selectedTab = mpesaReturnTab }
                 )
             } else if (selectedTab == "Appearance") {
@@ -1008,14 +1017,14 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                                 ) {
                                     androidx.compose.material3.Icon(
                                         painter = androidx.compose.ui.res.painterResource(R.drawable.ic_lucide_wallet),
-                                        contentDescription = "M-Pesa",
+                                        contentDescription = "Bank and M-Pesa SMS",
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(27.dp)
                                     )
                                 }
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     Text(
-                                        "Import M-Pesa SMS",
+                                        "Import bank & M-Pesa SMS",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -1024,7 +1033,7 @@ fun DashboardScreen(viewModel: TransactionViewModel, themeMode: String, onThemeM
                                         if (pendingMpesaTransactions.isNotEmpty())
                                             "Review your detected transactions"
                                         else
-                                            "Detect and review new payment confirmations",
+                                            "Detect and review new bank and M-Pesa confirmations",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
                                     )
