@@ -185,7 +185,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
                     }
                     db.pendingMpesaTransactionDao().insertIfNew(item) != -1L
                 }
-                if (inserted) {
+                if (inserted && fuliza == null) {
                     val description = bank?.description ?: mpesa!!.description
                     val amount = bank?.amountMinor ?: mpesa!!.amountMinor
                     showReviewNotification(context, description, amount)
