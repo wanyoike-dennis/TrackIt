@@ -29,6 +29,7 @@ data class FinancialRecordEntry(
     companion object {
         const val CONTRIBUTION = "CONTRIBUTION"
         const val REPAYMENT = "REPAYMENT"
+        const val BORROWING = "BORROWING"
         const val COLLECTION = "COLLECTION"
         const val SPENDING = "SPENDING"
         const val WITHDRAWAL = "WITHDRAWAL"
