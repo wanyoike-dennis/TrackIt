@@ -51,6 +51,7 @@ import com.inventsolutions.trackit.data.local.FinancialRecord
 import com.inventsolutions.trackit.data.local.FinancialAccount
 import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MoneyTransaction
+import com.inventsolutions.trackit.data.sms.FulizaDebtCalculator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Calendar
@@ -327,7 +328,7 @@ fun FinancialPlansScreen(
                             }
                         } else {
                             val limit = fulizaFacility.targetMinor
-                            val availableLimit = (limit - fulizaOutstanding).coerceAtLeast(0L)
+                            val availableLimit = FulizaDebtCalculator.unusedLimit(limit, fulizaOutstanding)
                             val usedFraction = if (limit > 0L) (fulizaOutstanding.toFloat() / limit).coerceIn(0f, 1f) else 0f
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
