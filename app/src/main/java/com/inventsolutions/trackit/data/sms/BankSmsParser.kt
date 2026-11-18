@@ -35,7 +35,7 @@ object BankSmsParser {
         RegexOption.IGNORE_CASE
     )
 
-    fun parse(sender: String, message: String, timeZone: TimeZone = TimeZone.getDefault()): ParsedBankTransaction? {
+    fun parse(sender: String, message: String, timeZone: TimeZone = TimeZone.getDefault(), receivedAtEpochMillis: Long = System.currentTimeMillis()): ParsedBankTransaction? {
         val normalized = message.replace("\r", " ").replace("\n", " ")
             .replace(Regex("""\s+"""), " ").trim()
         val amountAndMinor: (String) -> Long? = { value ->
@@ -52,7 +52,7 @@ object BankSmsParser {
                 amountMinor = amount,
                 description = "Bank to M-Pesa transfer",
                 counterparty = match.groupValues[3].trim(),
-                dateEpochMillis = System.currentTimeMillis(),
+                dateEpochMillis = receivedAtEpochMillis,
                 isAccountTransfer = true,
                 transferDestinationType = "MPESA",
                 linkedMpesaReference = match.groupValues[5].uppercase(Locale.ROOT)
