@@ -220,7 +220,7 @@ fun FinancialPlansScreen(
                                 modifier = Modifier.weight(1f),
                                 label = "You owe",
                                 value = financeKes(iOwe),
-                                hint = "${debtsIOwe.size + if (fulizaFacility != null) 1 else 0} ${if (debtsIOwe.size + if (fulizaFacility != null) 1 else 0 == 1) "debt" else "debts"} to repay",
+                                hint = "${debtsIOwe.size + (if (fulizaFacility != null) 1 else 0)} ${(if (debtsIOwe.size + (if (fulizaFacility != null) 1 else 0) == 1) "debt" else "debts")} to repay",
                                 valueColor = MaterialTheme.colorScheme.error
                             )
                         }
@@ -694,7 +694,6 @@ fun FinancialPlansScreen(
                     val minor = parsed?.let { runCatching {
                         it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
                     }.getOrNull() }
-                    val parsedFulizaDebt = if (record.type == FinancialRecord.FULIZA_FACILITY) fulizaDebt.trim().replace(",", "").toBigDecimalOrNull()?.let { value -> runCatching { value.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull() } else record.currentMinor
                     val parsedDate = if (dueDate.isBlank()) null else runCatching {
                         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
                             .parse(dueDate.trim())?.time
@@ -916,6 +915,9 @@ fun FinancialPlansScreen(
                     val targetMinor = parsedAmount?.let { runCatching {
                         it.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
                     }.getOrNull() }
+                    val parsedFulizaDebt = if (record.type == FinancialRecord.FULIZA_FACILITY) fulizaDebt.trim().replace(",", "").toBigDecimalOrNull()?.let { value ->
+                        runCatching { value.movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact() }.getOrNull()
+                    } else record.currentMinor
                     val parsedDate = if (dueDate.isBlank()) null else runCatching {
                         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
                             .parse(dueDate.trim())?.time
