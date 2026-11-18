@@ -56,7 +56,13 @@ class MpesaSmsReceiver : BroadcastReceiver() {
                         val aliasInserted = db.mpesaImportReferenceDao().insertIfNew(
                             MpesaImportReference(reference = linkedReference)
                         )
-                        if (aliasInserted == -1L) return@withTransaction false
+                        if (aliasInserted == -1L) {
+                            // If the Safaricom alert arrived first but is still awaiting review,
+                            // replace it with the bank alert so the movement is classified once.
+                            val existingPending = db.pendingMpesaTransactionDao().findByReference(linkedReference)
+                                ?: return@withTransaction false
+                            db.pendingMpesaTransactionDao().deleteById(existingPending.id)
+                        }
                     }
 
                     val item = if (bank != null) {
