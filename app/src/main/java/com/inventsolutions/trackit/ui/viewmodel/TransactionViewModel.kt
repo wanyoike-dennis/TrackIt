@@ -63,7 +63,11 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                     BudgetNotifications.show(
                         app,
                         if (dueDate < now) "Financial item overdue" else "Financial item due soon",
-                        "${record.title}: ${formatKes((record.targetMinor - record.currentMinor).coerceAtLeast(0L))} remaining.",
+                        if (record.type == FinancialRecord.FULIZA_FACILITY) {
+                            "${record.title}: outstanding debt ${formatKes(record.currentMinor)}."
+                        } else {
+                            "${record.title}: ${formatKes((record.targetMinor - record.currentMinor).coerceAtLeast(0L))} remaining."
+                        },
                         notificationId(record.id, "due-date")
                     )
                     preferences.edit().putBoolean(reminderKey, true).apply()
