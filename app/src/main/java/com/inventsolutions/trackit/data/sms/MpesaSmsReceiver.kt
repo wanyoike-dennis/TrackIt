@@ -30,7 +30,7 @@ class MpesaSmsReceiver : BroadcastReceiver() {
         val body = messages.joinToString(separator = "") { it.messageBody.orEmpty() }
 
         val bank = when {
-            sender.contains("I&MBANK", true) -> BankSmsParser.parse(sender, body)
+            sender.contains("I&MBANK", true) -> BankSmsParser.parse(sender, body, receivedAtEpochMillis = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis())
             sender.equals("KCB", true) -> BankSmsParser.parse(sender, body)
             else -> null
         }
