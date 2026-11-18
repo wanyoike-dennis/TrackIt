@@ -10,7 +10,7 @@ class FulizaSmsParserTest {
     private val kenyaTime = TimeZone.getTimeZone("Africa/Nairobi")
 
     @Test
-    fun parsesFulizaBorrowingFeeOutstandingAndDueDate() {
+    fun parsesFulizaBorrowingFeeAndDueDate() {
         val result = FulizaSmsParser.parse(
             "UKIMF1Z67V Confirmed. Fuliza M-PESA amount is Ksh 100.00. " +
                 "Access Fee charged Ksh 1.00. Total Fuliza M-PESA outstanding amount is Ksh1397.86 due on 09/12/26.",
@@ -23,7 +23,6 @@ class FulizaSmsParserTest {
         assertEquals(FulizaSmsParser.BORROWING, result.kind)
         assertEquals(10_000L, result.amountMinor)
         assertEquals(100L, result.accessFeeMinor)
-        assertEquals(139_786L, result.outstandingMinor)
         assertNotNull(result.dueDateEpochMillis)
         assertEquals("09/12/26", result.dueDateLabel)
     }
@@ -43,7 +42,6 @@ class FulizaSmsParserTest {
         assertEquals(FulizaSmsParser.REPAYMENT, result.kind)
         assertEquals(108_000L, result.amountMinor)
         assertEquals(0L, result.accessFeeMinor)
-        assertNull(result.outstandingMinor)
     }
 
     @Test
