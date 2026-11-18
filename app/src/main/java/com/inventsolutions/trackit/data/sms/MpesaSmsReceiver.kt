@@ -11,6 +11,8 @@ import android.app.NotificationManager
 import android.os.Build
 import com.inventsolutions.trackit.MainActivity
 import com.inventsolutions.trackit.data.local.PendingMpesaTransaction
+import com.inventsolutions.trackit.data.local.FinancialRecord
+import com.inventsolutions.trackit.data.local.FinancialRecordEntry
 import com.inventsolutions.trackit.data.local.MpesaImportReference
 import androidx.room.withTransaction
 import com.inventsolutions.trackit.data.local.TrackItDatabase
@@ -34,22 +36,115 @@ class MpesaSmsReceiver : BroadcastReceiver() {
             sender.equals("KCB", true) -> BankSmsParser.parse(sender, body)
             else -> null
         }
-        val mpesa = if (bank == null && (
-                sender.contains("MPESA", true) || sender.contains("M-PESA", true) ||
-                    sender.contains("SAFARICOM", true)
-            )) MpesaSmsParser.parse(body) else null
+        val isSafaricomSender = sender.contains("MPESA", true) ||
+            sender.contains("M-PESA", true) || sender.contains("SAFARICOM", true)
+        val receivedAt = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
+        val fuliza = if (bank == null && isSafaricomSender) {
+            FulizaSmsParser.parse(body, receivedAt)
+        } else null
+        val mpesa = if (bank == null && fuliza == null && isSafaricomSender) {
+            MpesaSmsParser.parse(body)
+        } else null
 
-        if (bank == null && mpesa == null) return
+        if (bank == null && mpesa == null && fuliza == null) return
         val pending = PendingResultHolder(goAsync())
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = TrackItDatabase.getInstance(context)
                 val inserted = db.withTransaction {
-                    val primaryReference = bank?.reference ?: mpesa!!.reference
+                    val primaryReference = bank?.reference ?: fuliza?.reference ?: mpesa!!.reference
                     val referenceInserted = db.mpesaImportReferenceDao().insertIfNew(
                         MpesaImportReference(reference = primaryReference)
                     )
                     if (referenceInserted == -1L) return@withTransaction false
+
+                    if (fuliza != null) {
+                        val debtDao = db.financialRecordDao()
+                        val existingDebt = debtDao.getByTypeAndTitle(
+                            FinancialRecord.DEBT_I_OWE,
+                            "Fuliza M-PESA"
+                        )
+                        when (fuliza.kind) {
+                            FulizaSmsParser.BORROWING -> {
+                                val borrowedWithFee = fuliza.amountMinor + fuliza.accessFeeMinor
+                                val newTarget = if (fuliza.outstandingMinor != null) {
+                                    (existingDebt?.currentMinor ?: 0L) + fuliza.outstandingMinor
+                                } else {
+                                    (existingDebt?.targetMinor ?: 0L) + borrowedWithFee
+                                }
+                                val debtId = if (existingDebt == null) {
+                                    debtDao.insert(
+                                        FinancialRecord(
+                                            type = FinancialRecord.DEBT_I_OWE,
+                                            title = "Fuliza M-PESA",
+                                            targetMinor = newTarget,
+                                            dueDateEpochMillis = fuliza.dueDateEpochMillis,
+                                            notes = "Automatically updated from confirmed Safaricom Fuliza messages.",
+                                            createdAtEpochMillis = fuliza.receivedAtEpochMillis
+                                        )
+                                    )
+                                } else {
+                                    debtDao.update(
+                                        existingDebt.copy(
+                                            targetMinor = newTarget,
+                                            dueDateEpochMillis = fuliza.dueDateEpochMillis ?: existingDebt.dueDateEpochMillis
+                                        )
+                                    )
+                                    existingDebt.id
+                                }
+                                val note = buildString {
+                                    append("Fuliza borrowing KES ")
+                                    append("%.2f".format(java.util.Locale.ROOT, fuliza.amountMinor / 100.0))
+                                    append("; access fee KES ")
+                                    append("%.2f".format(java.util.Locale.ROOT, fuliza.accessFeeMinor / 100.0))
+                                    fuliza.outstandingMinor?.let {
+                                        append("; reported outstanding KES ")
+                                        append("%.2f".format(java.util.Locale.ROOT, it / 100.0))
+                                    }
+                                    fuliza.dueDateLabel?.let { append("; due on ").append(it) }
+                                    append(". Reference: ").append(fuliza.reference)
+                                }
+                                debtDao.insertEntry(
+                                    FinancialRecordEntry(
+                                        financialRecordId = debtId,
+                                        entryType = FinancialRecordEntry.BORROWING,
+                                        amountMinor = borrowedWithFee,
+                                        note = note,
+                                        createdAtEpochMillis = fuliza.receivedAtEpochMillis
+                                    )
+                                )
+                            }
+                            FulizaSmsParser.REPAYMENT -> {
+                                val debtId = if (existingDebt == null) {
+                                    debtDao.insert(
+                                        FinancialRecord(
+                                            type = FinancialRecord.DEBT_I_OWE,
+                                            title = "Fuliza M-PESA",
+                                            targetMinor = fuliza.amountMinor,
+                                            currentMinor = fuliza.amountMinor,
+                                            notes = "Automatically updated from confirmed Safaricom Fuliza messages.",
+                                            createdAtEpochMillis = fuliza.receivedAtEpochMillis
+                                        )
+                                    )
+                                } else {
+                                    debtDao.update(
+                                        existingDebt.copy(currentMinor = existingDebt.currentMinor + fuliza.amountMinor)
+                                    )
+                                    existingDebt.id
+                                }
+                                debtDao.insertEntry(
+                                    FinancialRecordEntry(
+                                        financialRecordId = debtId,
+                                        entryType = FinancialRecordEntry.REPAYMENT,
+                                        amountMinor = fuliza.amountMinor,
+                                        note = "Fuliza repayment confirmed by Safaricom SMS. Reference: ${fuliza.reference}",
+                                        createdAtEpochMillis = fuliza.receivedAtEpochMillis
+                                    )
+                                )
+                            }
+                        }
+                        return@withTransaction true
+                    }
 
                     val linkedReference = bank?.linkedMpesaReference
                     if (linkedReference != null) {
