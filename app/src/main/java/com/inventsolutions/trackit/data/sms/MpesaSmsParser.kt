@@ -23,16 +23,19 @@ data class ParsedMpesaTransaction(
 
 object MpesaSmsParser {
     private val header = Regex("""^\s*([A-Z0-9]{10})\s+Confirmed\.?""", RegexOption.IGNORE_CASE)
+    private val trailingReference = Regex("""M-PESA\s+ref(?:erence)?\s+([A-Z0-9]{10})""", RegexOption.IGNORE_CASE)
     private val amount = Regex("""Ksh\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
-    private val dateTime = Regex("""(\d{1,2}/\d{1,2}/\d{2})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)""", RegexOption.IGNORE_CASE)
-    private val sent = Regex("""sent\s+to\s+(.+?)\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
-    private val received = Regex("""received\s+Ksh\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+from\s+(.+?)\s+\d{4}\*{3}\d{3}\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
-    private val paid = Regex("""paid\s+to\s+(.+?)\.?\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
+    private val dateTime = Regex("""(\d{1,2}/\d{1,2}/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)""", RegexOption.IGNORE_CASE)
+    private val sent = Regex("""sent\s+to\s+(.+?)\s+on\s+\d{1,2}/\d{1,2}/\d{2,4}\s+at""", RegexOption.IGNORE_CASE)
+    private val sentPayBill = Regex("""sent\s+to\s+(.+?)\s+has\s+been\s+received\s+on\s+\d{1,2}/\d{1,2}/\d{2,4}\s+at""", RegexOption.IGNORE_CASE)
+    private val received = Regex("""received\s+Ksh\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+from\s+(.+?)\s+\d{4}\*{3}\d{3}\s+on\s+\d{1,2}/\d{1,2}/\d{2,4}\s+at""", RegexOption.IGNORE_CASE)
+    private val paid = Regex("""paid\s+to\s+(.+?)\.?\s+on\s+\d{1,2}/\d{1,2}/\d{2,4}\s+at""", RegexOption.IGNORE_CASE)
     private val airtimePurchase = Regex("""bought\s+Ksh\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+of\s+airtime\s+on\s+\d{1,2}/\d{1,2}/\d{2}\s+at""", RegexOption.IGNORE_CASE)
 
     fun parse(message: String, timeZone: TimeZone = TimeZone.getDefault()): ParsedMpesaTransaction? {
         val normalized = message.replace("\r", " ").replace("\n", " ").replace(Regex("""\s+"""), " ").trim()
-        val reference = header.find(normalized)?.groupValues?.getOrNull(1)?.uppercase(Locale.ROOT) ?: return null
+        val reference = (header.find(normalized)?.groupValues?.getOrNull(1)
+            ?: trailingReference.find(normalized)?.groupValues?.getOrNull(1))?.uppercase(Locale.ROOT) ?: return null
         val amountText = amount.find(normalized)?.groupValues?.getOrNull(1)?.replace(",", "") ?: return null
         val amountMinor = try {
             BigDecimal(amountText).movePointRight(2).longValueExact()
@@ -46,7 +49,7 @@ object MpesaSmsParser {
         val dateMatch = dateTime.find(normalized) ?: return null
         val date = parseDateTime(dateMatch.groupValues[1], dateMatch.groupValues[2], timeZone) ?: return null
 
-        val sentMatch = sent.find(normalized)
+        val sentMatch = sent.find(normalized) ?: sentPayBill.find(normalized)
         val receivedMatch = received.find(normalized)
         val paidMatch = paid.find(normalized)
         val airtimeMatch = airtimePurchase.find(normalized)
@@ -79,7 +82,8 @@ object MpesaSmsParser {
 
     private fun parseDateTime(date: String, time: String, timeZone: TimeZone): Long? {
         val input = "$date $time".uppercase(Locale.ENGLISH)
-        val formatter = SimpleDateFormat("d/M/yy h:mm a", Locale.ENGLISH).apply {
+        val datePattern = if (date.substringAfterLast("/").length == 4) "d/M/yyyy h:mm a" else "d/M/yy h:mm a"
+        val formatter = SimpleDateFormat(datePattern, Locale.ENGLISH).apply {
             isLenient = false
             this.timeZone = timeZone
         }
