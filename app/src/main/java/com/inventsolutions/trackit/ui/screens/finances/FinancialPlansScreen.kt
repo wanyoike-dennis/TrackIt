@@ -363,7 +363,7 @@ fun FinancialPlansScreen(
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = { editRecord = fulizaFacility }, modifier = Modifier.weight(1f)) {
-                                    Text("Edit facility")
+                                    Text(if (limit > 0L) "Edit facility" else "Set credit limit")
                                 }
                                 OutlinedButton(onClick = { historyRecord = fulizaFacility }, modifier = Modifier.weight(1f)) {
                                     Text("Activity history")
