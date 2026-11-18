@@ -585,7 +585,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         notes: String = "",
         savingsCategory: String = FinancialRecord.SAVINGS_GENERAL,
         contributionMethod: String = FinancialRecord.CONTRIBUTION_FLEXIBLE,
-        plannedContributionMinor: Long = 0L
+        plannedContributionMinor: Long = 0L,
+        currentMinor: Long = 0L
     ) {
         val invalidSavingsPlan = type == FinancialRecord.SAVINGS_GOAL && (
             savingsCategory.isBlank() ||
@@ -600,7 +601,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                     FinancialRecord.CONTRIBUTION_MONTHLY
                 ) && plannedContributionMinor <= 0L)
             )
-        if (type !in setOf(
+        if (currentMinor < 0L || type !in setOf(
                 FinancialRecord.DEBT_OWED_TO_ME,
                 FinancialRecord.CLIENT_RECEIVABLE,
                 FinancialRecord.DEBT_I_OWE,
@@ -626,6 +627,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                         type = type,
                         title = title.trim(),
                         targetMinor = targetMinor,
+                        currentMinor = currentMinor,
                         dueDateEpochMillis = dueDateEpochMillis,
                         notes = notes.trim(),
                         savingsCategory = if (type == FinancialRecord.SAVINGS_GOAL) savingsCategory.trim() else FinancialRecord.SAVINGS_GENERAL,
