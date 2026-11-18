@@ -68,7 +68,7 @@ object BankSmsParser {
             val stableReference = "KCB-" + sha256(normalized).take(32)
             return ParsedBankTransaction(
                 stableReference, PendingMpesaTransaction.SOURCE_KCB, amount,
-                "PesaLink sent to $name", name, date, false
+                "PesaLink sent to $name", name, date, true, "BANK"
             )
         }
 
