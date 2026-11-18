@@ -49,7 +49,7 @@ object MpesaSmsParser {
         val dateMatch = dateTime.find(normalized) ?: return null
         val date = parseDateTime(dateMatch.groupValues[1], dateMatch.groupValues[2], timeZone) ?: return null
 
-        val sentMatch = sent.find(normalized) ?: sentPayBill.find(normalized)
+        val sentMatch = sentPayBill.find(normalized) ?: sent.find(normalized)
         val receivedMatch = received.find(normalized)
         val paidMatch = paid.find(normalized)
         val airtimeMatch = airtimePurchase.find(normalized)
