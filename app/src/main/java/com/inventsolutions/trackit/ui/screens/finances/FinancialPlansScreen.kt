@@ -852,6 +852,7 @@ fun FinancialPlansScreen(
                                     Text(
                                         when (entry.entryType) {
                                             FinancialRecordEntry.REPAYMENT -> "Repayment"
+                                            FinancialRecordEntry.BORROWING -> "Fuliza borrowing"
                                             FinancialRecordEntry.COLLECTION -> "Collection"
                                             FinancialRecordEntry.CONTRIBUTION -> "Savings contribution"
                                             FinancialRecordEntry.WITHDRAWAL -> "Savings withdrawal"
