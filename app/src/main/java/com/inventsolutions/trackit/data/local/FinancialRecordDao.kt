@@ -15,6 +15,9 @@ interface FinancialRecordDao {
     @Query("SELECT * FROM financial_records WHERE id = :recordId LIMIT 1")
     suspend fun getById(recordId: Long): FinancialRecord?
 
+    @Query("SELECT * FROM financial_records WHERE type = :type AND title = :title LIMIT 1")
+    suspend fun getByTypeAndTitle(type: String, title: String): FinancialRecord?
+
     @Query("SELECT * FROM financial_record_entries ORDER BY createdAtEpochMillis DESC, id DESC")
     fun observeAllEntries(): Flow<List<FinancialRecordEntry>>
 
