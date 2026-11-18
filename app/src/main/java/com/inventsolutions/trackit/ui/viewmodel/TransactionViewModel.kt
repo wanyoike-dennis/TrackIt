@@ -580,6 +580,7 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 FinancialRecord.DEBT_OWED_TO_ME,
                 FinancialRecord.CLIENT_RECEIVABLE,
                 FinancialRecord.DEBT_I_OWE,
+                FinancialRecord.FULIZA_FACILITY,
                 FinancialRecord.SAVINGS_GOAL,
                 FinancialRecord.SAVINGS_ACCOUNT,
                 FinancialRecord.ALLOWANCE
